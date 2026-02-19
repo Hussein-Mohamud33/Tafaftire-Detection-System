@@ -1,9 +1,6 @@
 document.addEventListener('DOMContentLoaded', () => {
 
-   const API_URL =
-  window.location.hostname === "localhost"
-    ? "http://127.0.0.1:3402"
-    : "https://tafaftire-backend.onrender.com";
+   const API_URL = window.location.hostname === "localhost"? "http://127.0.0.1:3402": "https://tafaftire-backend.onrender.com";
 
 fetch(`${API_URL}/predict`, {
   method: "POST",
@@ -203,4 +200,5 @@ fetch(`${API_URL}/predict`, {
     }
 
 });
+
 
