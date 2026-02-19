@@ -4,6 +4,8 @@ import joblib
 import traceback
 import numpy as np
 import requests
+import webbrowser
+from threading import Timer
 from flask import Flask, request, jsonify
 from flask_cors import CORS
 import nltk
@@ -13,8 +15,8 @@ from nltk.stem import WordNetLemmatizer
 from bs4 import BeautifulSoup
 
 # ================= FLASK INIT =================
-app = Flask(__name__)
-CORS(app)
+app = Flask(__name__, static_folder='Front_End_Data', static_url_path='')
+CORS(app, resources={r"/*": {"origins": ["https://tafaftire.netlify.app", "http://localhost:3402", "http://127.0.0.1:3402"]}})
 
 # ================= NLTK SETUP =================
 for pkg in ["punkt", "stopwords", "wordnet"]:
@@ -72,7 +74,7 @@ except Exception as e:
 # ================= ROUTES =================
 @app.route("/", methods=["GET"])
 def home():
-    return jsonify({"status": "OK"})
+    return app.send_static_file('Index.html')
 
 @app.route("/predict", methods=["POST"])
 def predict():
@@ -148,4 +150,8 @@ def contact():
 
 # ================= RUN =================
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=3402, debug=False)
+    # Render wuxuu bixiyaa port gaar ah oo lagu magacaabo PORT
+    port = int(os.environ.get("PORT", 3402))
+    
+    # Maadaama uu hadda Online yahay, uma baahna webbrowser.open
+    app.run(host="0.0.0.0", port=port, debug=False)
