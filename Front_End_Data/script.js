@@ -1,6 +1,20 @@
 document.addEventListener('DOMContentLoaded', () => {
 
-    const API_BASE_URL = 'https://tafaftire-detection-system.onrender.com';
+   const API_URL =
+  window.location.hostname === "localhost"
+    ? "http://127.0.0.1:3402"
+    : "https://tafaftire-backend.onrender.com";
+
+fetch(`${API_URL}/predict`, {
+  method: "POST",
+  headers: {
+    "Content-Type": "application/json"
+  },
+  body: JSON.stringify({ text: userInput })
+})
+.then(res => res.json())
+.then(data => console.log(data))
+.catch(err => console.error(err));
 
     const predictBtn = document.getElementById("predictBtn");
     const submitBtn = document.querySelector('.submit-btn');
@@ -189,3 +203,4 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
 });
+
