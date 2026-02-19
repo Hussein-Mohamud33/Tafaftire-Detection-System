@@ -126,20 +126,20 @@ document.addEventListener('DOMContentLoaded', () => {
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ text: data })
             })
-            .then(res => res.json())
-            .then(res => {
-                if (res.error) {
-                    resultDiv.innerText = "❌ " + res.error;
-                } else {
-                    const isReal = res.prediction.includes("REAL");
-                    resultDiv.innerText = isReal ? "WAR RUN AH" : "WAR BEEN AH";
-                    resultDiv.style.color = isReal ? "#2ecc71" : "#e74c3c";
-                    confidenceDiv.innerText = "Kalsoonida: " + res.confidence;
-                }
-            })
-            .catch(() => {
-                resultDiv.innerText = "❌ Connection Error";
-            });
+                .then(res => res.json())
+                .then(res => {
+                    if (res.error) {
+                        resultDiv.innerText = "❌ " + res.error;
+                    } else {
+                        const isReal = res.prediction.includes("REAL");
+                        resultDiv.innerText = isReal ? "WAR RUN AH" : "WAR BEEN AH";
+                        resultDiv.style.color = isReal ? "#2ecc71" : "#e74c3c";
+                        confidenceDiv.innerText = "Kalsoonida: " + res.confidence;
+                    }
+                })
+                .catch(() => {
+                    resultDiv.innerText = "❌ Connection Error";
+                });
         });
     }
 
@@ -171,22 +171,21 @@ document.addEventListener('DOMContentLoaded', () => {
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ name, email, message })
             })
-            .then(res => res.json())
-            .then(res => {
-                if (res.status === "Success") {
-                    alert(res.message);
-                    document.getElementById("contactName").value = "";
-                    document.getElementById("contactEmail").value = "";
-                    document.getElementById("contactMessage").value = "";
-                } else {
-                    alert("Error: " + res.error);
-                }
-            })
-            .catch(() => {
-                alert("Connection Error");
-            });
+                .then(res => res.json())
+                .then(res => {
+                    if (res.status === "Success") {
+                        alert(res.message);
+                        document.getElementById("contactName").value = "";
+                        document.getElementById("contactEmail").value = "";
+                        document.getElementById("contactMessage").value = "";
+                    } else {
+                        alert("Error: " + res.error);
+                    }
+                })
+                .catch(() => {
+                    alert("Connection Error");
+                });
         });
     }
 
 });
-
