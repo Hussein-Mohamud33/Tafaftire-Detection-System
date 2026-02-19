@@ -1,6 +1,6 @@
 document.addEventListener('DOMContentLoaded', () => {
 
-    const API_BASE_URL = 'http://127.0.0.1:3402';
+    const API_BASE_URL = 'https://tafaftire-detection-system.onrender.com';
 
     const predictBtn = document.getElementById("predictBtn");
     const submitBtn = document.querySelector('.submit-btn');
@@ -189,3 +189,4 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
 });
+
