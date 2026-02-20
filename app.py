@@ -17,7 +17,6 @@ app = Flask(__name__)
 CORS(app)
 
 # ================= NLTK SETUP =================
-# Offline path (Render may need this)
 NLTK_DATA_DIR = os.path.join(os.getcwd(), "nltk_data")
 nltk.data.path.append(NLTK_DATA_DIR)
 
@@ -101,18 +100,27 @@ def predict():
         if not data:
             return jsonify({"error": "JSON data not found"}), 400
 
-        content = data.get("text") or data.get("data")
+        input_type = data.get("type", "text")
+        content = data.get("data", "")
+
         if not content:
-            return jsonify({"error": "No text provided"}), 400
+            return jsonify({"error": "No text or URL provided"}), 400
 
         content = str(content).strip()
 
-        if is_url(content):
+        if input_type == "url":
+            if not is_url(content):
+                return jsonify({"error": "Invalid URL"}), 400
             content = extract_text_from_url(content)
             if not content:
                 return jsonify({"error": "Cannot extract text from URL"}), 400
 
+        # Preprocess text
         clean_input = preprocess_text(content)
+        if not clean_input:
+            return jsonify({"error": "Processed text is empty"}), 400
+
+        # Vectorize & predict
         X = vectorizer.transform([clean_input])
         expected_features = model.coef_.shape[1]
 
@@ -140,9 +148,9 @@ def predict():
 
         return jsonify({"prediction": result, "confidence": f"{confidence}%"})
 
-    except Exception:
+    except Exception as e:
         traceback.print_exc()
-        return jsonify({"error": "Server error occurred"}), 500
+        return jsonify({"error": f"Server error occurred: {str(e)}"}), 500
 
 @app.route("/contact", methods=["POST"])
 def contact():
