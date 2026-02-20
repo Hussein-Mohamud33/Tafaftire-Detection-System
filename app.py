@@ -6,36 +6,38 @@ import numpy as np
 import requests
 from flask import Flask, request, jsonify
 from flask_cors import CORS
+from bs4 import BeautifulSoup
 import nltk
 from nltk.corpus import stopwords
 from nltk.tokenize import word_tokenize
 from nltk.stem import WordNetLemmatizer
-from bs4 import BeautifulSoup
 
 # ================= FLASK INIT =================
 app = Flask(__name__)
 CORS(app)
 
 # ================= NLTK SETUP =================
+# Offline path (Render may need this)
+NLTK_DATA_DIR = os.path.join(os.getcwd(), "nltk_data")
+nltk.data.path.append(NLTK_DATA_DIR)
+
 for pkg in ["punkt", "stopwords", "wordnet"]:
     try:
         nltk.data.find(pkg)
     except LookupError:
-        nltk.download(pkg)
+        nltk.download(pkg, download_dir=NLTK_DATA_DIR)
 
 stop_words = set(stopwords.words("english"))
 lemmatizer = WordNetLemmatizer()
 
 # ================= HELPERS =================
 def sanitize_text(text):
-    """Remove HTML tags and strip text."""
     if not isinstance(text, str):
         return ""
     text = BeautifulSoup(text, "html.parser").get_text()
     return text.strip()
 
 def preprocess_text(text):
-    """Lowercase, remove non-alphabetic, tokenize, remove stopwords, lemmatize."""
     text = text.lower()
     text = re.sub(r"[^a-zA-Z ]", " ", text)
     tokens = word_tokenize(text)
@@ -43,11 +45,9 @@ def preprocess_text(text):
     return " ".join(tokens)
 
 def is_url(text):
-    """Detect if input is URL."""
     return bool(re.match(r'^(http|https)://', text.strip()))
 
 def extract_text_from_url(url):
-    """Ka soo saar qoraalka bogga webka URL"""
     try:
         resp = requests.get(url, timeout=5)
         if resp.status_code != 200:
@@ -55,57 +55,64 @@ def extract_text_from_url(url):
         soup = BeautifulSoup(resp.content, "html.parser")
         for script in soup(["script", "style"]):
             script.decompose()
-        text = soup.get_text(separator=" ")
-        return text.strip()
+        return soup.get_text(separator=" ").strip()
     except Exception:
         return ""
 
 # ================= LOAD MODELS =================
-try:
-     
-    BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-    MODEL_PATH = os.path.join(BASE_DIR, "saved_model", "svm_high_confidence.pkl")
-    VECTORIZER_PATH = os.path.join(BASE_DIR, "saved_model", "fake_real_TF_IDF_vectorizer.pkl")
-    ENCODER_PATH = os.path.join(BASE_DIR, "saved_model", "fake_real_label_encoder.pkl")
+model, vectorizer, label_encoder = None, None, None
+BASE_DIR = os.getcwd()
+MODEL_FOLDER = os.path.join(BASE_DIR, "saved_model")
 
-    model = joblib.load(MODEL_PATH)
-    vectorizer = joblib.load(VECTORIZER_PATH)
-    label_encoder = joblib.load(ENCODER_PATH)
+def load_models():
+    global model, vectorizer, label_encoder
+    try:
+        MODEL_PATH = os.path.join(MODEL_FOLDER, "svm_high_confidence.pkl")
+        VECTORIZER_PATH = os.path.join(MODEL_FOLDER, "fake_real_TF_IDF_vectorizer.pkl")
+        ENCODER_PATH = os.path.join(MODEL_FOLDER, "fake_real_label_encoder.pkl")
 
-    print("✅ Models loaded")
+        if not all(os.path.exists(p) for p in [MODEL_PATH, VECTORIZER_PATH, ENCODER_PATH]):
+            print("❌ Model files not found. Predictions will be disabled.")
+            return
 
-except Exception as e:
-    print("❌ Model loading failed:", e)
-    traceback.print_exc()
-    exit(1)
+        model = joblib.load(MODEL_PATH)
+        vectorizer = joblib.load(VECTORIZER_PATH)
+        label_encoder = joblib.load(ENCODER_PATH)
+        print("✅ Models loaded successfully")
+
+    except Exception as e:
+        print("❌ Failed to load models:", e)
+        traceback.print_exc()
+
+load_models()
+
 # ================= ROUTES =================
 @app.route("/", methods=["GET"])
 def home():
-    return jsonify({"status": "OK", "message": "Fake News Detection API is running"})
+    return jsonify({"status": "OK", "message": "Fake News Detection API running"})
 
 @app.route("/predict", methods=["POST"])
 def predict():
+    if model is None:
+        return jsonify({"error": "Model not loaded"}), 503
+
     try:
         data = request.get_json(silent=True)
         if not data:
-            return jsonify({"error": "JSON lama helin"}), 400
+            return jsonify({"error": "JSON data not found"}), 400
 
         content = data.get("text") or data.get("data")
         if not content:
-            return jsonify({"error": "Qoraal lama soo dirin"}), 400
+            return jsonify({"error": "No text provided"}), 400
 
         content = str(content).strip()
 
-        # Haddii input uu URL yahay → ka soo saar text
         if is_url(content):
             content = extract_text_from_url(content)
             if not content:
-                return jsonify({"error": "Qoraalka laga helay URL-ka lama heli karo"}), 400
+                return jsonify({"error": "Cannot extract text from URL"}), 400
 
-        # ================= Preprocess =================
         clean_input = preprocess_text(content)
-
-        # Vectorize & Predict
         X = vectorizer.transform([clean_input])
         expected_features = model.coef_.shape[1]
 
@@ -135,34 +142,34 @@ def predict():
 
     except Exception:
         traceback.print_exc()
-        return jsonify({"error": "Server error ayaa dhacay"}), 500
+        return jsonify({"error": "Server error occurred"}), 500
 
 @app.route("/contact", methods=["POST"])
 def contact():
     try:
         data = request.get_json(silent=True)
         if not data:
-            return jsonify({"error": "Data lama helin"}), 400
+            return jsonify({"error": "Data not found"}), 400
 
         name = data.get("name")
         email = data.get("email")
         message = data.get("message")
 
         if not all([name, email, message]):
-            return jsonify({"error": "Fadlan buuxi dhamaan meelaha banaan"}), 400
+            return jsonify({"error": "Please fill all fields"}), 400
 
-        # Log to file
         with open("contacts.txt", "a", encoding="utf-8") as f:
             f.write(f"Name: {name}\nEmail: {email}\nMessage: {message}\n---\n")
 
         print(f"[*] New message from {name} ({email})")
-        return jsonify({"status": "Success", "message": "Fariintaada waa nala soo gaarsiiyey!"})
+        return jsonify({"status": "Success", "message": "Message received!"})
 
     except Exception:
         traceback.print_exc()
-        return jsonify({"error": "Server error ayaa dhacay"}), 500
+        return jsonify({"error": "Server error occurred"}), 500
 
 # ================= RUN SERVER =================
 if __name__ == "__main__":
-    print("[*] Flask server starting...")
-    app.run(host="0.0.0.0", port=3402, debug=False)
+    port = int(os.environ.get("PORT", 3402))
+    print(f"[*] Flask server starting on port {port}...")
+    app.run(host="0.0.0.0", port=port, debug=False)
