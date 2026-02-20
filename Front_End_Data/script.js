@@ -1,20 +1,13 @@
 document.addEventListener('DOMContentLoaded', () => {
 
-   const API_URL = window.location.hostname === "localhost"? "http://127.0.0.1:3402": "https://tafaftire-backend.onrender.com";
+    // ================= API URL =================
+    const API_URL = window.location.hostname === "localhost"
+        ? "http://127.0.0.1:3402"
+        : "https://tafaftire-backend.onrender.com";
 
-fetch(`${API_URL}/predict`, {
-  method: "POST",
-  headers: {
-    "Content-Type": "application/json"
-  },
-  body: JSON.stringify({ text: userInput })
-})
-.then(res => res.json())
-.then(data => console.log(data))
-.catch(err => console.error(err));
-
+    // ================= ELEMENTS =================
     const predictBtn = document.getElementById("predictBtn");
-    const submitBtn = document.querySelector('.submit-btn');
+    const submitBtn = document.querySelector(".submit-btn");
     const refreshBtn = document.getElementById("refreshBtn");
 
     const resultDiv = document.getElementById("result");
@@ -25,37 +18,34 @@ fetch(`${API_URL}/predict`, {
     const textInput = document.getElementById("textInput");
     const urlInput = document.getElementById("urlInput");
 
-    const navLinks = document.querySelectorAll('.nav-links a');
-    const sections = document.querySelectorAll('section');
-    const hamburger = document.querySelector('.hamburger');
-    const navMenu = document.querySelector('.nav-links');
+    const navLinks = document.querySelectorAll(".nav-links a");
+    const sections = document.querySelectorAll("section");
+    const hamburger = document.querySelector(".hamburger");
+    const navMenu = document.querySelector(".nav-links");
 
     // ================= HEALTH CHECK =================
-    fetch(`${API_BASE_URL}/`)
+    fetch(`${API_URL}/`)
         .then(res => res.json())
-        .then(data => {
-            if (data.status === "OK") {
-                console.log("✅ Server Online");
-            }
-        })
-        .catch(() => {
-            console.warn("⚠️ Server ma shaqeynayo.");
-        });
+        .then(data => console.log("Server:", data))
+        .catch(() => console.warn("⚠️ Server ma shaqeynayo."));
 
     // ================= NAVIGATION =================
     function showSection(id) {
         sections.forEach(sec => sec.style.display = "none");
+
         const target = document.getElementById(id);
         if (target) {
             target.style.display = "block";
             window.scrollTo({ top: 0, behavior: "smooth" });
         }
+
         navLinks.forEach(link => {
             link.classList.remove("active");
             if (link.getAttribute("href") === "#" + id) {
                 link.classList.add("active");
             }
         });
+
         if (navMenu) navMenu.classList.remove("active");
     }
 
@@ -102,11 +92,11 @@ fetch(`${API_URL}/predict`, {
         predictBtn.addEventListener("click", () => {
 
             const selected = document.querySelector('input[name="inputType"]:checked');
-            const inputType = selected.value;
+            if (!selected) return;
 
             let data = "";
 
-            if (inputType === "text") {
+            if (selected.value === "text") {
                 data = newsText.value.trim();
 
                 if (data.length < 20) {
@@ -131,30 +121,29 @@ fetch(`${API_URL}/predict`, {
             resultDiv.innerText = "⏳ Analyzing...";
             confidenceDiv.innerText = "";
 
-            // ✅ JSON FIXED HERE
-            fetch(`${API_BASE_URL}/predict`, {
+            fetch(`${API_URL}/predict`, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ text: data })
             })
-                .then(res => res.json())
-                .then(res => {
-                    if (res.error) {
-                        resultDiv.innerText = "❌ " + res.error;
-                    } else {
-                        const isReal = res.prediction.includes("REAL");
-                        resultDiv.innerText = isReal ? "WAR RUN AH" : "WAR BEEN AH";
-                        resultDiv.style.color = isReal ? "#2ecc71" : "#e74c3c";
-                        confidenceDiv.innerText = "Kalsoonida: " + res.confidence;
-                    }
-                })
-                .catch(() => {
-                    resultDiv.innerText = "❌ Connection Error";
-                });
+            .then(res => res.json())
+            .then(res => {
+                if (res.error) {
+                    resultDiv.innerText = "❌ " + res.error;
+                } else {
+                    const isReal = res.prediction.includes("REAL");
+                    resultDiv.innerText = isReal ? "WAR RUN AH" : "WAR BEEN AH";
+                    resultDiv.style.color = isReal ? "#2ecc71" : "#e74c3c";
+                    confidenceDiv.innerText = "Kalsoonida: " + res.confidence;
+                }
+            })
+            .catch(() => {
+                resultDiv.innerText = "❌ Connection Error";
+            });
         });
     }
 
-    // ================= RESET BUTTON =================
+    // ================= RESET =================
     if (refreshBtn) {
         refreshBtn.addEventListener("click", () => {
             newsText.value = "";
@@ -177,28 +166,26 @@ fetch(`${API_URL}/predict`, {
                 return;
             }
 
-            fetch(`${API_BASE_URL}/contact`, {
+            fetch(`${API_URL}/contact`, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ name, email, message })
             })
-                .then(res => res.json())
-                .then(res => {
-                    if (res.status === "Success") {
-                        alert(res.message);
-                        document.getElementById("contactName").value = "";
-                        document.getElementById("contactEmail").value = "";
-                        document.getElementById("contactMessage").value = "";
-                    } else {
-                        alert("Error: " + res.error);
-                    }
-                })
-                .catch(() => {
-                    alert("Connection Error");
-                });
+            .then(res => res.json())
+            .then(res => {
+                if (res.status === "Success") {
+                    alert(res.message);
+                    document.getElementById("contactName").value = "";
+                    document.getElementById("contactEmail").value = "";
+                    document.getElementById("contactMessage").value = "";
+                } else {
+                    alert("Error: " + res.error);
+                }
+            })
+            .catch(() => {
+                alert("Connection Error");
+            });
         });
     }
 
 });
-
-
