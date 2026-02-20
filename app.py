@@ -20,7 +20,6 @@ CORS(app)
 NLTK_DATA_DIR = os.path.join(os.getcwd(), "nltk_data")
 nltk.data.path.append(NLTK_DATA_DIR)
 
-# Only download locally if not present
 for pkg in ["punkt", "stopwords", "wordnet"]:
     try:
         nltk.data.find(pkg)
@@ -37,28 +36,30 @@ def sanitize_text(text):
     text = BeautifulSoup(text, "html.parser").get_text()
     return text.strip()
 
-def preprocess_text(text):
+def preprocess_text(text, max_words=1000):
     text = text.lower()
     text = re.sub(r"[^a-zA-Z ]", " ", text)
     try:
         tokens = word_tokenize(text)
     except LookupError:
-        tokens = text.split()  # fallback if punkt missing
+        tokens = text.split()
     tokens = [lemmatizer.lemmatize(w) for w in tokens if w not in stop_words and len(w) > 2]
-    return " ".join(tokens)
+    # Limit number of tokens to max_words
+    return " ".join(tokens[:max_words])
 
 def is_url(text):
     return bool(re.match(r'^(http|https)://', text.strip()))
 
-def extract_text_from_url(url):
+def extract_text_from_url(url, max_chars=5000):
     try:
-        resp = requests.get(url, timeout=5)
+        resp = requests.get(url, timeout=3)  # 3 sec timeout
         if resp.status_code != 200:
             return ""
         soup = BeautifulSoup(resp.content, "html.parser")
         for script in soup(["script", "style"]):
             script.decompose()
-        return soup.get_text(separator=" ").strip()
+        text = soup.get_text(separator=" ").strip()
+        return text[:max_chars]  # truncate to max_chars
     except Exception:
         return ""
 
@@ -75,7 +76,7 @@ def load_models():
         ENCODER_PATH = os.path.join(MODEL_FOLDER, "fake_real_label_encoder.pkl")
 
         if not all(os.path.exists(p) for p in [MODEL_PATH, VECTORIZER_PATH, ENCODER_PATH]):
-            print("❌ Model files not found. Predictions will be disabled.")
+            print("❌ Model files not found. Predictions disabled.")
             return
 
         model = joblib.load(MODEL_PATH)
@@ -106,7 +107,6 @@ def predict():
 
         input_type = data.get("type", "text")
         content = data.get("data", "")
-
         if not content:
             return jsonify({"error": "No text or URL provided"}), 400
 
@@ -115,14 +115,18 @@ def predict():
         if input_type == "url":
             if not is_url(content):
                 return jsonify({"error": "Invalid URL"}), 400
-            content = extract_text_from_url(content)
+            content = extract_text_from_url(content, max_chars=5000)
             if not content:
                 return jsonify({"error": "Cannot extract text from URL"}), 400
+        else:
+            # Limit text input size to 1000 words
+            content = " ".join(content.split()[:1000])
 
         clean_input = preprocess_text(content)
         if not clean_input:
             return jsonify({"error": "Processed text is empty"}), 400
 
+        # Vectorize & predict
         X = vectorizer.transform([clean_input])
         expected_features = model.coef_.shape[1]
 
@@ -164,7 +168,6 @@ def contact():
         name = data.get("name")
         email = data.get("email")
         message = data.get("message")
-
         if not all([name, email, message]):
             return jsonify({"error": "Please fill all fields"}), 400
 
