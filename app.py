@@ -16,10 +16,11 @@ from nltk.stem import WordNetLemmatizer
 app = Flask(__name__)
 CORS(app)
 
-# ================= NLTK SETUP =================
+# ================= NLTK OFFLINE SETUP =================
 NLTK_DATA_DIR = os.path.join(os.getcwd(), "nltk_data")
 nltk.data.path.append(NLTK_DATA_DIR)
 
+# Only download locally if not present
 for pkg in ["punkt", "stopwords", "wordnet"]:
     try:
         nltk.data.find(pkg)
@@ -39,7 +40,10 @@ def sanitize_text(text):
 def preprocess_text(text):
     text = text.lower()
     text = re.sub(r"[^a-zA-Z ]", " ", text)
-    tokens = word_tokenize(text)
+    try:
+        tokens = word_tokenize(text)
+    except LookupError:
+        tokens = text.split()  # fallback if punkt missing
     tokens = [lemmatizer.lemmatize(w) for w in tokens if w not in stop_words and len(w) > 2]
     return " ".join(tokens)
 
@@ -115,12 +119,10 @@ def predict():
             if not content:
                 return jsonify({"error": "Cannot extract text from URL"}), 400
 
-        # Preprocess text
         clean_input = preprocess_text(content)
         if not clean_input:
             return jsonify({"error": "Processed text is empty"}), 400
 
-        # Vectorize & predict
         X = vectorizer.transform([clean_input])
         expected_features = model.coef_.shape[1]
 
