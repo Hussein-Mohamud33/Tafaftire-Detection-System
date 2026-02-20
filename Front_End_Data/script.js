@@ -12,6 +12,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const resultDiv = document.getElementById("result");
     const confidenceDiv = document.getElementById("confidence");
+
     const newsText = document.getElementById("newsText");
     const newsURL = document.getElementById("newsURL");
 
@@ -25,8 +26,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // ================= HEALTH CHECK =================
     fetch(`${API_URL}/`)
-        .then(res => res.json())
-        .then(data => console.log("Server:", data))
+        .then(res => {
+            if (!res.ok) throw new Error("Server error");
+            return res.json();
+        })
+        .then(data => console.log("✅ Server:", data))
         .catch(() => console.warn("⚠️ Server ma shaqeynayo."));
 
     // ================= NAVIGATION =================
@@ -57,7 +61,7 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     });
 
-    if (hamburger) {
+    if (hamburger && navMenu) {
         hamburger.addEventListener("click", () => {
             navMenu.classList.toggle("active");
         });
@@ -68,6 +72,8 @@ document.addEventListener('DOMContentLoaded', () => {
     // ================= INPUT TOGGLE =================
     document.querySelectorAll('input[name="inputType"]').forEach(radio => {
         radio.addEventListener("change", () => {
+            if (!textInput || !urlInput) return;
+
             if (radio.value === "text") {
                 textInput.classList.remove("hidden");
                 urlInput.classList.add("hidden");
@@ -89,7 +95,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // ================= PREDICT =================
     if (predictBtn) {
-        predictBtn.addEventListener("click", () => {
+        predictBtn.addEventListener("click", async () => {
 
             const selected = document.querySelector('input[name="inputType"]:checked');
             if (!selected) return;
@@ -97,6 +103,9 @@ document.addEventListener('DOMContentLoaded', () => {
             let data = "";
 
             if (selected.value === "text") {
+
+                if (!newsText) return;
+
                 data = newsText.value.trim();
 
                 if (data.length < 20) {
@@ -110,6 +119,9 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
 
             } else {
+
+                if (!newsURL) return;
+
                 data = newsURL.value.trim();
 
                 if (!isURL(data)) {
@@ -121,33 +133,50 @@ document.addEventListener('DOMContentLoaded', () => {
             resultDiv.innerText = "⏳ Analyzing...";
             confidenceDiv.innerText = "";
 
-            fetch(`${API_URL}/predict`, {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ text: data })
-            })
-            .then(res => res.json())
-            .then(res => {
+            try {
+                const response = await fetch(`${API_URL}/predict`, {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ text: data })
+                });
+
+                if (!response.ok) {
+                    throw new Error("Server response error");
+                }
+
+                const res = await response.json();
+
                 if (res.error) {
                     resultDiv.innerText = "❌ " + res.error;
-                } else {
-                    const isReal = res.prediction.includes("REAL");
-                    resultDiv.innerText = isReal ? "WAR RUN AH" : "WAR BEEN AH";
-                    resultDiv.style.color = isReal ? "#2ecc71" : "#e74c3c";
-                    confidenceDiv.innerText = "Kalsoonida: " + res.confidence;
+                    return;
                 }
-            })
-            .catch(() => {
+
+                if (!res.prediction) {
+                    resultDiv.innerText = "❌ Invalid server response";
+                    return;
+                }
+
+                const isReal = res.prediction.toUpperCase().includes("REAL");
+
+                resultDiv.innerText = isReal ? "WAR RUN AH" : "WAR BEEN AH";
+                resultDiv.style.color = isReal ? "#2ecc71" : "#e74c3c";
+
+                confidenceDiv.innerText = "Kalsoonida: " + (res.confidence || "N/A");
+
+            } catch (error) {
                 resultDiv.innerText = "❌ Connection Error";
-            });
+                console.error(error);
+            }
         });
     }
 
     // ================= RESET =================
     if (refreshBtn) {
         refreshBtn.addEventListener("click", () => {
-            newsText.value = "";
-            newsURL.value = "";
+
+            if (newsText) newsText.value = "";
+            if (newsURL) newsURL.value = "";
+
             resultDiv.innerText = "";
             confidenceDiv.innerText = "";
         });
@@ -155,36 +184,49 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // ================= CONTACT =================
     if (submitBtn) {
-        submitBtn.addEventListener("click", () => {
+        submitBtn.addEventListener("click", async () => {
 
-            const name = document.getElementById("contactName").value.trim();
-            const email = document.getElementById("contactEmail").value.trim();
-            const message = document.getElementById("contactMessage").value.trim();
+            const nameEl = document.getElementById("contactName");
+            const emailEl = document.getElementById("contactEmail");
+            const messageEl = document.getElementById("contactMessage");
+
+            if (!nameEl || !emailEl || !messageEl) return;
+
+            const name = nameEl.value.trim();
+            const email = emailEl.value.trim();
+            const message = messageEl.value.trim();
 
             if (!name || !email || !message) {
                 alert("Fadlan buuxi meelaha banaan.");
                 return;
             }
 
-            fetch(`${API_URL}/contact`, {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ name, email, message })
-            })
-            .then(res => res.json())
-            .then(res => {
+            try {
+                const response = await fetch(`${API_URL}/contact`, {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ name, email, message })
+                });
+
+                if (!response.ok) {
+                    throw new Error("Server error");
+                }
+
+                const res = await response.json();
+
                 if (res.status === "Success") {
                     alert(res.message);
-                    document.getElementById("contactName").value = "";
-                    document.getElementById("contactEmail").value = "";
-                    document.getElementById("contactMessage").value = "";
+                    nameEl.value = "";
+                    emailEl.value = "";
+                    messageEl.value = "";
                 } else {
-                    alert("Error: " + res.error);
+                    alert("Error: " + (res.error || "Unknown error"));
                 }
-            })
-            .catch(() => {
+
+            } catch (error) {
                 alert("Connection Error");
-            });
+                console.error(error);
+            }
         });
     }
 
