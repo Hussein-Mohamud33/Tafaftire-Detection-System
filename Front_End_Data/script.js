@@ -2,7 +2,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // ----------------------------
     // 0. CONFIG
     // ----------------------------
-    const API_BASE_URL = 'http://127.0.0.1:3402';
+    const API_BASE_URL = 'https://tafaftire-detection-system.onrender.com';
 
     // Buttons
     const predictBtn = document.getElementById("predictBtn");
@@ -264,3 +264,4 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 });
+
