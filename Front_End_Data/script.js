@@ -1,9 +1,7 @@
 document.addEventListener('DOMContentLoaded', () => {
 
     // ================= API URL =================
-    const API_URL = window.location.hostname === "localhost"
-        ? "http://127.0.0.1:3402"
-        : "https://tafaftire-backend.onrender.com";
+    const API_URL = "https://tafaftire-detection-system.onrender.com";
 
     // ================= ELEMENTS =================
     const predictBtn = document.getElementById("predictBtn");
@@ -31,7 +29,7 @@ document.addEventListener('DOMContentLoaded', () => {
             return res.json();
         })
         .then(data => console.log("✅ Server:", data))
-        .catch(() => console.warn("⚠️ Server ma shaqeynayo."));
+        .catch(err => console.warn("⚠️ Server ma shaqeynayo.", err));
 
     // ================= NAVIGATION =================
     function showSection(id) {
@@ -45,16 +43,14 @@ document.addEventListener('DOMContentLoaded', () => {
 
         navLinks.forEach(link => {
             link.classList.remove("active");
-            if (link.getAttribute("href") === "#" + id) {
-                link.classList.add("active");
-            }
+            if (link.getAttribute("href") === "#" + id) link.classList.add("active");
         });
 
         if (navMenu) navMenu.classList.remove("active");
     }
 
     navLinks.forEach(link => {
-        link.addEventListener("click", (e) => {
+        link.addEventListener("click", e => {
             e.preventDefault();
             const id = link.getAttribute("href").substring(1);
             showSection(id);
@@ -62,9 +58,7 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     if (hamburger && navMenu) {
-        hamburger.addEventListener("click", () => {
-            navMenu.classList.toggle("active");
-        });
+        hamburger.addEventListener("click", () => navMenu.classList.toggle("active"));
     }
 
     showSection("home");
@@ -73,7 +67,6 @@ document.addEventListener('DOMContentLoaded', () => {
     document.querySelectorAll('input[name="inputType"]').forEach(radio => {
         radio.addEventListener("change", () => {
             if (!textInput || !urlInput) return;
-
             if (radio.value === "text") {
                 textInput.classList.remove("hidden");
                 urlInput.classList.add("hidden");
@@ -88,7 +81,6 @@ document.addEventListener('DOMContentLoaded', () => {
     function isURL(text) {
         return /^(https?:\/\/)/i.test(text.trim());
     }
-
     function containsLink(text) {
         return /(https?:\/\/[^\s]+|www\.[^\s]+)/i.test(text);
     }
@@ -100,30 +92,18 @@ document.addEventListener('DOMContentLoaded', () => {
             const selected = document.querySelector('input[name="inputType"]:checked');
             if (!selected) return;
 
-            let data = "";
+            let data = selected.value === "text" ? (newsText?.value.trim() || "") : (newsURL?.value.trim() || "");
 
             if (selected.value === "text") {
-
-                if (!newsText) return;
-
-                data = newsText.value.trim();
-
                 if (data.length < 20) {
                     resultDiv.innerText = "❌ Qoraal aad u gaaban.";
                     return;
                 }
-
                 if (containsLink(data)) {
                     resultDiv.innerText = "❌ Text mode laguma ogola link.";
                     return;
                 }
-
             } else {
-
-                if (!newsURL) return;
-
-                data = newsURL.value.trim();
-
                 if (!isURL(data)) {
                     resultDiv.innerText = "❌ URL sax ah geli.";
                     return;
@@ -140,32 +120,21 @@ document.addEventListener('DOMContentLoaded', () => {
                     body: JSON.stringify({ text: data })
                 });
 
-                if (!response.ok) {
-                    throw new Error("Server response error");
-                }
+                if (!response.ok) throw new Error("Server response error");
 
                 const res = await response.json();
 
-                if (res.error) {
-                    resultDiv.innerText = "❌ " + res.error;
-                    return;
+                if (res.error) resultDiv.innerText = "❌ " + res.error;
+                else {
+                    const isReal = res.prediction.toUpperCase().includes("REAL");
+                    resultDiv.innerText = isReal ? "WAR RUN AH" : "WAR BEEN AH";
+                    resultDiv.style.color = isReal ? "#2ecc71" : "#e74c3c";
+                    confidenceDiv.innerText = "Kalsoonida: " + (res.confidence || "N/A");
                 }
 
-                if (!res.prediction) {
-                    resultDiv.innerText = "❌ Invalid server response";
-                    return;
-                }
-
-                const isReal = res.prediction.toUpperCase().includes("REAL");
-
-                resultDiv.innerText = isReal ? "WAR RUN AH" : "WAR BEEN AH";
-                resultDiv.style.color = isReal ? "#2ecc71" : "#e74c3c";
-
-                confidenceDiv.innerText = "Kalsoonida: " + (res.confidence || "N/A");
-
-            } catch (error) {
+            } catch (err) {
                 resultDiv.innerText = "❌ Connection Error";
-                console.error(error);
+                console.error(err);
             }
         });
     }
@@ -173,10 +142,8 @@ document.addEventListener('DOMContentLoaded', () => {
     // ================= RESET =================
     if (refreshBtn) {
         refreshBtn.addEventListener("click", () => {
-
             if (newsText) newsText.value = "";
             if (newsURL) newsURL.value = "";
-
             resultDiv.innerText = "";
             confidenceDiv.innerText = "";
         });
@@ -185,16 +152,13 @@ document.addEventListener('DOMContentLoaded', () => {
     // ================= CONTACT =================
     if (submitBtn) {
         submitBtn.addEventListener("click", async () => {
-
             const nameEl = document.getElementById("contactName");
             const emailEl = document.getElementById("contactEmail");
             const messageEl = document.getElementById("contactMessage");
 
-            if (!nameEl || !emailEl || !messageEl) return;
-
-            const name = nameEl.value.trim();
-            const email = emailEl.value.trim();
-            const message = messageEl.value.trim();
+            const name = nameEl?.value.trim() || "";
+            const email = emailEl?.value.trim() || "";
+            const message = messageEl?.value.trim() || "";
 
             if (!name || !email || !message) {
                 alert("Fadlan buuxi meelaha banaan.");
@@ -208,9 +172,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     body: JSON.stringify({ name, email, message })
                 });
 
-                if (!response.ok) {
-                    throw new Error("Server error");
-                }
+                if (!response.ok) throw new Error("Server error");
 
                 const res = await response.json();
 
@@ -224,7 +186,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
 
             } catch (error) {
-                alert("Connection Error");
+                alert("❌ Connection Error");
                 console.error(error);
             }
         });
