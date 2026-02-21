@@ -130,7 +130,10 @@ def load_resources_in_background():
         print("[*] Starting resource loading in background...")
         # 1. NLTK Quick Setup
         for pkg in ["punkt", "punkt_tab", "stopwords", "wordnet"]:
-            nltk.download(pkg, quiet=True)
+            try:
+                nltk.download(pkg, quiet=True)
+            except Exception:
+                pass
         
         from nltk.corpus import stopwords
         from nltk.stem import WordNetLemmatizer
@@ -145,27 +148,47 @@ def load_resources_in_background():
         stop_words.update(somali_stopwords)
         lemmatizer = WordNetLemmatizer()
 
-        # 2. Models Loading
+        # 2. Models Loading (Multi-path search)
         BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-        models_dir = os.path.join(BASE_DIR, "saved_model")
+        possible_paths = [
+            os.path.join(BASE_DIR, "saved_model"),
+            os.path.join(BASE_DIR, "Saved_model"),
+            os.path.join(os.getcwd(), "saved_model"),
+            os.path.join(os.getcwd(), "Saved_model")
+        ]
         
-        # Check case sensitivity fallback
-        if not os.path.exists(models_dir):
-            models_dir = os.path.join(BASE_DIR, "Saved_model")
+        models_dir = None
+        for path in possible_paths:
+            if os.path.exists(path) and os.path.isdir(path):
+                models_dir = path
+                break
 
-        if os.path.exists(models_dir):
-            model = joblib.load(os.path.join(models_dir, "svm_high_confidence.pkl"))
-            vectorizer = joblib.load(os.path.join(models_dir, "fake_real_TF_IDF_vectorizer.pkl"))
-            label_encoder = joblib.load(os.path.join(models_dir, "fake_real_label_encoder.pkl"))
-            models_loaded = True
-            print("✅ Background loading complete. System ready.")
+        if models_dir:
+            file_paths = {
+                "model": os.path.join(models_dir, "svm_high_confidence.pkl"),
+                "vectorizer": os.path.join(models_dir, "fake_real_TF_IDF_vectorizer.pkl"),
+                "encoder": os.path.join(models_dir, "fake_real_label_encoder.pkl")
+            }
+            
+            # Verify each file exists
+            missing_files = [f for f, p in file_paths.items() if not os.path.exists(p)]
+            if not missing_files:
+                model = joblib.load(file_paths["model"])
+                vectorizer = joblib.load(file_paths["vectorizer"])
+                label_encoder = joblib.load(file_paths["encoder"])
+                models_loaded = True
+                print(f"✅ Background loading complete from: {models_dir}")
+            else:
+                loading_error = f"Files maqan ({', '.join(missing_files)}) gudaha {models_dir}."
+                print(f"❌ ERROR: {loading_error}")
         else:
-            loading_error = "Folder-ka 'saved_model' lama helin."
+            loading_error = f"Folder-ka 'saved_model' lama helin. Path-yada la baaray: {possible_paths}"
             print(f"❌ ERROR: {loading_error}")
             
     except Exception as e:
-        loading_error = str(e)
+        loading_error = f"Crash dhacay: {str(e)}"
         print(f"❌ Background loading failed: {e}")
+        traceback.print_exc()
 
 # Start background loading
 import threading
