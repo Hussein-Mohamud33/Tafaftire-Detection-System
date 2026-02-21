@@ -2,7 +2,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // ----------------------------
     // 0. CONFIG
     // ----------------------------
-    const API_BASE_URL = 'https://tafaftire-detection-system.onrender.com';
+    const API_BASE_URL =  'https://tafaftire-detection-system.onrender.com';
 
     // Buttons
     const predictBtn = document.getElementById("predictBtn");
@@ -153,12 +153,19 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // ----------------------------
-    // 3. Fake News Prediction
+    // 3. Fake News Prediction & Fact Check
     // ----------------------------
-    const resultDiv = document.getElementById("result");
-    const confidenceDiv = document.getElementById("confidence");
+    const aiResultCard = document.getElementById("aiResultCard");
+    const aiResult = document.getElementById("aiResult");
+    const aiConfidence = document.getElementById("aiConfidence");
+
+    const fcResultCard = document.getElementById("fcResultCard");
+    const fcResult = document.getElementById("fcResult");
+    const fcConfidence = document.getElementById("fcConfidence");
+
     const textInput = document.getElementById("textInput");
     const urlInput = document.getElementById("urlInput");
+    const factCheckBtn = document.getElementById("factCheckBtn");
 
     document.querySelectorAll('input[name="inputType"]').forEach(radio => {
         radio.addEventListener('change', () => {
@@ -167,58 +174,103 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     });
 
-    if (predictBtn) predictBtn.addEventListener('click', () => {
+    const fcReasons = document.getElementById("fcReasons");
+
+    function callAPI(endpoint, payload) {
+        const isAI = endpoint === "/predict";
+        const card = isAI ? aiResultCard : fcResultCard;
+        const resEl = isAI ? aiResult : fcResult;
+        const confEl = isAI ? aiConfidence : fcConfidence;
+
+        // Show card and set loading
+        card.classList.remove("hidden");
+        resEl.innerText = "⏳ Analyzing...";
+        resEl.style.color = "white";
+        confEl.innerText = "";
+        if (!isAI && fcReasons) fcReasons.innerHTML = "";
+
+        fetch(`${API_BASE_URL}${endpoint}`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(payload)
+        })
+            .then(res => res.json())
+            .then(res => {
+                if (res.error) {
+                    resEl.innerText = "❌ " + res.error;
+                    resEl.style.color = "#ff4757";
+                } else {
+                    if (isAI) {
+                        const isReal = res.prediction.includes("Trusted");
+                        resEl.innerText = isReal ? "Real News" : "Fake News";
+                        resEl.style.color = isReal ? "#2ecc71" : "#ff4757";
+                        confEl.innerText = "Kalsoonida: " + res.confidence;
+                    } else {
+                        const isTrusted = res.rating.toLowerCase().includes("trusted");
+                        resEl.innerText = isTrusted ? "TRUSTED" : "UNVERIFIED";
+                        resEl.style.color = isTrusted ? "#2ecc71" : "#f39c12";
+                        confEl.innerText = "Kalsoonida: " + res.confidence;
+
+                        // Display reasons if available
+                        if (res.reasons && fcReasons) {
+                            fcReasons.innerHTML = `<h5 style="font-size: 0.8rem; color:#fff; margin-bottom:10px; opacity:0.7;">DEEP ANALYSIS:</h5>`;
+                            res.reasons.forEach(reason => {
+                                const div = document.createElement("div");
+                                div.className = "reason-item";
+                                div.innerHTML = `<i class="fas fa-check-circle"></i> <span>${reason}</span>`;
+                                fcReasons.appendChild(div);
+                            });
+                        }
+                    }
+                }
+            })
+            .catch(() => {
+                resEl.innerText = "❌ Error";
+                resEl.style.color = "#ff4757";
+            });
+    }
+
+    function getPayload() {
         const selected = document.querySelector('input[name="inputType"]:checked');
         const inputType = selected.value;
         let data = "";
+
         if (inputType === "text") {
             data = newsText.value.trim();
-            if (data.length < 20) { showError("Fadlan geli qoraal kugu filan (ugu yaraan 20 xaraf).", "newsText"); return; }
-
-            // Validation 1: No Links in Text Mode
-            if (containsLink(data)) {
-                showError("NIDAMKA: Text mode-ka laguma ogola Links. Fadlan u bedel 'URL' mode.", "newsText");
-                return;
-            }
-
-            // Validation 3: Reject Gibberish
-            if (isGibberish(data)) {
-                showError("KHALAD: Qoraalkan ma ahan mid la aqrin karo.", "newsText");
-                return;
-            }
+            if (data.length < 20) { showError("Fadlan geli qoraal kugu filan (ugu yaraan 20 xaraf).", "newsText"); return null; }
+            if (containsLink(data)) { showError("NIDAMKA: Text mode-ka laguma ogola Links.", "newsText"); return null; }
+            if (isGibberish(data)) { showError("KHALAD: Qoraalkan ma ahan mid la aqrin karo.", "newsText"); return null; }
         } else {
             data = newsURL.value.trim();
-            if (!data) { showError("Fadlan geli URL.", "newsURL"); return; }
-
-            // Validation 2: Only URLs in URL Mode
-            if (!isURL(data)) {
-                showError("KHALAD: Fadlan geli URL sax ah.", "newsURL");
-                return;
-            }
+            if (!data) { showError("Fadlan geli URL.", "newsURL"); return null; }
+            if (!isURL(data)) { showError("KHALAD: Fadlan geli URL sax ah.", "newsURL"); return null; }
         }
+        return { type: inputType, data: data };
+    }
 
-        resultDiv.innerText = "⏳ Analyzing...";
-        fetch(`${API_BASE_URL}/predict`, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ type: inputType, data: data })
-        }).then(res => res.json()).then(res => {
-            if (res.error) { resultDiv.innerText = "❌ " + res.error; }
-            else {
-                const isReal = res.prediction.includes("REAL");
-                resultDiv.innerText = isReal ? "WAR RUN AH" : "WAR BEEN AH";
-                resultDiv.style.color = isReal ? "#2ecc71" : "#e74c3c";
-                confidenceDiv.innerText = "Kalsoonida: " + res.confidence;
-            }
-        }).catch(() => { resultDiv.innerText = "❌ Connection Error"; });
+    if (predictBtn) predictBtn.addEventListener('click', () => {
+        const payload = getPayload();
+        if (payload) callAPI("/predict", payload);
+    });
+
+    if (factCheckBtn) factCheckBtn.addEventListener('click', () => {
+        const payload = getPayload();
+        if (payload) callAPI("/fact-check", payload);
     });
 
     const refreshBtn = document.getElementById("refreshBtn");
     if (refreshBtn) refreshBtn.addEventListener('click', () => {
         document.getElementById("newsText").value = "";
         document.getElementById("newsURL").value = "";
-        resultDiv.innerText = "";
-        confidenceDiv.innerText = "";
+
+        aiResultCard.classList.add("hidden");
+        aiResult.innerText = "";
+        aiConfidence.innerText = "";
+
+        fcResultCard.classList.add("hidden");
+        fcResult.innerText = "";
+        fcConfidence.innerText = "";
+        if (fcReasons) fcReasons.innerHTML = "";
     });
 
     // ----------------------------
@@ -263,5 +315,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 });
         });
     }
-});
 
+    // Refresh history stat on load
+    // renderHistory(); // Removed with platform features
+});
