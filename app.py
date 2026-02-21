@@ -233,22 +233,48 @@ def predict():
         else:
             X = X.toarray()
 
+        # ================= AI Model Prediction =================
         pred = model.predict(X)[0]
-
-        # Calculate confidence
+        label = label_encoder.inverse_transform([pred])[0]
+        
+        # Calculate AI confidence
         if hasattr(model, "predict_proba"):
             probs = model.predict_proba(X)[0]
-            confidence = round(float(max(probs)) * 100, 2)
+            ai_confidence_val = float(max(probs)) * 100
         else:
             score = model.decision_function(X)
             score = abs(score[0])
-            confidence = round((1 / (1 + np.exp(-score))) * 100, 2)
+            ai_confidence_val = (1 / (1 + np.exp(-score))) * 100
+        
+        # Base status from AI (1, "REAL", "Real" are usually trusted)
+        ai_is_trusted = label in [1, "REAL", "Real", "trusted", "Trusted", "Real News"]
+        
+        # ================= HYBRID OVERRIDE (Strength: High) =================
+        heuristic = heuristic_fact_check(content)
+        heuristic_is_trusted = heuristic["rating"] == "Trusted"
+        
+        # Logic: If Heuristic is solid, it MUST override a weak/wrong AI
+        # Also, if AI says Fake but confidence is < 85%, Heuristic takes over
+        if heuristic_is_trusted:
+            result = "Trusted"
+            final_confidence = heuristic["confidence"]
+        elif ai_is_trusted and ai_confidence_val > 60:
+            result = "Trusted"
+            final_confidence = f"{int(ai_confidence_val)}%"
+        else:
+            result = "Unverified"
+            # If AI was sure it was fake, we show its confidence, otherwise default low
+            final_confidence = f"{int(max(ai_confidence_val, 55))}%"
 
-        # Label matching for frontend ("Trusted" / "Fake Information")
-        label = label_encoder.inverse_transform([pred])[0]
-        result = "Trusted" if label == 1 or label == "REAL" or label == "Real" else "Fake Information"
-
-        return jsonify({"prediction": result, "confidence": f"{confidence}%"})
+        return jsonify({
+            "prediction": result, 
+            "confidence": final_confidence,
+            "details": {
+                "ai_label": str(label),
+                "ai_confidence": f"{int(ai_confidence_val)}%",
+                "heuristic_rating": heuristic["rating"]
+            }
+        })
 
     except Exception as e:
         traceback.print_exc()
