@@ -98,7 +98,9 @@ try:
 except Exception as e:
     print("Model loading failed:", e)
     traceback.print_exc()
-    exit(1)
+    model = None
+    vectorizer = None
+    label_encoder = None
 # ================= HEURISTIC FACT CHECKER =================
 TRUSTED_SOURCES = [
     "bbc.com", "voasomali.com", "goobjoog.com", 
@@ -364,4 +366,5 @@ if __name__ == "__main__":
     port = int(os.environ.get("PORT", 3402))
     print(f"[*] Flask server starting on port {port}...")
     app.run(host="0.0.0.0", port=port, debug=False)
+
 
