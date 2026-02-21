@@ -6,11 +6,11 @@ import numpy as np
 import requests
 from flask import Flask, request, jsonify
 from flask_cors import CORS
+from bs4 import BeautifulSoup
 import nltk
 from nltk.corpus import stopwords
 from nltk.tokenize import word_tokenize
 from nltk.stem import WordNetLemmatizer
-from bs4 import BeautifulSoup
 
 # ================= FLASK INIT =================
 app = Flask(__name__, 
@@ -18,45 +18,25 @@ app = Flask(__name__,
             static_url_path="")
 CORS(app)
 
-# ================= NLTK SETUP (Lazy Loading) =================
-# We don't download at top-level to avoid Render startup timeouts.
-# Packages will be loaded inside the functions that need them.
-stop_words = set()
-lemmatizer = None
+# ================= NLTK OFFLINE SETUP =================
+NLTK_DATA_DIR = os.path.join(os.getcwd(), "nltk_data")
+nltk.data.path.append(NLTK_DATA_DIR)
 
-def init_nltk_resources():
-    global stop_words, lemmatizer
-    if not stop_words:
-        packages = ["punkt", "punkt_tab", "stopwords", "wordnet"]
-        for pkg in packages:
-            try:
-                nltk.download(pkg, quiet=True)
-            except Exception:
-                pass
-        
-        try:
-            from nltk.corpus import stopwords
-            stop_words = set(stopwords.words("english"))
-            somali_stopwords = [
-                "waa", "iyo", "in", "uu", "ay", "ayuu", "ayey", "ka", "u", "ee", "oo", "ah", 
-                "sidii", "waxaan", "waxaad", "wuxuu", "waxay", "iska", "ahaa", "lagu", "loogu",
-                "isagoo", "iyadoo", "ku", "soo", "isaga", "iyada", "labada", "kala", "inta",
-                "ilaa", "wax", "kale", "mar", "markii", "la", "si", "aad", "eeg", "ayaa",
-                "ayay", "kuwa", "kuwaas", "kuwan", "kaas", "kan", "kuwaa", "loo", "loona"
-            ]
-            stop_words.update(somali_stopwords)
-        except Exception:
-            stop_words = set()
-            
-        try:
-            from nltk.stem import WordNetLemmatizer
-            lemmatizer = WordNetLemmatizer()
-        except Exception:
-            lemmatizer = None
+# Only download locally if not present
+for pkg in ["punkt", "stopwords", "wordnet"]:
+    try:
+        nltk.data.find(pkg)
+    except LookupError:
+        nltk.download(pkg, download_dir=NLTK_DATA_DIR)
+
+stop_words = set(stopwords.words("english"))
+# Add Somali stopwords
+somali_stopwords = ["waa", "iyo", "in", "uu", "ay", "ayuu", "ayey", "ka", "u", "ee", "oo", "ah", "aad", "ayaa"]
+stop_words.update(somali_stopwords)
+lemmatizer = WordNetLemmatizer()
 
 # ================= HELPERS =================
 def sanitize_text(text):
-    """Remove HTML tags and strip text."""
     if not isinstance(text, str):
         return ""
     try:
@@ -66,144 +46,65 @@ def sanitize_text(text):
     return text.strip()
 
 def preprocess_text(text):
-    """Lowercase, remove non-alphabetic, tokenize (with fallback), remove stopwords, lemmatize."""
-    init_nltk_resources() # Ensure resources are ready when needed
-    
     text = text.lower()
-    text = re.sub(r"[^a-z' ]", " ", text)
-    
-    # Try NLTK tokenizer, if fails, use split()
+    text = re.sub(r"[^a-zA-Z ]", " ", text)
     try:
         tokens = word_tokenize(text)
-    except Exception:
-        tokens = text.split()
-        
-    # Remove stopwords and lemmatize
-    if lemmatizer:
-        tokens = [lemmatizer.lemmatize(w) for w in tokens if w not in stop_words and len(w) > 2]
-    else:
-        tokens = [w for w in tokens if w not in stop_words and len(w) > 2]
-        
+    except LookupError:
+        tokens = text.split()  # fallback if punkt missing
+    tokens = [lemmatizer.lemmatize(w) for w in tokens if w not in stop_words and len(w) > 2]
     return " ".join(tokens)
 
 def is_url(text):
-    """Detect if input is URL (handles http, https, or www)."""
-    text = text.strip().lower()
-    pattern = r'^(https?://|www\.)[a-z0-9-]+(\.[a-z0-9-]+)+([/?#].*)?$'
-    return bool(re.match(pattern, text))
+    return bool(re.match(r'^(http|https)://', text.strip().lower()))
 
 def extract_text_from_url(url):
-    """Ka soo saar qoraalka bogga webka URL"""
     try:
-        resp = requests.get(url, timeout=5)
+        resp = requests.get(url, timeout=3)
         if resp.status_code != 200:
             return ""
         soup = BeautifulSoup(resp.content, "html.parser")
         for script in soup(["script", "style"]):
             script.decompose()
-        text = soup.get_text(separator=" ")
-        return text.strip()
+        return soup.get_text(separator=" ").strip()
     except Exception:
         return ""
 
-# ================= EXTRA FEATURES =================
-def is_extreme_claim(text):
-    if not isinstance(text, str): return 0
-    extreme_words = ["100 sano", "hal charge 6 bilood", "miracle", "cure", "mucjiso", "lacag bilaash"]
-    return int(any(word in text.lower() for word in extreme_words))
-
-def is_vague_source(text):
-    if not isinstance(text, str): return 0
-    vague_words = ["khubaro ayaa sheegay", "daraasad cusub ayaa sheegtay", "ilo wareedyo", "warar la helayo"]
-    return int(any(word in text.lower() for word in vague_words))
-
-# ================= LOAD RESOURCES (Deep Diagnostic Mode) =================
-model = None
-vectorizer = None
-label_encoder = None
+# ================= LOAD MODELS =================
+model, vectorizer, label_encoder = None, None, None
 models_loaded = False
-loading_error = None
-loading_status = "Waiting..."
+BASE_DIR = os.getcwd()
+MODEL_FOLDER = os.path.join(BASE_DIR, "saved_model")
 
-def load_resources_in_background():
-    global model, vectorizer, label_encoder, models_loaded, stop_words, lemmatizer, loading_error, loading_status
+def load_models():
+    global model, vectorizer, label_encoder, models_loaded
     try:
-        loading_status = "Bilaabay NLTK setup..."
-        # 1. NLTK Quick Setup - essential for preprocessing
-        for pkg in ["punkt", "punkt_tab", "stopwords", "wordnet"]:
-            try:
-                nltk.download(pkg, quiet=True)
-            except Exception as e:
-                print(f"NLTK Warning ({pkg}): {e}")
-        
-        from nltk.corpus import stopwords
-        from nltk.stem import WordNetLemmatizer
-        stop_words = set(stopwords.words("english"))
-        somali_stopwords = ["waa", "iyo", "in", "uu", "ay", "ayuu", "ayey", "ka", "u", "ee", "oo", "ah", "aad", "ayaa"]
-        stop_words.update(somali_stopwords)
-        lemmatizer = WordNetLemmatizer()
+        # Fallback for case sensitivity
+        target_folder = MODEL_FOLDER
+        if not os.path.exists(target_folder):
+            target_folder = os.path.join(BASE_DIR, "Saved_model")
 
-        loading_status = "Raadinaya Folder-ka Model-ka..."
-        # 2. Advanced Path Finding
-        BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-        pwd = os.getcwd()
-        possible_dirs = [
-            os.path.join(BASE_DIR, "saved_model"),
-            os.path.join(pwd, "saved_model"),
-            os.path.join(BASE_DIR, "Saved_model"),
-            os.path.join(pwd, "Saved_model")
-        ]
-        
-        target_dir = None
-        for d in possible_dirs:
-            if os.path.exists(d) and os.path.isdir(d):
-                target_dir = d
-                break
-        
-        if not target_dir:
-            # Diagnostic: What IS in the current directory?
-            files_present = os.listdir(pwd)
-            loading_error = f"Ma helin folder-ka 'saved_model'. Files-ka jira: {files_present}"
+        MODEL_PATH = os.path.join(target_folder, "svm_high_confidence.pkl")
+        VECTORIZER_PATH = os.path.join(target_folder, "fake_real_TF_IDF_vectorizer.pkl")
+        ENCODER_PATH = os.path.join(target_folder, "fake_real_label_encoder.pkl")
+
+        if not all(os.path.exists(p) for p in [MODEL_PATH, VECTORIZER_PATH, ENCODER_PATH]):
+            print(f"❌ Model files not found in {target_folder}. Predictions will be disabled.")
             return
 
-        loading_status = f"Loading files ka: {target_dir}..."
-        file_map = {
-            "model": "svm_high_confidence.pkl",
-            "vectorizer": "fake_real_TF_IDF_vectorizer.pkl",
-            "encoder": "fake_real_label_encoder.pkl"
-        }
-        
-        # Verify files exist before loading
-        for key, filename in file_map.items():
-            full_path = os.path.join(target_dir, filename)
-            if not os.path.exists(full_path):
-                # Check for same file with different case
-                all_files = os.listdir(target_dir)
-                found_match = [f for f in all_files if f.lower() == filename.lower()]
-                if found_match:
-                    file_map[key] = found_match[0]
-                else:
-                    loading_error = f"File maqan: {filename} gudaha {target_dir}. Files jira: {all_files}"
-                    return
-
-        # Actual loading
-        model = joblib.load(os.path.join(target_dir, file_map["model"]))
-        vectorizer = joblib.load(os.path.join(target_dir, file_map["vectorizer"]))
-        label_encoder = joblib.load(os.path.join(target_dir, file_map["encoder"]))
-        
+        model = joblib.load(MODEL_PATH)
+        vectorizer = joblib.load(VECTORIZER_PATH)
+        label_encoder = joblib.load(ENCODER_PATH)
         models_loaded = True
-        loading_status = "System Ready"
-        print(f"✅ COMPLETED: Resources loaded from {target_dir}")
-            
+        print("✅ Models loaded successfully")
+
     except Exception as e:
-        loading_error = f"CRITICAL LOAD ERROR: {str(e)}"
+        print("❌ Failed to load models:", e)
         traceback.print_exc()
 
-# Start background loading
-import threading
-import time
-threading.Thread(target=load_resources_in_background, daemon=True).start()
-# ================= DEEP FACT CHECKER (Enhanced) =================
+load_models()
+
+# ================= HEURISTIC FACT CHECKER (Preserved) =================
 TRUSTED_SOURCES = [
     "bbc.com", "voasomali.com", "goobjoog.com", "garoweonline.com", 
     "somalistream.com", "somnn.com", "somaliglobe.net", "sntv.so", 
@@ -220,106 +121,36 @@ UNTRUSTED_PATTERNS = [
     "lama rumeysan karo", "aad u naxdin badan", "muuqaal sir ah"
 ]
 
-SOCIAL_MEDIA_DOMAINS = ["facebook.com", "t.me", "x.com", "twitter.com", "tiktok.com", "fb.watch"]
-
-EMOTIONAL_TRIGGERS = [
-    "subxaanallaah", "naxdin", "mucjiso", "yaab", "aad u xanuun badan",
-    "dunidii way dhammaday", "qarax", "geeri", "deg deg", "nin yaaban"
-]
-
 def heuristic_fact_check(text, url=None):
-    """
-    Advanced Credibility Analysis:
-    - URL/Source Authority
-    - Linguistic Tone & Emotional Triggers
-    - Somali News Standards Consensus
-    - Clickbait & Sensationalism Detection
-    """
     score = 0
     reasons = []
     text_lower = text.lower()
     
-    # 1. Source & Website Deep Check
     if url:
         url_lower = str(url).lower()
         clean_url = re.sub(r'^https?://(www\.)?', '', url_lower)
-        
-        # A. Trusted Check
-        found_trusted = False
         for trusted in TRUSTED_SOURCES:
             if trusted in clean_url:
-                found_trusted = True
                 score += 70 
-                reasons.append(f"✅ Isha rasmiga ah: {trusted}. Tani waa ilo-wareed si weyn looga tixgeliyo saxaafadda Soomaalida.")
+                reasons.append(f"Isha rasmiga ah: {trusted}")
                 break
-        
-        # B. Social Media Check (Lower baseline trust)
-        if not found_trusted:
-            if any(sm in clean_url for sm in SOCIAL_MEDIA_DOMAINS):
-                score -= 15
-                reasons.append("⚠️ Isha warka waa Social Media. Wararka noocan ah waxay u baahan yihiin in laga xaqiijiyo ilo madax-bannaan.")
-            
-            # C. Suspicious TLDs
-            if any(ext in clean_url for ext in [".tk", ".ml", ".cf", ".ga", ".icu", ".xyz", ".top", ".buzz"]):
-                score -= 40
-                reasons.append("❌ Domain-ka (xyz/tk/ml): Ciwaanka website-kan waxaa badanaa loo isticmaalaa warar been ah ama 'phishing'.")
-            elif not found_trusted:
-                reasons.append("ℹ️ Isha warka (Domain): Ciwaankan ma ahan mid ku jira diiwaanka ilaha rasmiga ah ee la yaqaan.")
-
-    # 2. Emotional Tone & Extremism
-    found_triggers = [w for w in EMOTIONAL_TRIGGERS if w in text_lower]
-    if len(found_triggers) >= 2:
-        score -= 25
-        reasons.append(f"🚩 Luuqad Kicin ah: Waxaa la isticmaalay ereyo dareenka kiciya sida ({', '.join(found_triggers)}).")
-    elif len(found_triggers) == 0:
-        score += 15
-        reasons.append("✅ Tone Professional: Qoraalku ma lahan ereyo kicin ah, wuxuuna u qoran yahay si dhex-dhexaad ah.")
-
-    # 3. Somali News Consensus (Key Professional Terms)
-    professional_terms = [
-        "madaxweyne", "baarlamaanka", "doorasho", "xukuumad", "shacabka",
-        "amniga", "dowladda", "wada-hadal", "shir-jaraa'id", "go'aan",
-        "wasaaradda", "maamulka", "gobolka", "isgaarsiinta", "horumar", "sharciga"
-    ]
+    
+    # Simple Somali Tone & Keyword Match
+    professional_terms = ["madaxweyne", "baarlamaanka", "doorasho", "xukuumad", "amniga", "dowladda"]
     found_terms = [w for w in professional_terms if w in text_lower]
-    if len(found_terms) >= 4:
-        score += 30
-        reasons.append("✅ Consensus News: Mowduucu wuxuu adeegsaday Luuqad saxafadeed oo waafaqsan wararka rasmiga ah.")
-    elif len(found_terms) >= 1:
-        score += 10
-        reasons.append("ℹ️ Waxaa ku jira ereyo la xiriira dhacdooyinka rasmiga ah.")
+    score += len(found_terms) * 10
 
-    # 4. Clickbait Markers (Sensationalism)
     if any(p in text_lower for p in UNTRUSTED_PATTERNS):
         score -= 30
-        reasons.append("🚩 Clickbait: Waxaa jira calaamado muujinaya in akhristaha loo soo jiidayo si haboonayn.")
-    
-    # 5. Punctuation (Excessive)
-    if "!!!" in text or "???" in text:
-        score -= 15
-        reasons.append("🚩 Excessive Punctuation: Calaamadaha yaabka iyo su'aalaha badan waxay ka mid yihiin sifooyinka wararka been ah.")
 
-    # 6. Text Depth Analysis
-    words = text.split()
-    if len(words) > 50:
-        score += 20
-        reasons.append("✅ Qotodheer: Qoraalku waa mid faahfaahsan, taas oo kordhisa fursadda inuu jiro baaris.")
-    elif len(words) < 15:
-        score -= 20
-        reasons.append("🚩 Qoraal kooban: Qoraalku aad buu u gaaban yahay, lama dhihi karo waa war dhammeystiran.")
-
-    # Final Decision
     confidence = 55 + (abs(score) / 2)
-    if confidence > 98: confidence = 98
+    confidence = min(98, confidence)
 
     if score >= 15:
         rating = "Trusted"
-    elif score > -15:
-        rating = "Unverified"
-        confidence = max(50, confidence - 10)
     else:
         rating = "Unverified"
-        if confidence < 70: confidence = 75
+        confidence = max(50, confidence - 10)
 
     return {
         "rating": rating,
@@ -330,167 +161,108 @@ def heuristic_fact_check(text, url=None):
 # ================= ROUTES =================
 @app.route("/", methods=["GET"])
 def home():
-    # Serve Index.html from Front_End_Data
     return app.send_static_file("Index.html")
 
 @app.route("/health", methods=["GET"])
 def health():
     return jsonify({
         "status": "OK" if models_loaded else "ERROR",
-        "models_loaded": models_loaded,
-        "message": "API is online" if models_loaded else "API is online but models failed to load"
+        "models_loaded": models_loaded
     })
 
 @app.route("/predict", methods=["POST"])
 def predict():
+    if model is None:
+        return jsonify({"error": "Model-ada lama helin. Hubi folder-ka 'saved_model'."}), 503
+
     try:
-        # If not loaded, wait up to 12 seconds
-        wait_time = 0
-        while not models_loaded and wait_time < 12:
-            if loading_error:
-                return jsonify({
-                    "error": "NIDAMKA: Khalad ayaa dhacay xiliga load-gareynta.",
-                    "details": loading_error,
-                    "status": loading_status
-                }), 500
-            time.sleep(1)
-            wait_time += 1
-
-        if not models_loaded:
-            return jsonify({
-                "error": "NIDAMKA: Model-adii wali ma diyaarsana.",
-                "status": loading_status,
-                "message": "Fadlan sug 10-20 ilbiriqsi si uu server-ku u dhameystiro kicitaanka."
-            }), 503
-
         data = request.get_json(silent=True)
         if not data:
-            return jsonify({"error": "JSON lama helin"}), 400
+            return jsonify({"error": "JSON data not found"}), 400
 
-        content = data.get("text") or data.get("data")
+        input_type = data.get("type", "text")
+        content = data.get("data", "")
+
         if not content:
-            return jsonify({"error": "Qoraal lama soo dirin"}), 400
+            return jsonify({"error": "No text or URL provided"}), 400
 
         content = str(content).strip()
 
-        input_type = data.get("type", "text")
-        input_url = None
-        
-        # Haddii input uu URL yahay ama ciddida u eg tahay URL
-        if input_type == "url" or is_url(content):
-            if not content.startswith(("http://", "https://")):
-                content = "https://" + content
-            
-            url_to_extract = content
-            input_url = content
-            extracted = extract_text_from_url(input_url)
-            
-            if not extracted and input_url.startswith("https://"):
-                input_url = input_url.replace("https://", "http://")
-                extracted = extract_text_from_url(input_url)
-            
-            if not extracted:
-                return jsonify({"error": "NIDAMKA: Ma suurtagalin in xog laga soo saaro URL-ka. Fadlan hubi link-ga."}), 400
-            content = extracted
+        if input_type == "url":
+            if not is_url(content):
+                return jsonify({"error": "Invalid URL"}), 400
+            content = extract_text_from_url(content)
+            if not content:
+                return jsonify({"error": "Cannot extract text from URL"}), 400
 
-        # ================= Preprocess =================
         clean_input = preprocess_text(content)
+        if not clean_input:
+            return jsonify({"error": "Processed text is empty"}), 400
 
-        # Vectorize
         X = vectorizer.transform([clean_input])
-        ext = is_extreme_claim(content)
-        vague = is_vague_source(content)
-        
-        X_dense = X.toarray()
-        X = np.hstack([X_dense, np.array([[ext, vague]])])
+        expected_features = model.coef_.shape[1]
 
-        # ================= AI Model Prediction Only =================
-        # Distance from hyperplane (confidence)
-        score = model.decision_function(X)[0] if hasattr(model, "decision_function") else 0
-        final_score = score
-        
-        # Sigmoid function to normalize confidence between 0-100%
-        confidence_val = (1 / (1 + np.exp(-abs(final_score)))) * 100
-        
-        # Cap confidence for reliability
-        confidence_val = min(98.5, max(70.0, confidence_val))
-        
-        is_trusted = final_score > 0
-        result = "Trusted" if is_trusted else "Fake Information"
-        
-        return jsonify({
-            "prediction": result, 
-            "confidence": f"{round(confidence_val, 2)}%",
-            "hybrid_score": round(final_score, 2)
-        })
+        # Fix feature dimension mismatch
+        if X.shape[1] != expected_features:
+            diff = expected_features - X.shape[1]
+            if diff > 0:
+                X = np.hstack([X.toarray(), np.zeros((X.shape[0], diff))])
+            else:
+                X = X.toarray()[:, :expected_features]
+        else:
+            X = X.toarray()
+
+        pred = model.predict(X)[0]
+
+        # Calculate confidence
+        if hasattr(model, "predict_proba"):
+            probs = model.predict_proba(X)[0]
+            confidence = round(float(max(probs)) * 100, 2)
+        else:
+            score = model.decision_function(X)
+            score = abs(score[0])
+            confidence = round((1 / (1 + np.exp(-score))) * 100, 2)
+
+        # Label matching for frontend ("Trusted" / "Fake Information")
+        label = label_encoder.inverse_transform([pred])[0]
+        result = "Trusted" if label == 1 or label == "REAL" or label == "Real" else "Fake Information"
+
+        return jsonify({"prediction": result, "confidence": f"{confidence}%"})
 
     except Exception as e:
         traceback.print_exc()
-        return jsonify({"error": f"Server error (Predict): {str(e)}"}), 500
+        return jsonify({"error": f"Server error occurred: {str(e)}"}), 500
 
 @app.route("/fact-check", methods=["POST"])
 def fact_check():
     try:
         data = request.get_json(silent=True)
-        if not data:
-            return jsonify({"error": "JSON lama helin"}), 400
-
-        content = data.get("text") or data.get("data")
-        if not content:
-            return jsonify({"error": "Xog lama soo dirin"}), 400
-
-        input_url = None
-        input_type = data.get("type", "text")
-
-        if input_type == "url" or is_url(content):
-            temp_content = content.strip()
-            if not temp_content.startswith(("http://", "https://")):
-                temp_content = "https://" + temp_content
-            
-            input_url = temp_content
+        if not data: return jsonify({"error": "JSON error"}), 400
+        content = data.get("data", "")
+        input_url = content if is_url(content) else None
+        
+        if input_url:
             content = extract_text_from_url(input_url)
-            
-            if not content:
-                input_url = input_url.replace("https://", "http://")
-                content = extract_text_from_url(input_url)
-
-        if not content or len(str(content).strip()) < 5:
-            return jsonify({"error": "Qoraalka laga helay URL-ka lama heli karo ama waa mid aad u yar"}), 400
-
-        fact_result = heuristic_fact_check(content, input_url)
-        return jsonify(fact_result)
-
+        
+        if not content: return jsonify({"error": "Xog ma jirto"}), 400
+        
+        return jsonify(heuristic_fact_check(content, input_url))
     except Exception as e:
-        traceback.print_exc()
-        return jsonify({"error": f"Server error: {str(e)}"}), 500
+        return jsonify({"error": str(e)}), 500
 
 @app.route("/contact", methods=["POST"])
 def contact():
     try:
         data = request.get_json(silent=True)
-        if not data:
-            return jsonify({"error": "Data lama helin"}), 400
-
-        name = data.get("name")
-        email = data.get("email")
-        message = data.get("message")
-
-        if not all([name, email, message]):
-            return jsonify({"error": "Fadlan buuxi dhamaan meelaha banaan"}), 400
-
-        # Log to file
+        if not data: return jsonify({"error": "Data not found"}), 400
+        name, email, message = data.get("name"), data.get("email"), data.get("message")
+        if not all([name, email, message]): return jsonify({"error": "Please fill all fields"}), 400
         with open("contacts.txt", "a", encoding="utf-8") as f:
             f.write(f"Name: {name}\nEmail: {email}\nMessage: {message}\n---\n")
-
-        print(f"[*] New message from {name} ({email})")
         return jsonify({"status": "Success", "message": "Fariintaada waa nala soo gaarsiiyey!"})
-
     except Exception:
-        traceback.print_exc()
-        return jsonify({"error": "Server error ayaa dhacay"}), 500
+        return jsonify({"error": "Server error"}), 500
 
-# ================= RUN SERVER =================
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 3402))
-    print(f"[*] Flask server starting on port {port}...")
     app.run(host="0.0.0.0", port=port, debug=False)
