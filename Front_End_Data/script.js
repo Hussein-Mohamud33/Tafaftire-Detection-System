@@ -206,14 +206,14 @@ document.addEventListener('DOMContentLoaded', () => {
                     resEl.style.color = "#ff4757";
                 } else {
                     if (isAI) {
-                        const isReal = res.prediction.includes("Trusted");
-                        resEl.innerText = isReal ? "Real News" : "Fake News";
-                        resEl.style.color = isReal ? "#2ecc71" : "#ff4757";
+                        const isTrusted = res.prediction.toLowerCase().includes("trusted");
+                        resEl.innerText = isTrusted ? "TRUSTED" : "UNVERIFIED";
+                        resEl.style.color = isTrusted ? "#2ecc71" : "#f1c40f"; // Yellow for unverified
                         confEl.innerText = "AI Kalsoonida: " + res.confidence;
                     } else {
                         const isTrusted = res.rating.toLowerCase().includes("trusted");
                         resEl.innerText = isTrusted ? "TRUSTED" : "UNVERIFIED";
-                        resEl.style.color = isTrusted ? "#2ecc71" : "#f39c12";
+                        resEl.style.color = isTrusted ? "#2ecc71" : "#f1c40f";
                         confEl.innerText = "Fact-Check Kalsoonida: " + res.confidence;
 
                         // Reasons display removed per user request
