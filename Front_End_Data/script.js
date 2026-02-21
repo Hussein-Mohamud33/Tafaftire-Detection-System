@@ -175,7 +175,6 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     });
 
-    const fcReasons = document.getElementById("fcReasons");
 
     function callAPI(endpoint, payload) {
         const isAI = endpoint === "/predict";
@@ -185,10 +184,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
         // Show card and set loading
         card.classList.remove("hidden");
-        resEl.innerText = "⏳ Analyzing... (Fadlan sug)";
+        resEl.innerText = "⏳ Analyzing...";
         resEl.style.color = "#f1c40f";
         confEl.innerText = "";
-        if (!isAI && fcReasons) fcReasons.innerHTML = "";
 
         // Add a timeout controller
         const controller = new AbortController();
@@ -218,16 +216,7 @@ document.addEventListener('DOMContentLoaded', () => {
                         resEl.style.color = isTrusted ? "#2ecc71" : "#f39c12";
                         confEl.innerText = "Fact-Check Kalsoonida: " + res.confidence;
 
-                        // Display reasons if available
-                        if (res.reasons && fcReasons) {
-                            fcReasons.innerHTML = `<h5 style="font-size: 0.8rem; color:#fff; margin-bottom:10px; opacity:0.7;">DEEP ANALYSIS:</h5>`;
-                            res.reasons.forEach(reason => {
-                                const div = document.createElement("div");
-                                div.className = "reason-item";
-                                div.innerHTML = `<i class="fas fa-check-circle"></i> <span>${reason}</span>`;
-                                fcReasons.appendChild(div);
-                            });
-                        }
+                        // Reasons display removed per user request
                     }
                 }
             })
@@ -283,7 +272,6 @@ document.addEventListener('DOMContentLoaded', () => {
         fcResultCard.classList.add("hidden");
         fcResult.innerText = "";
         fcConfidence.innerText = "";
-        if (fcReasons) fcReasons.innerHTML = "";
     });
 
     // ----------------------------
