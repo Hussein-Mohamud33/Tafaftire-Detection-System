@@ -185,18 +185,24 @@ document.addEventListener('DOMContentLoaded', () => {
 
         // Show card and set loading
         card.classList.remove("hidden");
-        resEl.innerText = "⏳ Analyzing...";
-        resEl.style.color = "white";
+        resEl.innerText = "⏳ Analyzing... (Wuu kici doonaa 30-60sec gudahood)";
+        resEl.style.color = "#f1c40f"; // Orange for waiting
         confEl.innerText = "";
         if (!isAI && fcReasons) fcReasons.innerHTML = "";
+
+        // Add a timeout controller
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 60000); // 60 seconds timeout
 
         fetch(`${API_BASE_URL}${endpoint}`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify(payload)
+            body: JSON.stringify(payload),
+            signal: controller.signal
         })
             .then(res => res.json())
             .then(res => {
+                clearTimeout(timeoutId);
                 if (res.error) {
                     resEl.innerText = "❌ " + res.error;
                     resEl.style.color = "#ff4757";
@@ -205,12 +211,12 @@ document.addEventListener('DOMContentLoaded', () => {
                         const isReal = res.prediction.includes("Trusted");
                         resEl.innerText = isReal ? "Real News" : "Fake News";
                         resEl.style.color = isReal ? "#2ecc71" : "#ff4757";
-                        confEl.innerText = "Kalsoonida: " + res.confidence;
+                        confEl.innerText = "AI Kalsoonida: " + res.confidence;
                     } else {
                         const isTrusted = res.rating.toLowerCase().includes("trusted");
                         resEl.innerText = isTrusted ? "TRUSTED" : "UNVERIFIED";
                         resEl.style.color = isTrusted ? "#2ecc71" : "#f39c12";
-                        confEl.innerText = "Kalsoonida: " + res.confidence;
+                        confEl.innerText = "Fact-Check Kalsoonida: " + res.confidence;
 
                         // Display reasons if available
                         if (res.reasons && fcReasons) {
@@ -225,9 +231,15 @@ document.addEventListener('DOMContentLoaded', () => {
                     }
                 }
             })
-            .catch(() => {
-                resEl.innerText = "❌ Error";
+            .catch((err) => {
+                clearTimeout(timeoutId);
+                if (err.name === 'AbortError') {
+                    resEl.innerText = "❌ Timeout: Server-ku aad buu u daahay.";
+                } else {
+                    resEl.innerText = "❌ Connection Error: Iska hubi internet-ka ama server-ka.";
+                }
                 resEl.style.color = "#ff4757";
+                console.error("API Error:", err);
             });
     }
 
