@@ -2,10 +2,8 @@ document.addEventListener('DOMContentLoaded', () => {
     // ----------------------------
     // 0. CONFIG
     // ----------------------------
-    // Use window.location.origin if it's not localhost, otherwise use the fixed local port
-    const API_BASE_URL = (window.location.hostname === '127.0.0.1' || window.location.hostname === 'localhost')
-        ? 'http://127.0.0.1:3402'
-        : window.location.origin;
+    // Use the Render backend URL for the API
+    const API_BASE_URL = 'https://tafaftire-detection-system.onrender.com';
 
     // Buttons
     const predictBtn = document.getElementById("predictBtn");
