@@ -52,13 +52,12 @@ def is_url(text):
 def extract_text_from_url(url):
     try:
         resp = requests.get(url, timeout=5)
-        if resp.status_code != 200:
-            return ""
+        if resp.status_code != 200: return ""
         soup = BeautifulSoup(resp.content, "html.parser")
         for script in soup(["script", "style"]):
             script.decompose()
         return soup.get_text(separator=" ").strip()
-    except:
+    except Exception:
         return ""
 
 def is_extreme_claim(text):
@@ -71,8 +70,7 @@ def is_vague_source(text):
 
 # ================= MODEL PLACEHOLDERS =================
 model, vectorizer, label_encoder = None, None, None
-BASE_DIR = os.getcwd()
-MODEL_FOLDER = os.path.join(BASE_DIR, "saved_model")
+MODEL_FOLDER = os.path.join(os.getcwd(), "saved_model")
 
 def load_models():
     global model, vectorizer, label_encoder
@@ -81,7 +79,7 @@ def load_models():
         VECTORIZER_PATH = os.path.join(MODEL_FOLDER, "fake_real_TF_IDF_vectorizer.pkl")
         ENCODER_PATH = os.path.join(MODEL_FOLDER, "fake_real_label_encoder.pkl")
         if not all(os.path.exists(p) for p in [MODEL_PATH, VECTORIZER_PATH, ENCODER_PATH]):
-            print("❌ Model files not found. Predictions will be disabled.")
+            print("❌ Model files not found. Predictions will fallback to heuristic only.")
             return
         model = joblib.load(MODEL_PATH)
         vectorizer = joblib.load(VECTORIZER_PATH)
@@ -90,6 +88,8 @@ def load_models():
     except Exception as e:
         print("❌ Failed to load models:", e)
         traceback.print_exc()
+
+load_models()
 
 def ensure_models_loaded():
     if model is None or vectorizer is None or label_encoder is None:
@@ -165,7 +165,7 @@ def heuristic_fact_check(text, url=None):
         score += 15
 
     confidence = 50 + (abs(score)/2)
-    if confidence>98: confidence=98
+    confidence = min(confidence, 98)
 
     if score >=20:
         rating = "Trusted"
@@ -176,7 +176,7 @@ def heuristic_fact_check(text, url=None):
         rating="Unverified"
         if confidence<70: confidence=75
 
-    return {"rating":rating, "confidence":f"{int(confidence)}%", "reasons":reasons}
+    return {"rating":rating,"confidence":f"{int(confidence)}%","reasons":reasons}
 
 # ================= ROUTES =================
 @app.route("/", methods=["GET"])
@@ -187,16 +187,13 @@ def home():
 def predict():
     try:
         data = request.get_json(silent=True)
-        if not data:
-            return jsonify({"error":"JSON lama helin"}),400
-
+        if not data: return jsonify({"error":"JSON lama helin"}),400
         content = data.get("text") or data.get("data")
-        if not content:
-            return jsonify({"error":"Qoraal lama soo dirin"}),400
+        if not content: return jsonify({"error":"Qoraal lama soo dirin"}),400
 
         content = str(content).strip()
-        input_url = None
         input_type = data.get("type","text")
+        input_url = None
 
         if input_type=="url" or is_url(content):
             if not content.startswith(("http://","https://")):
@@ -212,7 +209,6 @@ def predict():
         clean_input=preprocess_text(content)
         ensure_models_loaded()
 
-        # Fallback if model not loaded
         if model is None:
             result=heuristic_fact_check(content,input_url)
             return jsonify({"prediction":result["rating"],"confidence":result["confidence"],"hybrid_score":0})
@@ -240,16 +236,14 @@ def fact_check_route():
     try:
         data=request.get_json(silent=True)
         if not data: return jsonify({"error":"JSON lama helin"}),400
-
         content=data.get("text") or data.get("data")
         if not content: return jsonify({"error":"Xog lama soo dirin"}),400
 
-        input_url=None
         input_type=data.get("type","text")
+        input_url=None
         if input_type=="url" or is_url(content):
             temp=content.strip()
-            if not temp.startswith(("http://","https://")):
-                temp="https://"+temp
+            if not temp.startswith(("http://","https://")): temp="https://"+temp
             input_url=temp
             content=extract_text_from_url(input_url)
             if not content:
