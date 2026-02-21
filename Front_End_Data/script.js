@@ -185,8 +185,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
         // Show card and set loading
         card.classList.remove("hidden");
-        resEl.innerText = "⏳ Analyzing... (Wuu kici doonaa 30-60sec gudahood)";
-        resEl.style.color = "#f1c40f"; // Orange for waiting
+        resEl.innerText = "⏳ Analyzing... (Fadlan sug)";
+        resEl.style.color = "#f1c40f";
         confEl.innerText = "";
         if (!isAI && fcReasons) fcReasons.innerHTML = "";
 
