@@ -121,33 +121,37 @@
                 <div class="analysis-panel">
                     <h3>News Analysis Tool</h3>
 
-                    <!-- Radio Buttons for Input Type -->
+                    <!-- Radio Buttons for Mode -->
                     <div class="input-type-selector">
                         <label class="radio-label">
                             <input type="radio" name="inputType" value="text" checked>
-                            <span class="radio-btn"><i class="fas fa-align-left"></i> News Text</span>
+                            <span class="radio-btn"><i class="fas fa-align-left"></i> NEWS TEXT</span>
                         </label>
                         <label class="radio-label">
                             <input type="radio" name="inputType" value="url">
-                            <span class="radio-btn"><i class="fas fa-link"></i> News URL (Option)</span>
+                            <span class="radio-btn"><i class="fas fa-link"></i> NEWS URL</span>
                         </label>
                     </div>
 
-                    <!-- Text Input Area -->
+                    <!-- Input Area -->
                     <div id="textInput" class="input-container">
-                        <textarea id="newsText" placeholder="Paste the news text here (min 5 characters)..."></textarea>
+                        <textarea id="newsText"
+                            placeholder="Paste the news text here (min 20 characters)..."></textarea>
                     </div>
 
-                    <!-- URL Input Area -->
                     <div id="urlInput" class="input-container hidden">
                         <input id="newsURL" type="url" placeholder="Paste the news article URL here...">
                     </div>
 
                     <div id="errorMessage" class="error-msg-ui"></div>
 
+                    <!-- Action Buttons -->
                     <div class="action-buttons">
                         <button id="predictBtn" class="analyze-btn">
-                            <i class="fas fa-search"></i> Tafaftir News
+                            <i class="fas fa-microchip"></i> Model Predict
+                        </button>
+                        <button id="factCheckBtn" class="analyze-btn" id="factCheckBtn">
+                            <i class="fas fa-shield-alt"></i> Fact Check
                         </button>
                         <button id="refreshBtn" class="refresh-btn">
                             <i class="fas fa-sync-alt"></i> Reset
@@ -155,10 +159,25 @@
                     </div>
 
                     <!-- Result Display -->
-                    <div class="result-container">
-                        <div class="result-card-premium">
-                            <div id="result" class="prediction-main"></div>
-                            <div id="confidence" class="prediction-sub"></div>
+                    <div class="result-container" style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
+                        <!-- AI Result Card -->
+                        <div id="aiResultCard" class="result-card-premium hidden">
+                            <h4
+                                style="color: var(--accent-orange); margin-bottom: 10px; font-size: 0.9rem; letter-spacing: 2px;">
+                                MODEL PREDICTION</h4>
+                            <div id="aiResult" class="prediction-main" style="font-size: 1.8rem;"></div>
+                            <div id="aiConfidence" class="prediction-sub"></div>
+                        </div>
+
+                        <!-- Fact-Check Result Card -->
+                        <div id="fcResultCard" class="result-card-premium hidden">
+                            <h4 style="color: #3498db; margin-bottom: 10px; font-size: 0.9rem; letter-spacing: 2px;">
+                                FACT CHECK</h4>
+                            <div id="fcResult" class="prediction-main" style="font-size: 1.8rem;"></div>
+                            <div id="fcConfidence" class="prediction-sub"></div>
+                            <!-- Deep Analysis Reasons -->
+                            <div id="fcReasons" class="reasons-list"
+                                style="margin-top: 20px; text-align: left; width: 100%;"></div>
                         </div>
                     </div>
                 </div>
