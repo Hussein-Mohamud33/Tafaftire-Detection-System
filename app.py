@@ -289,29 +289,10 @@ def predict():
         X_dense = X.toarray()
         X = np.hstack([X_dense, np.array([[ext, vague]])])
 
-        # ================= Hybrid Decision Logic =================
-        # 1. Base AI Score (LinearSVC decision function returns distance from hyperplane)
+        # ================= AI Model Prediction Only =================
+        # Distance from hyperplane (confidence)
         score = model.decision_function(X)[0] if hasattr(model, "decision_function") else 0
-        
-        # 2. Heuristic Check (Expert System Integration)
-        trust_boost = 0.0
-        if input_url:
-            h_result = heuristic_fact_check(content, input_url)
-            
-            # Check if source is explicitly trusted (massive boost)
-            is_verified_domain = any(t in input_url.lower() for t in TRUSTED_SOURCES)
-            if is_verified_domain:
-                trust_boost += 5.0 # Override most AI hesitation for known good domains
-            
-            # Additional boost based on heuristic consensus
-            if h_result["rating"] == "Trusted":
-                trust_boost += 2.5
-            else:
-                # If heuristic finds bad patterns, penalize heavily
-                trust_boost -= 2.0
-
-        # Final Combined Score (Hybrid Verdict)
-        final_score = score + trust_boost
+        final_score = score
         
         # Sigmoid function to normalize confidence between 0-100%
         confidence_val = (1 / (1 + np.exp(-abs(final_score)))) * 100
@@ -321,16 +302,16 @@ def predict():
         
         is_trusted = final_score > 0
         result = "Trusted" if is_trusted else "Fake Information"
-
+        
         return jsonify({
             "prediction": result, 
             "confidence": f"{round(confidence_val, 2)}%",
-            "hybrid_score": round(final_score, 2) # For internal calibration
+            "hybrid_score": round(final_score, 2)
         })
 
-    except Exception:
+    except Exception as e:
         traceback.print_exc()
-        return jsonify({"error": "Server error ayaa dhacay"}), 500
+        return jsonify({"error": f"Server error (Predict): {str(e)}"}), 500
 
 @app.route("/fact-check", methods=["POST"])
 def fact_check():
@@ -364,9 +345,9 @@ def fact_check():
         fact_result = heuristic_fact_check(content, input_url)
         return jsonify(fact_result)
 
-    except Exception:
+    except Exception as e:
         traceback.print_exc()
-        return jsonify({"error": "Server error ayaa dhacay"}), 500
+        return jsonify({"error": f"Server error: {str(e)}"}), 500
 
 @app.route("/contact", methods=["POST"])
 def contact():
