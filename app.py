@@ -19,11 +19,8 @@ app = Flask(__name__,
 CORS(app)
 
 # ================= NLTK SETUP =================
-for pkg in ["punkt", "stopwords", "wordnet"]:
-    try:
-        nltk.data.find(pkg)
-    except LookupError:
-        nltk.download(pkg)
+for pkg in ["punkt", "punkt_tab", "stopwords", "wordnet"]:
+    nltk.download(pkg, quiet=True)
 
 stop_words = set(stopwords.words("english"))
 somali_stopwords = [
@@ -45,10 +42,16 @@ def sanitize_text(text):
     return text.strip()
 
 def preprocess_text(text):
-    """Lowercase, remove non-alphabetic (keep apostrophe), tokenize, remove stopwords, lemmatize."""
+    """Lowercase, remove non-alphabetic, tokenize (with fallback), remove stopwords, lemmatize."""
     text = text.lower()
     text = re.sub(r"[^a-z' ]", " ", text)
-    tokens = word_tokenize(text)
+    
+    # Try NLTK tokenizer, if fails (punkt missing), use split()
+    try:
+        tokens = word_tokenize(text)
+    except Exception:
+        tokens = text.split()
+        
     tokens = [lemmatizer.lemmatize(w) for w in tokens if w not in stop_words and len(w) > 2]
     return " ".join(tokens)
 
