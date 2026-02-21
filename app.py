@@ -82,25 +82,31 @@ def is_vague_source(text):
     return int(any(word in text.lower() for word in vague_words))
 
 # ================= LOAD MODELS =================
-try:
-     
-    BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-    MODEL_PATH = os.path.join(BASE_DIR, "saved_model", "svm_high_confidence.pkl")
-    VECTORIZER_PATH = os.path.join(BASE_DIR, "saved_model", "fake_real_TF_IDF_vectorizer.pkl")
-    ENCODER_PATH = os.path.join(BASE_DIR, "saved_model", "fake_real_label_encoder.pkl")
+model, vectorizer, label_encoder = None, None, None
+BASE_DIR = os.getcwd()
+MODEL_FOLDER = os.path.join(BASE_DIR, "saved_model")
 
-    model = joblib.load(MODEL_PATH)
-    vectorizer = joblib.load(VECTORIZER_PATH)
-    label_encoder = joblib.load(ENCODER_PATH)
+def load_models():
+    global model, vectorizer, label_encoder
+    try:
+        MODEL_PATH = os.path.join(MODEL_FOLDER, "svm_high_confidence.pkl")
+        VECTORIZER_PATH = os.path.join(MODEL_FOLDER, "fake_real_TF_IDF_vectorizer.pkl")
+        ENCODER_PATH = os.path.join(MODEL_FOLDER, "fake_real_label_encoder.pkl")
 
-    print("Models loaded successfully")
+        if not all(os.path.exists(p) for p in [MODEL_PATH, VECTORIZER_PATH, ENCODER_PATH]):
+            print("❌ Model files not found. Predictions will be disabled.")
+            return
 
-except Exception as e:
-    print("Model loading failed:", e)
-    traceback.print_exc()
-    model = None
-    vectorizer = None
-    label_encoder = None
+        model = joblib.load(MODEL_PATH)
+        vectorizer = joblib.load(VECTORIZER_PATH)
+        label_encoder = joblib.load(ENCODER_PATH)
+        print("✅ Models loaded successfully")
+
+    except Exception as e:
+        print("❌ Failed to load models:", e)
+        traceback.print_exc()
+
+load_models()
 # ================= HEURISTIC FACT CHECKER =================
 TRUSTED_SOURCES = [
     "bbc.com", "voasomali.com", "goobjoog.com", 
@@ -366,5 +372,6 @@ if __name__ == "__main__":
     port = int(os.environ.get("PORT", 3402))
     print(f"[*] Flask server starting on port {port}...")
     app.run(host="0.0.0.0", port=port, debug=False)
+
 
 
