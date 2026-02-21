@@ -1,3 +1,4 @@
+
 import os
 import re
 import joblib
@@ -16,10 +17,11 @@ from nltk.stem import WordNetLemmatizer
 app = Flask(__name__)
 CORS(app)
 
-# ================= NLTK SETUP =================
+# ================= NLTK OFFLINE SETUP =================
 NLTK_DATA_DIR = os.path.join(os.getcwd(), "nltk_data")
 nltk.data.path.append(NLTK_DATA_DIR)
 
+# Only download locally if not present
 for pkg in ["punkt", "stopwords", "wordnet"]:
     try:
         nltk.data.find(pkg)
@@ -30,24 +32,20 @@ stop_words = set(stopwords.words("english"))
 lemmatizer = WordNetLemmatizer()
 
 # ================= HELPERS =================
+def sanitize_text(text):
+    if not isinstance(text, str):
+        return ""
+    text = BeautifulSoup(text, "html.parser").get_text()
+    return text.strip()
+
 def preprocess_text(text):
     text = text.lower()
     text = re.sub(r"[^a-zA-Z ]", " ", text)
-
-    # Limit text length (MUHIIM SPEED)
-    text = text[:1500]
-
     try:
         tokens = word_tokenize(text)
-    except:
-        tokens = text.split()
-
-    tokens = [
-        lemmatizer.lemmatize(w)
-        for w in tokens
-        if w not in stop_words and len(w) > 2
-    ]
-
+    except LookupError:
+        tokens = text.split()  # fallback if punkt missing
+    tokens = [lemmatizer.lemmatize(w) for w in tokens if w not in stop_words and len(w) > 2]
     return " ".join(tokens)
 
 def is_url(text):
@@ -59,16 +57,10 @@ def extract_text_from_url(url):
         if resp.status_code != 200:
             return ""
         soup = BeautifulSoup(resp.content, "html.parser")
-
         for script in soup(["script", "style"]):
             script.decompose()
-
-        text = soup.get_text(separator=" ").strip()
-
-        # Limit URL content
-        return text[:2000]
-
-    except:
+        return soup.get_text(separator=" ").strip()
+    except Exception:
         return ""
 
 # ================= LOAD MODELS =================
@@ -84,13 +76,12 @@ def load_models():
         ENCODER_PATH = os.path.join(MODEL_FOLDER, "fake_real_label_encoder.pkl")
 
         if not all(os.path.exists(p) for p in [MODEL_PATH, VECTORIZER_PATH, ENCODER_PATH]):
-            print("❌ Model files not found.")
+            print("❌ Model files not found. Predictions will be disabled.")
             return
 
         model = joblib.load(MODEL_PATH)
         vectorizer = joblib.load(VECTORIZER_PATH)
         label_encoder = joblib.load(ENCODER_PATH)
-
         print("✅ Models loaded successfully")
 
     except Exception as e:
@@ -115,31 +106,38 @@ def predict():
             return jsonify({"error": "JSON data not found"}), 400
 
         input_type = data.get("type", "text")
-        content = str(data.get("data", "")).strip()
+        content = data.get("data", "")
 
         if not content:
             return jsonify({"error": "No text or URL provided"}), 400
 
-        # URL Mode
+        content = str(content).strip()
+
         if input_type == "url":
             if not is_url(content):
                 return jsonify({"error": "Invalid URL"}), 400
             content = extract_text_from_url(content)
             if not content:
-                return jsonify({"error": "Cannot extract text"}), 400
+                return jsonify({"error": "Cannot extract text from URL"}), 400
 
         clean_input = preprocess_text(content)
-
         if not clean_input:
-            return jsonify({"error": "Processed text empty"}), 400
+            return jsonify({"error": "Processed text is empty"}), 400
 
-        # VECTORIZE (NO toarray → FAST)
         X = vectorizer.transform([clean_input])
+        expected_features = model.coef_.shape[1]
 
-        # PREDICT DIRECTLY (Sparse OK)
+        if X.shape[1] != expected_features:
+            diff = expected_features - X.shape[1]
+            if diff > 0:
+                X = np.hstack([X.toarray(), np.zeros((X.shape[0], diff))])
+            else:
+                X = X.toarray()[:, :expected_features]
+        else:
+            X = X.toarray()
+
         pred = model.predict(X)[0]
 
-        # CONFIDENCE
         if hasattr(model, "predict_proba"):
             probs = model.predict_proba(X)[0]
             confidence = round(float(max(probs)) * 100, 2)
@@ -151,10 +149,7 @@ def predict():
         label = label_encoder.inverse_transform([pred])[0]
         result = "REAL NEWS" if label == 1 else "FAKE NEWS"
 
-        return jsonify({
-            "prediction": result,
-            "confidence": f"{confidence}%"
-        })
+        return jsonify({"prediction": result, "confidence": f"{confidence}%"})
 
     except Exception as e:
         traceback.print_exc()
@@ -177,9 +172,10 @@ def contact():
         with open("contacts.txt", "a", encoding="utf-8") as f:
             f.write(f"Name: {name}\nEmail: {email}\nMessage: {message}\n---\n")
 
+        print(f"[*] New message from {name} ({email})")
         return jsonify({"status": "Success", "message": "Message received!"})
 
-    except:
+    except Exception:
         traceback.print_exc()
         return jsonify({"error": "Server error occurred"}), 500
 
@@ -188,3 +184,4 @@ if __name__ == "__main__":
     port = int(os.environ.get("PORT", 3402))
     print(f"[*] Flask server starting on port {port}...")
     app.run(host="0.0.0.0", port=port, debug=False)
+
