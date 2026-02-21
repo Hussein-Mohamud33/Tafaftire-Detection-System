@@ -18,41 +18,72 @@ app = Flask(__name__,
             static_url_path="")
 CORS(app)
 
-# ================= NLTK SETUP =================
-for pkg in ["punkt", "punkt_tab", "stopwords", "wordnet"]:
-    nltk.download(pkg, quiet=True)
+# ================= NLTK SETUP (Lazy Loading) =================
+# We don't download at top-level to avoid Render startup timeouts.
+# Packages will be loaded inside the functions that need them.
+stop_words = set()
+lemmatizer = None
 
-stop_words = set(stopwords.words("english"))
-somali_stopwords = [
-    "waa", "iyo", "in", "uu", "ay", "ayuu", "ayey", "ka", "u", "ee", "oo", "ah", 
-    "sidii", "waxaan", "waxaad", "wuxuu", "waxay", "iska", "ahaa", "lagu", "loogu",
-    "isagoo", "iyadoo", "ku", "soo", "isaga", "iyada", "labada", "kala", "inta",
-    "ilaa", "wax", "kale", "mar", "markii", "la", "si", "aad", "eeg", "ayaa",
-    "ayay", "kuwa", "kuwaas", "kuwan", "kaas", "kan", "kuwaa", "loo", "loona"
-]
-stop_words.update(somali_stopwords)
-lemmatizer = WordNetLemmatizer()
+def init_nltk_resources():
+    global stop_words, lemmatizer
+    if not stop_words:
+        packages = ["punkt", "punkt_tab", "stopwords", "wordnet"]
+        for pkg in packages:
+            try:
+                nltk.download(pkg, quiet=True)
+            except Exception:
+                pass
+        
+        try:
+            from nltk.corpus import stopwords
+            stop_words = set(stopwords.words("english"))
+            somali_stopwords = [
+                "waa", "iyo", "in", "uu", "ay", "ayuu", "ayey", "ka", "u", "ee", "oo", "ah", 
+                "sidii", "waxaan", "waxaad", "wuxuu", "waxay", "iska", "ahaa", "lagu", "loogu",
+                "isagoo", "iyadoo", "ku", "soo", "isaga", "iyada", "labada", "kala", "inta",
+                "ilaa", "wax", "kale", "mar", "markii", "la", "si", "aad", "eeg", "ayaa",
+                "ayay", "kuwa", "kuwaas", "kuwan", "kaas", "kan", "kuwaa", "loo", "loona"
+            ]
+            stop_words.update(somali_stopwords)
+        except Exception:
+            stop_words = set()
+            
+        try:
+            from nltk.stem import WordNetLemmatizer
+            lemmatizer = WordNetLemmatizer()
+        except Exception:
+            lemmatizer = None
 
 # ================= HELPERS =================
 def sanitize_text(text):
     """Remove HTML tags and strip text."""
     if not isinstance(text, str):
         return ""
-    text = BeautifulSoup(text, "html.parser").get_text()
+    try:
+        text = BeautifulSoup(text, "html.parser").get_text()
+    except Exception:
+        pass
     return text.strip()
 
 def preprocess_text(text):
     """Lowercase, remove non-alphabetic, tokenize (with fallback), remove stopwords, lemmatize."""
+    init_nltk_resources() # Ensure resources are ready when needed
+    
     text = text.lower()
     text = re.sub(r"[^a-z' ]", " ", text)
     
-    # Try NLTK tokenizer, if fails (punkt missing), use split()
+    # Try NLTK tokenizer, if fails, use split()
     try:
         tokens = word_tokenize(text)
     except Exception:
         tokens = text.split()
         
-    tokens = [lemmatizer.lemmatize(w) for w in tokens if w not in stop_words and len(w) > 2]
+    # Remove stopwords and lemmatize
+    if lemmatizer:
+        tokens = [lemmatizer.lemmatize(w) for w in tokens if w not in stop_words and len(w) > 2]
+    else:
+        tokens = [w for w in tokens if w not in stop_words and len(w) > 2]
+        
     return " ".join(tokens)
 
 def is_url(text):
