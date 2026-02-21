@@ -117,77 +117,86 @@ def is_vague_source(text):
     vague_words = ["khubaro ayaa sheegay", "daraasad cusub ayaa sheegtay", "ilo wareedyo", "warar la helayo"]
     return int(any(word in text.lower() for word in vague_words))
 
-# ================= LOAD RESOURCES (Optimized Background) =================
+# ================= LOAD RESOURCES (Deep Diagnostic Mode) =================
 model = None
 vectorizer = None
 label_encoder = None
 models_loaded = False
 loading_error = None
+loading_status = "Waiting..."
 
 def load_resources_in_background():
-    global model, vectorizer, label_encoder, models_loaded, stop_words, lemmatizer, loading_error
+    global model, vectorizer, label_encoder, models_loaded, stop_words, lemmatizer, loading_error, loading_status
     try:
-        print("[*] Starting resource loading in background...")
-        # 1. NLTK Quick Setup
+        loading_status = "Bilaabay NLTK setup..."
+        # 1. NLTK Quick Setup - essential for preprocessing
         for pkg in ["punkt", "punkt_tab", "stopwords", "wordnet"]:
             try:
                 nltk.download(pkg, quiet=True)
-            except Exception:
-                pass
+            except Exception as e:
+                print(f"NLTK Warning ({pkg}): {e}")
         
         from nltk.corpus import stopwords
         from nltk.stem import WordNetLemmatizer
         stop_words = set(stopwords.words("english"))
-        somali_stopwords = [
-            "waa", "iyo", "in", "uu", "ay", "ayuu", "ayey", "ka", "u", "ee", "oo", "ah", 
-            "sidii", "waxaan", "waxaad", "wuxuu", "waxay", "iska", "ahaa", "lagu", "loogu",
-            "isagoo", "iyadoo", "ku", "soo", "isaga", "iyada", "labada", "kala", "inta",
-            "ilaa", "wax", "kale", "mar", "markii", "la", "si", "aad", "eeg", "ayaa",
-            "ayay", "kuwa", "kuwaas", "kuwan", "kaas", "kan", "kuwaa", "loo", "loona"
-        ]
+        somali_stopwords = ["waa", "iyo", "in", "uu", "ay", "ayuu", "ayey", "ka", "u", "ee", "oo", "ah", "aad", "ayaa"]
         stop_words.update(somali_stopwords)
         lemmatizer = WordNetLemmatizer()
 
-        # 2. Models Loading (Multi-path search)
+        loading_status = "Raadinaya Folder-ka Model-ka..."
+        # 2. Advanced Path Finding
         BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-        possible_paths = [
+        pwd = os.getcwd()
+        possible_dirs = [
             os.path.join(BASE_DIR, "saved_model"),
+            os.path.join(pwd, "saved_model"),
             os.path.join(BASE_DIR, "Saved_model"),
-            os.path.join(os.getcwd(), "saved_model"),
-            os.path.join(os.getcwd(), "Saved_model")
+            os.path.join(pwd, "Saved_model")
         ]
         
-        models_dir = None
-        for path in possible_paths:
-            if os.path.exists(path) and os.path.isdir(path):
-                models_dir = path
+        target_dir = None
+        for d in possible_dirs:
+            if os.path.exists(d) and os.path.isdir(d):
+                target_dir = d
                 break
+        
+        if not target_dir:
+            # Diagnostic: What IS in the current directory?
+            files_present = os.listdir(pwd)
+            loading_error = f"Ma helin folder-ka 'saved_model'. Files-ka jira: {files_present}"
+            return
 
-        if models_dir:
-            file_paths = {
-                "model": os.path.join(models_dir, "svm_high_confidence.pkl"),
-                "vectorizer": os.path.join(models_dir, "fake_real_TF_IDF_vectorizer.pkl"),
-                "encoder": os.path.join(models_dir, "fake_real_label_encoder.pkl")
-            }
-            
-            # Verify each file exists
-            missing_files = [f for f, p in file_paths.items() if not os.path.exists(p)]
-            if not missing_files:
-                model = joblib.load(file_paths["model"])
-                vectorizer = joblib.load(file_paths["vectorizer"])
-                label_encoder = joblib.load(file_paths["encoder"])
-                models_loaded = True
-                print(f"✅ Background loading complete from: {models_dir}")
-            else:
-                loading_error = f"Files maqan ({', '.join(missing_files)}) gudaha {models_dir}."
-                print(f"❌ ERROR: {loading_error}")
-        else:
-            loading_error = f"Folder-ka 'saved_model' lama helin. Path-yada la baaray: {possible_paths}"
-            print(f"❌ ERROR: {loading_error}")
+        loading_status = f"Loading files ka: {target_dir}..."
+        file_map = {
+            "model": "svm_high_confidence.pkl",
+            "vectorizer": "fake_real_TF_IDF_vectorizer.pkl",
+            "encoder": "fake_real_label_encoder.pkl"
+        }
+        
+        # Verify files exist before loading
+        for key, filename in file_map.items():
+            full_path = os.path.join(target_dir, filename)
+            if not os.path.exists(full_path):
+                # Check for same file with different case
+                all_files = os.listdir(target_dir)
+                found_match = [f for f in all_files if f.lower() == filename.lower()]
+                if found_match:
+                    file_map[key] = found_match[0]
+                else:
+                    loading_error = f"File maqan: {filename} gudaha {target_dir}. Files jira: {all_files}"
+                    return
+
+        # Actual loading
+        model = joblib.load(os.path.join(target_dir, file_map["model"]))
+        vectorizer = joblib.load(os.path.join(target_dir, file_map["vectorizer"]))
+        label_encoder = joblib.load(os.path.join(target_dir, file_map["encoder"]))
+        
+        models_loaded = True
+        loading_status = "System Ready"
+        print(f"✅ COMPLETED: Resources loaded from {target_dir}")
             
     except Exception as e:
-        loading_error = f"Crash dhacay: {str(e)}"
-        print(f"❌ Background loading failed: {e}")
+        loading_error = f"CRITICAL LOAD ERROR: {str(e)}"
         traceback.print_exc()
 
 # Start background loading
@@ -335,16 +344,24 @@ def health():
 @app.route("/predict", methods=["POST"])
 def predict():
     try:
-        # If not loaded, wait up to 10 seconds (for cold startup)
+        # If not loaded, wait up to 12 seconds
         wait_time = 0
-        while not models_loaded and wait_time < 10:
+        while not models_loaded and wait_time < 12:
             if loading_error:
-                return jsonify({"error": f"NIDAMKA: Error ayaa dhacay: {loading_error}"}), 500
+                return jsonify({
+                    "error": "NIDAMKA: Khalad ayaa dhacay xiliga load-gareynta.",
+                    "details": loading_error,
+                    "status": loading_status
+                }), 500
             time.sleep(1)
             wait_time += 1
 
         if not models_loaded:
-            return jsonify({"error": "NIDAMKA: Model-adii wali ma diyaarsana. Fadlan sug 10 ilbiriqsi ka dibna isku day mar kale."}), 503
+            return jsonify({
+                "error": "NIDAMKA: Model-adii wali ma diyaarsana.",
+                "status": loading_status,
+                "message": "Fadlan sug 10-20 ilbiriqsi si uu server-ku u dhameystiro kicitaanka."
+            }), 503
 
         data = request.get_json(silent=True)
         if not data:
