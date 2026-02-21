@@ -1,6 +1,5 @@
 import os
 import re
-import joblib
 import traceback
 import numpy as np
 import requests
@@ -25,11 +24,11 @@ for pkg in ["punkt", "stopwords", "wordnet"]:
 
 stop_words = set(stopwords.words("english"))
 somali_stopwords = [
-    "waa", "iyo", "in", "uu", "ay", "ayuu", "ayey", "ka", "u", "ee", "oo", "ah",
-    "sidii", "waxaan", "waxaad", "wuxuu", "waxay", "iska", "ahaa", "lagu", "loogu",
-    "isagoo", "iyadoo", "ku", "soo", "isaga", "iyada", "labada", "kala", "inta",
-    "ilaa", "wax", "kale", "mar", "markii", "la", "si", "aad", "eeg", "ayaa",
-    "ayay", "kuwa", "kuwaas", "kuwan", "kaas", "kan", "kuwaa", "loo", "loona"
+    "waa","iyo","in","uu","ay","ayuu","ayey","ka","u","ee","oo","ah",
+    "sidii","waxaan","waxaad","wuxuu","waxay","iska","ahaa","lagu","loogu",
+    "isagoo","iyadoo","ku","soo","isaga","iyada","labada","kala","inta",
+    "ilaa","wax","kale","mar","markii","la","si","aad","eeg","ayaa",
+    "ayay","kuwa","kuwaas","kuwan","kaas","kan","kuwaa","loo","loona"
 ]
 stop_words.update(somali_stopwords)
 lemmatizer = WordNetLemmatizer()
@@ -41,204 +40,156 @@ def sanitize_text(text):
 
 def preprocess_text(text):
     text = text.lower()
-    text = re.sub(r"[^a-z' ]", " ", text)
+    text = re.sub(r"[^a-z' ]"," ",text)
     tokens = word_tokenize(text)
-    return " ".join([lemmatizer.lemmatize(w) for w in tokens if w not in stop_words and len(w) > 2])
+    return " ".join([lemmatizer.lemmatize(w) for w in tokens if w not in stop_words and len(w)>2])
 
 def is_url(text):
-    pattern = r'^(https?://|www\.)[a-z0-9-]+(\.[a-z0-9-]+)+([/?#].*)?$'
-    return bool(re.match(pattern, text.strip().lower()))
+    pattern=r'^(https?://|www\.)[a-z0-9-]+(\.[a-z0-9-]+)+([/?#].*)?$'
+    return bool(re.match(pattern,text.strip().lower()))
 
 def extract_text_from_url(url):
     try:
-        resp = requests.get(url, timeout=5)
-        if resp.status_code != 200: return ""
-        soup = BeautifulSoup(resp.content, "html.parser")
-        for script in soup(["script", "style"]):
+        resp=requests.get(url,timeout=5)
+        if resp.status_code!=200: return ""
+        soup=BeautifulSoup(resp.content,"html.parser")
+        for script in soup(["script","style"]):
             script.decompose()
         return soup.get_text(separator=" ").strip()
-    except Exception:
+    except:
         return ""
 
 def is_extreme_claim(text):
-    extreme_words = ["100 sano", "hal charge 6 bilood", "miracle", "cure", "mucjiso", "lacag bilaash"]
+    extreme_words=["100 sano","hal charge 6 bilood","miracle","cure","mucjiso","lacag bilaash"]
     return int(any(word in text.lower() for word in extreme_words))
 
 def is_vague_source(text):
-    vague_words = ["khubaro ayaa sheegay", "daraasad cusub ayaa sheegtay", "ilo wareedyo", "warar la helayo"]
+    vague_words=["khubaro ayaa sheegay","daraasad cusub ayaa sheegtay","ilo wareedyo","warar la helayo"]
     return int(any(word in text.lower() for word in vague_words))
 
 # ================= MODEL PLACEHOLDERS =================
-model, vectorizer, label_encoder = None, None, None
-MODEL_FOLDER = os.path.join(os.getcwd(), "saved_model")
+model, vectorizer = None, None
+MODEL_FOLDER=os.path.join(os.getcwd(),"saved_model")
 
 def load_models():
-    global model, vectorizer, label_encoder
+    global model, vectorizer
     try:
-        MODEL_PATH = os.path.join(MODEL_FOLDER, "svm_high_confidence.pkl")
-        VECTORIZER_PATH = os.path.join(MODEL_FOLDER, "fake_real_TF_IDF_vectorizer.pkl")
-        ENCODER_PATH = os.path.join(MODEL_FOLDER, "fake_real_label_encoder.pkl")
-        if not all(os.path.exists(p) for p in [MODEL_PATH, VECTORIZER_PATH, ENCODER_PATH]):
-            print("❌ Model files not found. Predictions will fallback to heuristic only.")
-            return
-        model = joblib.load(MODEL_PATH)
-        vectorizer = joblib.load(VECTORIZER_PATH)
-        label_encoder = joblib.load(ENCODER_PATH)
-        print("✅ Models loaded successfully")
+        import joblib
+        model_path=os.path.join(MODEL_FOLDER,"svm_high_confidence.pkl")
+        vectorizer_path=os.path.join(MODEL_FOLDER,"fake_real_TF_IDF_vectorizer.pkl")
+        if all(os.path.exists(p) for p in [model_path, vectorizer_path]):
+            model=joblib.load(model_path)
+            vectorizer=joblib.load(vectorizer_path)
+            print("✅ Models loaded successfully")
+        else:
+            print("❌ Model files not found. `/predict` fallback only.")
     except Exception as e:
-        print("❌ Failed to load models:", e)
+        print("❌ Failed to load models:",e)
         traceback.print_exc()
 
 load_models()
 
-def ensure_models_loaded():
-    if model is None or vectorizer is None or label_encoder is None:
-        load_models()
-
-# ================= HEURISTIC FACT CHECK =================
-TRUSTED_SOURCES = [
-    "bbc.com", "voasomali.com", "goobjoog.com",
-    "garoweonline.com", "somalistream.com", "somnn.com",
-    "somaliglobe.net", "sntv.so", "sonna.so", "aljazeera.com",
-    "reuters.com", "apnews.com", "hiiraan.com"
+# ================= HEURISTIC =================
+TRUSTED_SOURCES=[
+    "bbc.com","voasomali.com","goobjoog.com","garoweonline.com","somalistream.com","somnn.com",
+    "somaliglobe.net","sntv.so","sonna.so","aljazeera.com","reuters.com","apnews.com","hiiraan.com"
 ]
-UNTRUSTED_PATTERNS = [
-    "shidan", "fayras", "dawo mucjiso ah", "lacag bilaash ah",
-    "guji halkan", "win iphone", "naxdin", "deg deg", "nin yaaban",
-    "naag yaaban", "subxaanallaah", "yaabka aduunka", "arrin lala yaabo",
-    "qarax cusub", "war hadda soo dhacay", "daawasho naxdin leh"
+UNTRUSTED_PATTERNS=[
+    "shidan","fayras","dawo mucjiso ah","lacag bilaash ah","guji halkan","win iphone","naxdin",
+    "deg deg","nin yaaban","naag yaaban","subxaanallaah","yaabka aduunka","arrin lala yaabo",
+    "qarax cusub","war hadda soo dhacay","daawasho naxdin leh"
 ]
 
-def heuristic_fact_check(text, url=None):
-    score = 0
-    reasons = []
-
+def heuristic_fact_check(text,url=None):
+    score=0
+    reasons=[]
     if url:
-        url_lower = url.lower()
-        clean_url = re.sub(r'^https?://(www\.)?', '', url_lower)
-        found_trusted = False
+        clean_url=re.sub(r'^https?://(www\.)?','',url.lower())
         for trusted in TRUSTED_SOURCES:
             if trusted in clean_url:
-                found_trusted = True
-                score += 60
+                score+=60
                 reasons.append(f"Isha warka ({trusted}) waa mid si weyn loo kalsoon yahay.")
                 break
-        if not found_trusted:
+        else:
             reasons.append("Isha warka ma ahan mid ka mid ah ilaha rasmiga ee la yaqaano.")
-            if any(ext in clean_url for ext in [".tk", ".ga", ".ml", ".cf", ".icu", ".xyz"]):
-                score -= 30
+            if any(ext in clean_url for ext in [".tk",".ga",".ml",".cf",".icu",".xyz"]):
+                score-=30
                 reasons.append("Domain-kan badanaa waxaa loo isticmaalaa warar been ah.")
-
-    text_lower = text.lower()
-    found_scary = [p for p in UNTRUSTED_PATTERNS if p in text_lower]
+    text_lower=text.lower()
+    found_scary=[p for p in UNTRUSTED_PATTERNS if p in text_lower]
     if found_scary:
-        score -= 25
+        score-=25
         reasons.append(f"Ereyada kicin ah: {', '.join(found_scary)}")
     else:
-        score += 10
-        reasons.append("Qoraalku uma muuqdo mid kicin ah (Professional tone).")
-
-    words = text.split()
-    if len(words) > 10:
-        caps_words = [w for w in words if w.isupper() and len(w) > 3]
-        if (len(caps_words)/len(words)) > 0.3:
-            score -= 15
+        score+=10
+        reasons.append("Qoraalku uma muuqdo mid kicin ah.")
+    words=text.split()
+    if len(words)>10:
+        caps_words=[w for w in words if w.isupper() and len(w)>3]
+        if len(caps_words)/len(words)>0.3:
+            score-=15
             reasons.append("Qoraalku wuxuu u qoran yahay si qaylo ah (Too many CAPS).")
-
-    consensus_keywords = [
-        "wadahadal", "shir", "madaxweyne", "rayga", "amniga", "shaqo",
-        "cusub", "gobolka", "isgaarsiinta", "waxbarashada", "caafimaadka",
-        "baarlamaanka", "doorashooyinka"
+    consensus_keywords=[
+        "wadahadal","shir","madaxweyne","rayga","amniga","shaqo",
+        "cusub","gobolka","isgaarsiinta","waxbarashada","caafimaadka",
+        "baarlamaanka","doorashooyinka"
     ]
-    found_consensus = [w for w in consensus_keywords if w in text_lower]
-    if len(found_consensus) >=3:
-        score += 20
-        reasons.append("Mowduuca warku wuxuu u muuqdaa mid waafaqsan nuxurka wararka rasmiga ah.")
-    elif len(found_consensus) == 0:
-        score -= 10
-        reasons.append("Ma jiraan ereyo muhiim ah oo xiriiriya warkan iyo dhacdooyinka muhiimka ah.")
-
-    if len(words) < 30:
-        score -= 20
-        reasons.append("Qoraalku aad buu u gaaban yahay.")
-    else:
-        score += 15
-
-    confidence = 50 + (abs(score)/2)
-    confidence = min(confidence, 98)
-
-    if score >=20:
-        rating = "Trusted"
-    elif score>-10:
-        rating = "Unverified"
-        confidence -=10
-    else:
-        rating="Unverified"
-        if confidence<70: confidence=75
-
+    found_consensus=[w for w in consensus_keywords if w in text_lower]
+    if len(found_consensus)>=3: score+=20; reasons.append("Mowduuca warku wuxuu u muuqdaa mid waafaqsan nuxurka wararka rasmiga ah.")
+    elif len(found_consensus)==0: score-=10; reasons.append("Ma jiraan ereyo muhiim ah oo xiriiriya warkan iyo dhacdooyinka muhiimka ah.")
+    if len(words)<30: score-=20; reasons.append("Qoraalku aad buu u gaaban yahay.")
+    else: score+=15
+    confidence=min(98,50+abs(score)/2)
+    rating="Trusted" if score>=20 else "Unverified"
     return {"rating":rating,"confidence":f"{int(confidence)}%","reasons":reasons}
 
 # ================= ROUTES =================
-@app.route("/", methods=["GET"])
-def home():
+@app.route("/",methods=["GET"])
+def home(): 
     return jsonify({"status":"OK","message":"Fake News Detection API running"})
 
-@app.route("/predict", methods=["POST"])
+@app.route("/predict",methods=["POST"])
 def predict():
     try:
-        data = request.get_json(silent=True)
+        data=request.get_json(silent=True)
         if not data: return jsonify({"error":"JSON lama helin"}),400
-        content = data.get("text") or data.get("data")
+        content=data.get("text") or data.get("data")
         if not content: return jsonify({"error":"Qoraal lama soo dirin"}),400
-
-        content = str(content).strip()
-        input_type = data.get("type","text")
-        input_url = None
-
+        content=str(content).strip()
+        input_type=data.get("type","text")
+        input_url=None
         if input_type=="url" or is_url(content):
-            if not content.startswith(("http://","https://")):
-                content="https://"+content
+            if not content.startswith(("http://","https://")): content="https://"+content
             input_url=content
             content=extract_text_from_url(input_url)
             if not content:
                 input_url=input_url.replace("https://","http://")
                 content=extract_text_from_url(input_url)
-            if not content:
-                return jsonify({"error":"Ma suurtagalin in xog laga soo saaro URL"}),400
-
+            if not content: return jsonify({"error":"Ma suurtagalin in xog laga soo saaro URL"}),400
         clean_input=preprocess_text(content)
-        ensure_models_loaded()
-
-        if model is None:
+        if model is None or vectorizer is None:
             result=heuristic_fact_check(content,input_url)
             return jsonify({"prediction":result["rating"],"confidence":result["confidence"],"hybrid_score":0})
-
-        X=vectorizer.transform([clean_input])
+        X=vectorizer.transform([clean_input]).toarray()
         ext=is_extreme_claim(content)
         vague=is_vague_source(content)
-        X_dense=X.toarray()
-        X=np.hstack([X_dense,np.array([[ext,vague]])])
-
+        X=np.hstack([X,np.array([[ext,vague]])])
         score=model.decision_function(X)[0] if hasattr(model,"decision_function") else 0
         final_score=score
-        confidence_val=(1/(1+np.exp(-abs(final_score))))*100
-        confidence_val=min(98.5,max(70.0,confidence_val))
+        confidence_val=min(98.5,max(70,(1/(1+np.exp(-abs(final_score))))*100))
         result="Trusted" if final_score>0 else "Fake Information"
-
         return jsonify({"prediction":result,"confidence":f"{round(confidence_val,2)}%","hybrid_score":round(final_score,2)})
-
     except Exception:
         traceback.print_exc()
         return jsonify({"error":"Server error ayaa dhacay"}),500
 
-@app.route("/fact-check", methods=["POST"])
+@app.route("/fact-check",methods=["POST"])
 def fact_check_route():
     try:
         data=request.get_json(silent=True)
         if not data: return jsonify({"error":"JSON lama helin"}),400
         content=data.get("text") or data.get("data")
         if not content: return jsonify({"error":"Xog lama soo dirin"}),400
-
         input_type=data.get("type","text")
         input_url=None
         if input_type=="url" or is_url(content):
@@ -249,12 +200,10 @@ def fact_check_route():
             if not content:
                 input_url=input_url.replace("https://","http://")
                 content=extract_text_from_url(input_url)
-            if not content:
-                return jsonify({"error":"Qoraalka laga helay URL-ka lama heli karo ama waa mid aad u yar"}),400
-
+            if not content: return jsonify({"error":"Qoraalka laga helay URL-ka lama heli karo ama waa mid aad u yar"}),400
+        # `/fact-check` mar walba heuristic
         result=heuristic_fact_check(content,input_url)
         return jsonify(result)
-
     except Exception:
         traceback.print_exc()
         return jsonify({"error":"Server error ayaa dhacay"}),500
