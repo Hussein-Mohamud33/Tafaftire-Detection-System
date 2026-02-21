@@ -117,15 +117,17 @@ def is_vague_source(text):
     vague_words = ["khubaro ayaa sheegay", "daraasad cusub ayaa sheegtay", "ilo wareedyo", "warar la helayo"]
     return int(any(word in text.lower() for word in vague_words))
 
-# ================= LOAD MODELS (Optimized) =================
+# ================= LOAD RESOURCES (Optimized Background) =================
 model = None
 vectorizer = None
 label_encoder = None
 models_loaded = False
+loading_error = None
 
 def load_resources_in_background():
-    global model, vectorizer, label_encoder, models_loaded, stop_words, lemmatizer
+    global model, vectorizer, label_encoder, models_loaded, stop_words, lemmatizer, loading_error
     try:
+        print("[*] Starting resource loading in background...")
         # 1. NLTK Quick Setup
         for pkg in ["punkt", "punkt_tab", "stopwords", "wordnet"]:
             nltk.download(pkg, quiet=True)
@@ -147,121 +149,145 @@ def load_resources_in_background():
         BASE_DIR = os.path.dirname(os.path.abspath(__file__))
         models_dir = os.path.join(BASE_DIR, "saved_model")
         
-        model = joblib.load(os.path.join(models_dir, "svm_high_confidence.pkl"))
-        vectorizer = joblib.load(os.path.join(models_dir, "fake_real_TF_IDF_vectorizer.pkl"))
-        label_encoder = joblib.load(os.path.join(models_dir, "fake_real_label_encoder.pkl"))
-        
-        models_loaded = True
-        print("✅ Background loading complete. System ready.")
+        # Check case sensitivity fallback
+        if not os.path.exists(models_dir):
+            models_dir = os.path.join(BASE_DIR, "Saved_model")
+
+        if os.path.exists(models_dir):
+            model = joblib.load(os.path.join(models_dir, "svm_high_confidence.pkl"))
+            vectorizer = joblib.load(os.path.join(models_dir, "fake_real_TF_IDF_vectorizer.pkl"))
+            label_encoder = joblib.load(os.path.join(models_dir, "fake_real_label_encoder.pkl"))
+            models_loaded = True
+            print("✅ Background loading complete. System ready.")
+        else:
+            loading_error = "Folder-ka 'saved_model' lama helin."
+            print(f"❌ ERROR: {loading_error}")
+            
     except Exception as e:
+        loading_error = str(e)
         print(f"❌ Background loading failed: {e}")
 
 # Start background loading
 import threading
+import time
 threading.Thread(target=load_resources_in_background, daemon=True).start()
-# ================= HEURISTIC FACT CHECKER =================
+# ================= DEEP FACT CHECKER (Enhanced) =================
 TRUSTED_SOURCES = [
-    "bbc.com", "voasomali.com", "goobjoog.com", 
-    "garoweonline.com", "somalistream.com", "somnn.com", 
-    "somaliglobe.net", "sntv.so", "sonna.so", "aljazeera.com",
-    "reuters.com", "apnews.com", "hiiraan.com"
+    "bbc.com", "voasomali.com", "goobjoog.com", "garoweonline.com", 
+    "somalistream.com", "somnn.com", "somaliglobe.net", "sntv.so", 
+    "sonna.so", "aljazeera.com", "reuters.com", "apnews.com", 
+    "hiiraan.com", "puntlandpost.net", "radiomuqdisho.net", "dalsan.so",
+    "caasimada.net", "horseedmedia.net", "somalilandpost.net"
 ]
 
 UNTRUSTED_PATTERNS = [
     "shidan", "fayras", "dawo mucjiso ah", "lacag bilaash ah", 
     "guji halkan", "win iphone", "naxdin", "deg deg", "nin yaaban",
     "naag yaaban", "subxaanallaah", "yaabka aduunka", "arrin lala yaabo",
-    "qarax cusub", "war hadda soo dhacay", "daawasho naxdin leh"
+    "qarax cusub", "war hadda soo dhacay", "daawasho naxdin leh",
+    "lama rumeysan karo", "aad u naxdin badan", "muuqaal sir ah"
+]
+
+SOCIAL_MEDIA_DOMAINS = ["facebook.com", "t.me", "x.com", "twitter.com", "tiktok.com", "fb.watch"]
+
+EMOTIONAL_TRIGGERS = [
+    "subxaanallaah", "naxdin", "mucjiso", "yaab", "aad u xanuun badan",
+    "dunidii way dhammaday", "qarax", "geeri", "deg deg", "nin yaaban"
 ]
 
 def heuristic_fact_check(text, url=None):
     """
-    Analyzes news credibility based on source reputation, content patterns, 
-    and stylistic markers (sensationalism).
+    Advanced Credibility Analysis:
+    - URL/Source Authority
+    - Linguistic Tone & Emotional Triggers
+    - Somali News Standards Consensus
+    - Clickbait & Sensationalism Detection
     """
     score = 0
     reasons = []
+    text_lower = text.lower()
     
-    # 1. Source Reliability (Max +60)
+    # 1. Source & Website Deep Check
     if url:
-        url_lower = url.url.lower() if hasattr(url, 'url') else str(url).lower()
+        url_lower = str(url).lower()
         clean_url = re.sub(r'^https?://(www\.)?', '', url_lower)
         
+        # A. Trusted Check
         found_trusted = False
         for trusted in TRUSTED_SOURCES:
             if trusted in clean_url:
                 found_trusted = True
-                score += 65 # Increased boost for trusted sites
-                reasons.append(f"Isha warka ({trusted}) waa mid si weyn loo kalsoon yahay.")
+                score += 70 
+                reasons.append(f"✅ Isha rasmiga ah: {trusted}. Tani waa ilo-wareed si weyn looga tixgeliyo saxaafadda Soomaalida.")
                 break
         
+        # B. Social Media Check (Lower baseline trust)
         if not found_trusted:
-            # Penalize slightly for suspicious domains (e.g., .tk, .ga, .icu)
-            if any(ext in clean_url for ext in [".tk", ".ga", ".ml", ".cf", ".icu", ".xyz"]):
-                score -= 35
-                reasons.append("Domain-ka loo isticmaalo warkaan (xyz/tk/ml) inta badan waxaa loo isticmaalaa warar been ah.")
-            else:
-                reasons.append("Isha warka (Domain) ma ahan mid ka mid ah ilaha rasmiga ee aan naqaano, balse taasi macnaheedu maahan inuu been yahay.")
+            if any(sm in clean_url for sm in SOCIAL_MEDIA_DOMAINS):
+                score -= 15
+                reasons.append("⚠️ Isha warka waa Social Media. Wararka noocan ah waxay u baahan yihiin in laga xaqiijiyo ilo madax-bannaan.")
+            
+            # C. Suspicious TLDs
+            if any(ext in clean_url for ext in [".tk", ".ml", ".cf", ".ga", ".icu", ".xyz", ".top", ".buzz"]):
+                score -= 40
+                reasons.append("❌ Domain-ka (xyz/tk/ml): Ciwaanka website-kan waxaa badanaa loo isticmaalaa warar been ah ama 'phishing'.")
+            elif not found_trusted:
+                reasons.append("ℹ️ Isha warka (Domain): Ciwaankan ma ahan mid ku jira diiwaanka ilaha rasmiga ah ee la yaqaan.")
 
-    # 2. Sensationalism & Clickbait (Max -40)
-    text_lower = text.lower()
-    found_scary = [p for p in UNTRUSTED_PATTERNS if p in text_lower]
-    if found_scary:
-        score -= 30
-        reasons.append(f"Waxaa la helay ereyo kicin ah oo ka baxsan anshaxa saxaafadda: {', '.join(found_scary)}.")
-    else:
-        score += 15 # Boost for professional tone
-        reasons.append("Qoraalku uma muuqdo mid kicin ah (Professional tone).")
+    # 2. Emotional Tone & Extremism
+    found_triggers = [w for w in EMOTIONAL_TRIGGERS if w in text_lower]
+    if len(found_triggers) >= 2:
+        score -= 25
+        reasons.append(f"🚩 Luuqad Kicin ah: Waxaa la isticmaalay ereyo dareenka kiciya sida ({', '.join(found_triggers)}).")
+    elif len(found_triggers) == 0:
+        score += 15
+        reasons.append("✅ Tone Professional: Qoraalku ma lahan ereyo kicin ah, wuxuuna u qoran yahay si dhex-dhexaad ah.")
 
-    # 3. Punctuation Analysis (Sensationalism)
-    if "!!!" in text or "???" in text:
-        score -= 20
-        reasons.append("Waxa la isticmaalay calaamado lagu kicinayo dareenka akhristaha (Excessive punctuation).")
-    
-    # 4. Capitalization Check (Shouting)
-    words = text.split()
-    if len(words) > 10:
-        caps_words = [w for w in words if w.isupper() and len(w) > 3]
-        if (len(caps_words) / len(words)) > 0.3:
-            score -= 20
-            reasons.append("Qoraalku wuxuu u qoran yahay si qaylo ah (Too many CAPS).")
-
-    # 5. Consensus Somali Keywords (Max +30)
-    consensus_keywords = [
-        "wadahadal", "shir", "madaxweyne", "rayga", "amniga", "shaqo", 
-        "cusub", "gobolka", "isgaarsiinta", "waxbarashada", "caafimaadka",
-        "baarlamaanka", "doorashooyinka", "xukuumadda", "shacabka", "muhiim",
-        "maamulka", "war-murtiyeed", "kulan", "wasiirka", "golaha", "sharciga",
-        "ciidanka", "dhacdo", "gobanimada", "midnimada", "hormarka"
+    # 3. Somali News Consensus (Key Professional Terms)
+    professional_terms = [
+        "madaxweyne", "baarlamaanka", "doorasho", "xukuumad", "shacabka",
+        "amniga", "dowladda", "wada-hadal", "shir-jaraa'id", "go'aan",
+        "wasaaradda", "maamulka", "gobolka", "isgaarsiinta", "horumar", "sharciga"
     ]
-    found_consensus = [w for w in consensus_keywords if w in text_lower]
-    if len(found_consensus) >= 3:
-        score += 35 # Increased boost
-        reasons.append("Mowduuca warku wuxuu u muuqdaa mid waafaqsan nuxurka dhacdooyinka rasmiga ah.")
-    elif len(found_consensus) >= 1:
-        score += 15 # Increased boost
-        reasons.append("Waxa ku jira ereyo muhiim ah oo loo isticmaalo wararka xaqiiqda ku dhisnaan kara.")
+    found_terms = [w for w in professional_terms if w in text_lower]
+    if len(found_terms) >= 4:
+        score += 30
+        reasons.append("✅ Consensus News: Mowduucu wuxuu adeegsaday Luuqad saxafadeed oo waafaqsan wararka rasmiga ah.")
+    elif len(found_terms) >= 1:
+        score += 10
+        reasons.append("ℹ️ Waxaa ku jira ereyo la xiriira dhacdooyinka rasmiga ah.")
 
-    # 6. Text Length & Quality
-    if len(words) < 15: # Lowered minimum length requirement further
+    # 4. Clickbait Markers (Sensationalism)
+    if any(p in text_lower for p in UNTRUSTED_PATTERNS):
+        score -= 30
+        reasons.append("🚩 Clickbait: Waxaa jira calaamado muujinaya in akhristaha loo soo jiidayo si haboonayn.")
+    
+    # 5. Punctuation (Excessive)
+    if "!!!" in text or "???" in text:
+        score -= 15
+        reasons.append("🚩 Excessive Punctuation: Calaamadaha yaabka iyo su'aalaha badan waxay ka mid yihiin sifooyinka wararka been ah.")
+
+    # 6. Text Depth Analysis
+    words = text.split()
+    if len(words) > 50:
+        score += 20
+        reasons.append("✅ Qotodheer: Qoraalku waa mid faahfaahsan, taas oo kordhisa fursadda inuu jiro baaris.")
+    elif len(words) < 15:
         score -= 20
-        reasons.append("Qoraalku aad buu u gaaban yahay (Aad u yar).")
-    elif len(words) > 40:
-        score += 20 # Higher bonus for detailed articles
-        reasons.append("Qoraalku waa mid faahfaahsan, taas oo kordhisa fursadda inuu jiro xaqiiqo.")
+        reasons.append("🚩 Qoraal kooban: Qoraalku aad buu u gaaban yahay, lama dhihi karo waa war dhammeystiran.")
 
-    # Determine Rating & Confidence
-    confidence = 60 + (abs(score) / 2.5) # Adjusted confidence calculation
+    # Final Decision
+    confidence = 55 + (abs(score) / 2)
     if confidence > 98: confidence = 98
 
-    if score >= 10: # Significantly lowered threshold (was 15) to help real news pass
+    if score >= 15:
         rating = "Trusted"
-    elif score > -10:
+    elif score > -15:
         rating = "Unverified"
-        confidence = max(55, confidence - 10)
+        confidence = max(50, confidence - 10)
     else:
         rating = "Unverified"
-        if confidence < 70: confidence = 70
+        if confidence < 70: confidence = 75
 
     return {
         "rating": rating,
@@ -286,8 +312,16 @@ def health():
 @app.route("/predict", methods=["POST"])
 def predict():
     try:
+        # If not loaded, wait up to 10 seconds (for cold startup)
+        wait_time = 0
+        while not models_loaded and wait_time < 10:
+            if loading_error:
+                return jsonify({"error": f"NIDAMKA: Error ayaa dhacay: {loading_error}"}), 500
+            time.sleep(1)
+            wait_time += 1
+
         if not models_loaded:
-            return jsonify({"error": "NIDAMKA: Model-adii lama helin. Fadlan hubi folder-ka 'saved_model'."}), 500
+            return jsonify({"error": "NIDAMKA: Model-adii wali ma diyaarsana. Fadlan sug 10 ilbiriqsi ka dibna isku day mar kale."}), 503
 
         data = request.get_json(silent=True)
         if not data:
