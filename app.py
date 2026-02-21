@@ -89,7 +89,7 @@ def load_models():
         ENCODER_PATH = os.path.join(target_folder, "fake_real_label_encoder.pkl")
 
         if not all(os.path.exists(p) for p in [MODEL_PATH, VECTORIZER_PATH, ENCODER_PATH]):
-            print(f"❌ Model files not found in {target_folder}. Predictions will be disabled.")
+            print(f"❌ Model files not found in {target_folder}. AI predictions will be limited.")
             return
 
         model = joblib.load(MODEL_PATH)
@@ -104,7 +104,7 @@ def load_models():
 
 load_models()
 
-# ================= HEURISTIC FACT CHECKER (Preserved) =================
+# ================= HEURISTIC FACT CHECKER (Optimized) =================
 TRUSTED_SOURCES = [
     "bbc.com", "voasomali.com", "goobjoog.com", "garoweonline.com", 
     "somalistream.com", "somnn.com", "somaliglobe.net", "sntv.so", 
@@ -131,26 +131,47 @@ def heuristic_fact_check(text, url=None):
         clean_url = re.sub(r'^https?://(www\.)?', '', url_lower)
         for trusted in TRUSTED_SOURCES:
             if trusted in clean_url:
-                score += 70 
-                reasons.append(f"Isha rasmiga ah: {trusted}")
+                score += 80  # Increased boost for trusted sites
+                reasons.append(f"✅ Isha rasmiga ah: {trusted}")
                 break
     
-    # Simple Somali Tone & Keyword Match
-    professional_terms = ["madaxweyne", "baarlamaanka", "doorasho", "xukuumad", "amniga", "dowladda"]
+    # 2. Advanced Somali News Keywords (Powerful Boost)
+    professional_terms = [
+        "madaxweyne", "baarlamaanka", "doorasho", "xukuumad", "amniga", 
+        "dowladda", "sharciga", "ciidanka", "gobolka", "madaxtooyada", 
+        "wasaaradda", "heshiis", "shirka jaraa'id", "muhiim", "shacabka",
+        "horumar", "dhacdo", "wadahadal", "go'aan", "maamulka"
+    ]
     found_terms = [w for w in professional_terms if w in text_lower]
-    score += len(found_terms) * 10
+    
+    # Give a significant boost for professional tone
+    if len(found_terms) >= 2:
+        score += 35
+        reasons.append("✅ Qoraalku wuxuu u qoran yahay hab saxaafadeed rasmi ah.")
+    elif len(found_terms) >= 1:
+        score += 15
+        reasons.append("ℹ️ Waxaa ku jira ereyo muhiim u ah wararka saxda ah.")
 
+    # 3. Penalize Fake Patterns
     if any(p in text_lower for p in UNTRUSTED_PATTERNS):
-        score -= 30
+        score -= 40
+        reasons.append("🚩 Digniin: Waxaa ku jira ereyo inta badan lagu yaqaan wararka beenta ah.")
 
-    confidence = 55 + (abs(score) / 2)
+    # 4. Length Analysis
+    words = text.split()
+    if len(words) > 40:
+        score += 20
+        reasons.append("✅ Qoraal faahfaahsan (In-depth analysis detected).")
+
+    # Determine Rating & Confidence
+    confidence = 58 + (abs(score) / 2)
     confidence = min(98, confidence)
 
-    if score >= 15:
+    if score >= 5:  # Significantly lowered threshold to help real news pass
         rating = "Trusted"
     else:
         rating = "Unverified"
-        confidence = max(50, confidence - 10)
+        confidence = max(50, confidence - 5)
 
     return {
         "rating": rating,
