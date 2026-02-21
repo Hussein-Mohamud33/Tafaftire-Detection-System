@@ -52,7 +52,7 @@ def is_url(text):
 
 def extract_text_from_url(url):
     try:
-        resp = requests.get(url, timeout=5)
+        resp = requests.get(url, timeout=1.5)
         if resp.status_code != 200:
             return ""
         soup = BeautifulSoup(resp.content, "html.parser")
@@ -183,3 +183,4 @@ if __name__ == "__main__":
     port = int(os.environ.get("PORT", 3402))
     print(f"[*] Flask server starting on port {port}...")
     app.run(host="0.0.0.0", port=port, debug=False)
+
