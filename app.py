@@ -84,23 +84,41 @@ def is_vague_source(text):
     return int(any(word in text.lower() for word in vague_words))
 
 # ================= LOAD MODELS =================
-try:
-     
+def load_models():
+    global model, vectorizer, label_encoder
     BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-    MODEL_PATH = os.path.join(BASE_DIR, "saved_model", "svm_high_confidence.pkl")
-    VECTORIZER_PATH = os.path.join(BASE_DIR, "saved_model", "fake_real_TF_IDF_vectorizer.pkl")
-    ENCODER_PATH = os.path.join(BASE_DIR, "saved_model", "fake_real_label_encoder.pkl")
+    models_dir = os.path.join(BASE_DIR, "saved_model")
+    
+    paths = {
+        "model": os.path.join(models_dir, "svm_high_confidence.pkl"),
+        "vectorizer": os.path.join(models_dir, "fake_real_TF_IDF_vectorizer.pkl"),
+        "encoder": os.path.join(models_dir, "fake_real_label_encoder.pkl")
+    }
 
-    model = joblib.load(MODEL_PATH)
-    vectorizer = joblib.load(VECTORIZER_PATH)
-    label_encoder = joblib.load(ENCODER_PATH)
+    # Check if directory exists
+    if not os.path.exists(models_dir):
+        print(f"ERROR: Directory NOT FOUND: {models_dir}")
+        return False
 
-    print("Models loaded successfully")
+    # Check if files exist
+    for name, path in paths.items():
+        if not os.path.exists(path):
+            print(f"ERROR: Model file NOT FOUND: {path}")
+            return False
 
-except Exception as e:
-    print("Model loading failed:", e)
-    traceback.print_exc()
-    exit(1)
+    try:
+        model = joblib.load(paths["model"])
+        vectorizer = joblib.load(paths["vectorizer"])
+        label_encoder = joblib.load(paths["encoder"])
+        print("✅ Models loaded successfully")
+        return True
+    except Exception as e:
+        print(f"❌ Model loading failed: {e}")
+        traceback.print_exc()
+        return False
+
+# Load models at startup
+models_loaded = load_models()
 # ================= HEURISTIC FACT CHECKER =================
 TRUSTED_SOURCES = [
     "bbc.com", "voasomali.com", "goobjoog.com", 
@@ -218,11 +236,18 @@ def home():
 
 @app.route("/health", methods=["GET"])
 def health():
-    return jsonify({"status": "OK", "message": "Fake News Detection API is running"})
+    return jsonify({
+        "status": "OK" if models_loaded else "ERROR",
+        "models_loaded": models_loaded,
+        "message": "API is online" if models_loaded else "API is online but models failed to load"
+    })
 
 @app.route("/predict", methods=["POST"])
 def predict():
     try:
+        if not models_loaded:
+            return jsonify({"error": "NIDAMKA: Model-adii lama helin. Fadlan hubi folder-ka 'saved_model'."}), 500
+
         data = request.get_json(silent=True)
         if not data:
             return jsonify({"error": "JSON lama helin"}), 400
