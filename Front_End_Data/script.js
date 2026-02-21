@@ -2,7 +2,10 @@ document.addEventListener('DOMContentLoaded', () => {
     // ----------------------------
     // 0. CONFIG
     // ----------------------------
-    const API_BASE_URL =  'https://tafaftire-detection-system.onrender.com';
+    // Use window.location.origin if it's not localhost, otherwise use the fixed local port
+    const API_BASE_URL = (window.location.hostname === '127.0.0.1' || window.location.hostname === 'localhost')
+        ? 'http://127.0.0.1:3402'
+        : window.location.origin;
 
     // Buttons
     const predictBtn = document.getElementById("predictBtn");
@@ -11,7 +14,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // ----------------------------
     // HEALTH CHECK
     // ----------------------------
-    fetch(`${API_BASE_URL}/`)
+    fetch(`${API_BASE_URL}/health`)
         .then(res => res.json())
         .then(data => {
             if (data.status === "OK") {
