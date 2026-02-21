@@ -117,42 +117,48 @@ def is_vague_source(text):
     vague_words = ["khubaro ayaa sheegay", "daraasad cusub ayaa sheegtay", "ilo wareedyo", "warar la helayo"]
     return int(any(word in text.lower() for word in vague_words))
 
-# ================= LOAD MODELS =================
-def load_models():
-    global model, vectorizer, label_encoder
-    BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-    models_dir = os.path.join(BASE_DIR, "saved_model")
-    
-    paths = {
-        "model": os.path.join(models_dir, "svm_high_confidence.pkl"),
-        "vectorizer": os.path.join(models_dir, "fake_real_TF_IDF_vectorizer.pkl"),
-        "encoder": os.path.join(models_dir, "fake_real_label_encoder.pkl")
-    }
+# ================= LOAD MODELS (Optimized) =================
+model = None
+vectorizer = None
+label_encoder = None
+models_loaded = False
 
-    # Check if directory exists
-    if not os.path.exists(models_dir):
-        print(f"ERROR: Directory NOT FOUND: {models_dir}")
-        return False
-
-    # Check if files exist
-    for name, path in paths.items():
-        if not os.path.exists(path):
-            print(f"ERROR: Model file NOT FOUND: {path}")
-            return False
-
+def load_resources_in_background():
+    global model, vectorizer, label_encoder, models_loaded, stop_words, lemmatizer
     try:
-        model = joblib.load(paths["model"])
-        vectorizer = joblib.load(paths["vectorizer"])
-        label_encoder = joblib.load(paths["encoder"])
-        print("✅ Models loaded successfully")
-        return True
-    except Exception as e:
-        print(f"❌ Model loading failed: {e}")
-        traceback.print_exc()
-        return False
+        # 1. NLTK Quick Setup
+        for pkg in ["punkt", "punkt_tab", "stopwords", "wordnet"]:
+            nltk.download(pkg, quiet=True)
+        
+        from nltk.corpus import stopwords
+        from nltk.stem import WordNetLemmatizer
+        stop_words = set(stopwords.words("english"))
+        somali_stopwords = [
+            "waa", "iyo", "in", "uu", "ay", "ayuu", "ayey", "ka", "u", "ee", "oo", "ah", 
+            "sidii", "waxaan", "waxaad", "wuxuu", "waxay", "iska", "ahaa", "lagu", "loogu",
+            "isagoo", "iyadoo", "ku", "soo", "isaga", "iyada", "labada", "kala", "inta",
+            "ilaa", "wax", "kale", "mar", "markii", "la", "si", "aad", "eeg", "ayaa",
+            "ayay", "kuwa", "kuwaas", "kuwan", "kaas", "kan", "kuwaa", "loo", "loona"
+        ]
+        stop_words.update(somali_stopwords)
+        lemmatizer = WordNetLemmatizer()
 
-# Load models at startup
-models_loaded = load_models()
+        # 2. Models Loading
+        BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+        models_dir = os.path.join(BASE_DIR, "saved_model")
+        
+        model = joblib.load(os.path.join(models_dir, "svm_high_confidence.pkl"))
+        vectorizer = joblib.load(os.path.join(models_dir, "fake_real_TF_IDF_vectorizer.pkl"))
+        label_encoder = joblib.load(os.path.join(models_dir, "fake_real_label_encoder.pkl"))
+        
+        models_loaded = True
+        print("✅ Background loading complete. System ready.")
+    except Exception as e:
+        print(f"❌ Background loading failed: {e}")
+
+# Start background loading
+import threading
+threading.Thread(target=load_resources_in_background, daemon=True).start()
 # ================= HEURISTIC FACT CHECKER =================
 TRUSTED_SOURCES = [
     "bbc.com", "voasomali.com", "goobjoog.com", 
@@ -225,36 +231,37 @@ def heuristic_fact_check(text, url=None):
         "wadahadal", "shir", "madaxweyne", "rayga", "amniga", "shaqo", 
         "cusub", "gobolka", "isgaarsiinta", "waxbarashada", "caafimaadka",
         "baarlamaanka", "doorashooyinka", "xukuumadda", "shacabka", "muhiim",
-        "maamulka", "war-murtiyeed", "kulan", "wasiirka", "golaha"
+        "maamulka", "war-murtiyeed", "kulan", "wasiirka", "golaha", "sharciga",
+        "ciidanka", "dhacdo", "gobanimada", "midnimada", "hormarka"
     ]
     found_consensus = [w for w in consensus_keywords if w in text_lower]
     if len(found_consensus) >= 3:
-        score += 25
-        reasons.append("Mowduuca warku wuxuu u muuqdaa mid waafaqsan nuxurka wararka rasmiga ah.")
+        score += 35 # Increased boost
+        reasons.append("Mowduuca warku wuxuu u muuqdaa mid waafaqsan nuxurka dhacdooyinka rasmiga ah.")
     elif len(found_consensus) >= 1:
-        score += 10
-        reasons.append("Waxa ku jira ereyo la mid ah kuwa loo isticmaalo wararka rasmiga ah.")
+        score += 15 # Increased boost
+        reasons.append("Waxa ku jira ereyo muhiim ah oo loo isticmaalo wararka xaqiiqda ku dhisnaan kara.")
 
     # 6. Text Length & Quality
-    if len(words) < 20: # Lowered minimum length requirement
-        score -= 15
-        reasons.append("Qoraalku aad buu u gaaban yahay.")
-    elif len(words) > 50:
-        score += 15 # Bonus for detailed articles
-        reasons.append("Qoraalku waa mid faahfaahsan, taas oo kordhisa kalsoonida.")
+    if len(words) < 15: # Lowered minimum length requirement further
+        score -= 20
+        reasons.append("Qoraalku aad buu u gaaban yahay (Aad u yar).")
+    elif len(words) > 40:
+        score += 20 # Higher bonus for detailed articles
+        reasons.append("Qoraalku waa mid faahfaahsan, taas oo kordhisa fursadda inuu jiro xaqiiqo.")
 
     # Determine Rating & Confidence
-    confidence = 65 + (abs(score) / 3) # Adjusted starting confidence
+    confidence = 60 + (abs(score) / 2.5) # Adjusted confidence calculation
     if confidence > 98: confidence = 98
 
-    if score >= 15: # Lowered threshold for Trusted
+    if score >= 10: # Significantly lowered threshold (was 15) to help real news pass
         rating = "Trusted"
-    elif score > -5:
+    elif score > -10:
         rating = "Unverified"
-        confidence -= 5
+        confidence = max(55, confidence - 10)
     else:
         rating = "Unverified"
-        if confidence < 75: confidence = 75
+        if confidence < 70: confidence = 70
 
     return {
         "rating": rating,
