@@ -4,7 +4,7 @@ import joblib
 import traceback
 import numpy as np
 import requests
-from flask import Flask, request, jsonify
+from flask import Flask, request, jsonify, send_from_directory
 from flask_cors import CORS
 from bs4 import BeautifulSoup
 import nltk
@@ -13,27 +13,43 @@ from nltk.tokenize import word_tokenize
 from nltk.stem import WordNetLemmatizer
 
 # ================= FLASK INIT =================
-app = Flask(__name__, 
-            static_folder=os.getcwd(), 
-            static_url_path="")
+app = Flask(__name__, static_folder=os.getcwd(), static_url_path="")
 CORS(app)
 
 # ================= NLTK OFFLINE SETUP =================
 NLTK_DATA_DIR = os.path.join(os.getcwd(), "nltk_data")
+if not os.path.exists(NLTK_DATA_DIR):
+    os.makedirs(NLTK_DATA_DIR)
 nltk.data.path.append(NLTK_DATA_DIR)
 
-# Only download locally if not present
-for pkg in ["punkt", "stopwords", "wordnet"]:
-    try:
-        nltk.data.find(pkg)
-    except LookupError:
-        nltk.download(pkg, download_dir=NLTK_DATA_DIR)
+def setup_nltk():
+    for pkg in ["punkt", "stopwords", "wordnet", "punkt_tab"]:
+        try:
+            nltk.data.find(pkg)
+        except LookupError:
+            try:
+                print(f"Downloading NLTK package: {pkg}")
+                nltk.download(pkg, download_dir=NLTK_DATA_DIR)
+            except Exception as e:
+                print(f"Failed to download {pkg}: {e}")
 
-stop_words = set(stopwords.words("english"))
+setup_nltk()
+
+try:
+    stop_words = set(stopwords.words("english"))
+except Exception:
+    print("Warning: Could not load English stopwords, using empty set.")
+    stop_words = set()
+
 # Add Somali stopwords
 somali_stopwords = ["waa", "iyo", "in", "uu", "ay", "ayuu", "ayey", "ka", "u", "ee", "oo", "ah", "aad", "ayaa"]
 stop_words.update(somali_stopwords)
-lemmatizer = WordNetLemmatizer()
+
+try:
+    lemmatizer = WordNetLemmatizer()
+except Exception:
+    print("Warning: Could not initialize WordNetLemmatizer.")
+    lemmatizer = None
 
 # ================= HELPERS =================
 def sanitize_text(text):
@@ -50,9 +66,13 @@ def preprocess_text(text):
     text = re.sub(r"[^a-zA-Z ]", " ", text)
     try:
         tokens = word_tokenize(text)
-    except LookupError:
-        tokens = text.split()  # fallback if punkt missing
-    tokens = [lemmatizer.lemmatize(w) for w in tokens if w not in stop_words and len(w) > 2]
+    except Exception:
+        tokens = text.split() 
+    
+    if lemmatizer:
+        tokens = [lemmatizer.lemmatize(w) for w in tokens if w not in stop_words and len(w) > 2]
+    else:
+        tokens = [w for w in tokens if w not in stop_words and len(w) > 2]
     return " ".join(tokens)
 
 def is_url(text):
@@ -60,7 +80,7 @@ def is_url(text):
 
 def extract_text_from_url(url):
     try:
-        resp = requests.get(url, timeout=3)
+        resp = requests.get(url, timeout=5)
         if resp.status_code != 200:
             return ""
         soup = BeautifulSoup(resp.content, "html.parser")
@@ -79,7 +99,6 @@ MODEL_FOLDER = os.path.join(BASE_DIR, "saved_model")
 def load_models():
     global model, vectorizer, label_encoder, models_loaded
     try:
-        # Fallback for case sensitivity
         target_folder = MODEL_FOLDER
         if not os.path.exists(target_folder):
             target_folder = os.path.join(BASE_DIR, "Saved_model")
@@ -89,7 +108,7 @@ def load_models():
         ENCODER_PATH = os.path.join(target_folder, "fake_real_label_encoder.pkl")
 
         if not all(os.path.exists(p) for p in [MODEL_PATH, VECTORIZER_PATH, ENCODER_PATH]):
-            print(f"❌ Model files not found in {target_folder}. AI predictions will be limited.")
+            print(f"❌ Model files not found in {target_folder}")
             return
 
         model = joblib.load(MODEL_PATH)
@@ -131,11 +150,10 @@ def heuristic_fact_check(text, url=None):
         clean_url = re.sub(r'^https?://(www\.)?', '', url_lower)
         for trusted in TRUSTED_SOURCES:
             if trusted in clean_url:
-                score += 80  # Increased boost for trusted sites
+                score += 80
                 reasons.append(f"✅ Isha rasmiga ah: {trusted}")
                 break
     
-    # 2. Advanced Somali News Keywords (Powerful Boost)
     professional_terms = [
         "madaxweyne", "baarlamaanka", "doorasho", "xukuumad", "amniga", 
         "dowladda", "sharciga", "ciidanka", "gobolka", "madaxtooyada", 
@@ -144,7 +162,6 @@ def heuristic_fact_check(text, url=None):
     ]
     found_terms = [w for w in professional_terms if w in text_lower]
     
-    # Give a significant boost for professional tone
     if len(found_terms) >= 2:
         score += 35
         reasons.append("✅ Qoraalku wuxuu u qoran yahay hab saxaafadeed rasmi ah.")
@@ -152,22 +169,19 @@ def heuristic_fact_check(text, url=None):
         score += 15
         reasons.append("ℹ️ Waxaa ku jira ereyo muhiim u ah wararka saxda ah.")
 
-    # 3. Penalize Fake Patterns
     if any(p in text_lower for p in UNTRUSTED_PATTERNS):
         score -= 40
         reasons.append("🚩 Digniin: Waxaa ku jira ereyo inta badan lagu yaqaan wararka beenta ah.")
 
-    # 4. Length Analysis
     words = text.split()
     if len(words) > 40:
         score += 20
         reasons.append("✅ Qoraal faahfaahsan (In-depth analysis detected).")
 
-    # Determine Rating & Confidence
     confidence = 58 + (abs(score) / 2)
     confidence = min(98, confidence)
 
-    if score >= 5:  # Significantly lowered threshold to help real news pass
+    if score >= 5:
         rating = "Trusted"
     else:
         rating = "Unverified"
@@ -182,106 +196,78 @@ def heuristic_fact_check(text, url=None):
 # ================= ROUTES =================
 @app.route("/", methods=["GET"])
 def home():
-    try:
-        return app.send_static_file("index.html")
-    except Exception:
-        return "Frontend files not found. Please ensure index.html matches cases and is in the root directory.", 404
+    possible_paths = [
+        os.path.join(os.getcwd(), "index.html"),
+        os.path.join(os.getcwd(), "Front_End_Data", "index.html"),
+        os.path.join(os.getcwd(), "Front_End_Data", "Index.html")
+    ]
+    for path in possible_paths:
+        if os.path.exists(path):
+            return send_from_directory(os.path.dirname(path), os.path.basename(path))
+    return "Frontend files (index.html) not found. Please check your repository structure.", 404
 
 @app.route("/health", methods=["GET"])
 def health():
     return jsonify({
         "status": "OK" if models_loaded else "ERROR",
-        "models_loaded": models_loaded
+        "models_loaded": models_loaded,
+        "nltk_dir": NLTK_DATA_DIR,
+        "exists": os.path.exists(NLTK_DATA_DIR)
     })
 
 @app.route("/predict", methods=["POST"])
 def predict():
     if model is None:
-        return jsonify({"error": "Model-ada lama helin. Hubi folder-ka 'saved_model'."}), 503
+        return jsonify({"error": "Model files not found on server. AI prediction disabled."}), 503
 
     try:
         data = request.get_json(silent=True)
-        if not data:
-            return jsonify({"error": "JSON data not found"}), 400
-
+        if not data: return jsonify({"error": "No data received"}), 400
         input_type = data.get("type", "text")
         content = data.get("data", "")
-
-        if not content:
-            return jsonify({"error": "No text or URL provided"}), 400
-
-        content = str(content).strip()
+        if not content: return jsonify({"error": "No content provided"}), 400
 
         if input_type == "url":
-            if not is_url(content):
-                return jsonify({"error": "Invalid URL"}), 400
             content = extract_text_from_url(content)
-            if not content:
-                return jsonify({"error": "Cannot extract text from URL"}), 400
+            if not content: return jsonify({"error": "Could not extract text from URL"}), 400
 
         clean_input = preprocess_text(content)
-        if not clean_input:
-            return jsonify({"error": "Processed text is empty"}), 400
-
         X = vectorizer.transform([clean_input])
         expected_features = model.coef_.shape[1]
 
-        # Fix feature dimension mismatch
         if X.shape[1] != expected_features:
-            diff = expected_features - X.shape[1]
-            if diff > 0:
-                X = np.hstack([X.toarray(), np.zeros((X.shape[0], diff))])
+            X = X.toarray()
+            if X.shape[1] < expected_features:
+                X = np.hstack([X, np.zeros((X.shape[0], expected_features - X.shape[1]))])
             else:
-                X = X.toarray()[:, :expected_features]
+                X = X[:, :expected_features]
         else:
             X = X.toarray()
 
-        # ================= AI Model Prediction =================
         pred = model.predict(X)[0]
         label = label_encoder.inverse_transform([pred])[0]
         
-        # Calculate AI confidence
         if hasattr(model, "predict_proba"):
-            probs = model.predict_proba(X)[0]
-            ai_confidence_val = float(max(probs)) * 100
+            ai_confidence_val = float(max(model.predict_proba(X)[0])) * 100
         else:
-            score = model.decision_function(X)
-            score = abs(score[0])
+            score = abs(model.decision_function(X)[0])
             ai_confidence_val = (1 / (1 + np.exp(-score))) * 100
         
-        # Base status from AI (1, "REAL", "Real" are usually trusted)
-        ai_is_trusted = label in [1, "REAL", "Real", "trusted", "Trusted", "Real News"]
-        
-        # ================= HYBRID OVERRIDE (Strength: High) =================
+        ai_is_common_real = label in [1, "REAL", "Real", "trusted", "Trusted", "Real News"]
         heuristic = heuristic_fact_check(content)
-        heuristic_is_trusted = heuristic["rating"] == "Trusted"
         
-        # Logic: If Heuristic is solid, it MUST override a weak/wrong AI
-        # Also, if AI says Fake but confidence is < 85%, Heuristic takes over
-        if heuristic_is_trusted:
-            result = "Trusted"
-            final_confidence = heuristic["confidence"]
-        elif ai_is_trusted and ai_confidence_val > 60:
-            result = "Trusted"
-            final_confidence = f"{int(ai_confidence_val)}%"
+        if heuristic["rating"] == "Trusted":
+            result, conf = "Trusted", heuristic["confidence"]
+        elif ai_is_common_real and ai_confidence_val > 60:
+            result, conf = "Trusted", f"{int(ai_confidence_val)}%"
         else:
-            result = "Unverified"
-            # If AI was sure it was fake, we show its confidence, otherwise default low
-            final_confidence = f"{int(max(ai_confidence_val, 55))}%"
+            result, conf = "Unverified", f"{int(max(ai_confidence_val, 55))}%"
 
-        return jsonify({
-            "prediction": result, 
-            "confidence": final_confidence,
-            "details": {
-                "ai_label": str(label),
-                "ai_confidence": f"{int(ai_confidence_val)}%",
-                "heuristic_rating": heuristic["rating"]
-            }
-        })
+        return jsonify({"prediction": result, "confidence": conf})
 
     except Exception as e:
         traceback.print_exc()
-        return jsonify({"error": f"Server error occurred: {str(e)}"}), 500
+        return jsonify({"error": str(e)}), 500
 
 @app.route("/fact-check", methods=["POST"])
 def fact_check():
@@ -290,12 +276,8 @@ def fact_check():
         if not data: return jsonify({"error": "JSON error"}), 400
         content = data.get("data", "")
         input_url = content if is_url(content) else None
-        
-        if input_url:
-            content = extract_text_from_url(input_url)
-        
-        if not content: return jsonify({"error": "Xog ma jirto"}), 400
-        
+        if input_url: content = extract_text_from_url(input_url)
+        if not content: return jsonify({"error": "No text found to check"}), 400
         return jsonify(heuristic_fact_check(content, input_url))
     except Exception as e:
         return jsonify({"error": str(e)}), 500
@@ -306,7 +288,6 @@ def contact():
         data = request.get_json(silent=True)
         if not data: return jsonify({"error": "Data not found"}), 400
         name, email, message = data.get("name"), data.get("email"), data.get("message")
-        if not all([name, email, message]): return jsonify({"error": "Please fill all fields"}), 400
         with open("contacts.txt", "a", encoding="utf-8") as f:
             f.write(f"Name: {name}\nEmail: {email}\nMessage: {message}\n---\n")
         return jsonify({"status": "Success", "message": "Fariintaada waa nala soo gaarsiiyey!"})
