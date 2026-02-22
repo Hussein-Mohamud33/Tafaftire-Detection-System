@@ -14,7 +14,7 @@ from nltk.stem import WordNetLemmatizer
 
 # ================= FLASK INIT =================
 app = Flask(__name__, 
-            static_folder="Front_End_Data", 
+            static_folder=".", 
             static_url_path="")
 CORS(app)
 
@@ -182,7 +182,7 @@ def heuristic_fact_check(text, url=None):
 # ================= ROUTES =================
 @app.route("/", methods=["GET"])
 def home():
-    return app.send_static_file("Index.html")
+    return app.send_static_file("index.html")
 
 @app.route("/health", methods=["GET"])
 def health():
