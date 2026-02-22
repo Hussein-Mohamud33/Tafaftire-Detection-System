@@ -5,264 +5,204 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Tafaftire</title>
 
-<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600;800&display=swap" rel="stylesheet">
+<link rel="icon" type="image/svg+xml" sizes="any"
+href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><defs><linearGradient id='orangeGrad' x1='0%25' y1='0%25' x2='100%25' y2='100%25'><stop offset='0%25' style='stop-color:%23ff9f1c;stop-opacity:1'/><stop offset='100%25' style='stop-color:%23ff8c00;stop-opacity:1'/></linearGradient></defs><path d='M0 50 C15 5 85 5 100 50 C85 95 15 95 0 50 Z' fill='url(%23orangeGrad)'/><circle cx='50' cy='50' r='28' fill='rgba(0,0,0,0.8)'/><path d='M38 50 L47 59 L63 41' fill='none' stroke='white' stroke-width='10' stroke-linecap='round' stroke-linejoin='round'/></svg>">
+
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
 
 <style>
-body{
-margin:0;
-font-family:Poppins, sans-serif;
-background:#1a252f;
-color:white;
+/* ================= ROOT ================= */
+:root{
+--dark-bg:#2c3e50;
+--darker-bg:#1a252f;
+--darkest-bg:#0f1419;
+--accent-orange:#ff9f1c;
+--accent-orange-dark:#ff8c00;
+--text-white:#ffffff;
+--text-gray:#b8c5d6;
+--text-light-gray:#8899a6;
+--card-bg:#34495e;
+--border-color:#445566;
 }
+*{margin:0;padding:0;box-sizing:border-box;font-family:'Poppins',sans-serif}
+body{background:var(--darker-bg);color:var(--text-white);overflow-x:hidden}
+.container{max-width:1200px;margin:auto;padding:0 20px}
 
-.navbar{
-background:#0f1419;
-padding:20px;
-display:flex;
-justify-content:space-between;
-align-items:center;
-}
+/* ================= NAVBAR ================= */
+.navbar{background:var(--darkest-bg);padding:20px 0;position:sticky;top:0;z-index:1000}
+.nav-container{display:flex;justify-content:space-between;align-items:center}
+.logo-eye{display:flex;align-items:center;gap:15px}
+.eye-emblem i{font-size:2.5rem;color:var(--accent-orange)}
+.brand-name{font-size:1.8rem;font-weight:800}
+.tagline{font-size:.7rem;color:var(--text-light-gray)}
+.nav-links{display:flex;list-style:none;gap:25px}
+.nav-links a{text-decoration:none;color:white;font-size:.9rem}
+.nav-links a.active{color:var(--accent-orange)}
+.hamburger{display:none;cursor:pointer}
+.bar{width:25px;height:3px;background:white;margin:4px 0}
 
-.navbar h2{
-margin:0;
-color:#ff9f1c;
-letter-spacing:2px;
-}
+/* ================= HERO ================= */
+.hero{height:70vh;display:flex;align-items:center;justify-content:center;text-align:center;position:relative}
+.hero-title{font-size:4rem;font-weight:800;letter-spacing:5px}
+.hero-description{font-size:1.5rem;color:var(--text-gray)}
+.highlight{color:var(--accent-orange)}
 
-.navbar a{
-color:white;
-text-decoration:none;
-margin-left:20px;
-}
+/* ================= SECTION ================= */
+section{padding:80px 0}
+.section-header{text-align:center;margin-bottom:50px}
+.section-header h2{font-size:2rem;color:var(--accent-orange)}
+.section-header p{color:var(--text-light-gray)}
 
-section{
-padding:80px 20px;
-text-align:center;
-}
+/* ================= FORM ================= */
+textarea,input{width:100%;padding:15px;background:var(--darkest-bg);border:1px solid var(--border-color);color:white;border-radius:8px}
+textarea{height:150px}
+.action-buttons{display:flex;gap:15px;margin-top:20px}
+button{padding:15px;border:none;border-radius:8px;cursor:pointer;font-weight:600}
+.analyze-btn{background:var(--accent-orange);color:white}
+.refresh-btn{background:var(--darkest-bg);color:var(--text-gray);border:1px solid var(--border-color)}
+.result-card-premium{margin-top:20px;padding:20px;background:var(--dark-bg);border-radius:10px}
 
-.hero{
-background:linear-gradient(135deg,#2c3e50,#1a252f);
-}
+/* ================= CONTACT ================= */
+.contact-wrapper{display:grid;grid-template-columns:1fr 1fr;gap:40px}
+.submit-btn{background:var(--accent-orange);color:white}
 
-.hero h1{
-font-size:4rem;
-letter-spacing:8px;
-}
-
-textarea,input{
-width:100%;
-padding:15px;
-margin:10px 0;
-border-radius:8px;
-border:none;
-background:#0f1419;
-color:white;
-}
-
-button{
-padding:15px 25px;
-border:none;
-border-radius:8px;
-cursor:pointer;
-font-weight:600;
-margin:10px;
-}
-
-.predict{
-background:#ff9f1c;
-color:white;
-}
-
-.fact{
-background:#3498db;
-color:white;
-}
-
-.reset{
-background:#444;
-color:white;
-}
-
-.card{
-background:#2c3e50;
-padding:20px;
-border-radius:12px;
-margin-top:20px;
-display:none;
-}
-
-.real{color:#2ecc71;}
-.fake{color:#ff4757;}
-.unverified{color:#f39c12;}
-
-footer{
-background:#0f1419;
-padding:30px;
-text-align:center;
-margin-top:50px;
+/* ================= RESPONSIVE ================= */
+@media(max-width:768px){
+.nav-links{display:none}
+.hamburger{display:block}
+.contact-wrapper{grid-template-columns:1fr}
+.hero-title{font-size:2.5rem}
 }
 </style>
 </head>
+
 <body>
 
-<div class="navbar">
-<h2>TAFAFTIRE</h2>
+<nav class="navbar">
+<div class="container nav-container">
+<div class="logo-eye">
+<div class="eye-emblem"><i class="fas fa-eye"></i></div>
 <div>
-<a href="#home">Home</a>
-<a href="#detect">Detect</a>
-<a href="#contact">Contact</a>
+<div class="brand-name">TAFAFTIRE</div>
+<div class="tagline">PREMIUM NEWS VERIFICATION</div>
 </div>
 </div>
+<ul class="nav-links">
+<li><a href="#home" class="active">HOME</a></li>
+<li><a href="#tafaftire">TAFAFTIR</a></li>
+<li><a href="#contact">CONTACT</a></li>
+</ul>
+<div class="hamburger">
+<div class="bar"></div>
+<div class="bar"></div>
+<div class="bar"></div>
+</div>
+</div>
+</nav>
 
 <section id="home" class="hero">
-<h1>TAFAFTIRE</h1>
-<p>Premium Fake News Verification System</p>
+<div>
+<h1 class="hero-title">TAFAFTIRE</h1>
+<p class="hero-description">Verify the <span class="highlight">Truth</span></p>
+</div>
 </section>
 
-<section id="detect">
-<h2>Fake News Detection</h2>
-
-<textarea id="newsText" placeholder="Paste news text (min 20 characters)..."></textarea>
-
-<button class="predict" id="predictBtn">
-<i class="fas fa-microchip"></i> Model Predict
-</button>
-
-<button class="fact" id="factBtn">
-<i class="fas fa-shield-alt"></i> Fact Check
-</button>
-
-<button class="reset" id="resetBtn">
-<i class="fas fa-sync-alt"></i> Reset
-</button>
-
-<div class="card" id="aiCard">
-<h3>Model Prediction</h3>
-<p id="aiResult"></p>
+<section id="tafaftire">
+<div class="container">
+<div class="section-header">
+<h2>TAFAFTIR NEWS</h2>
+<p>Analyze news authenticity</p>
 </div>
 
-<div class="card" id="fcCard">
-<h3>Fact Check Result</h3>
-<p id="fcResult"></p>
+<textarea id="newsText" placeholder="Paste news text here..."></textarea>
+
+<div class="action-buttons">
+<button id="predictBtn" class="analyze-btn">Model Predict</button>
+<button id="factCheckBtn" class="analyze-btn">Fact Check</button>
+<button id="refreshBtn" class="refresh-btn">Reset</button>
 </div>
 
+<div id="aiResultCard" class="result-card-premium" style="display:none;">
+<h3 id="aiResult"></h3>
+<p id="aiConfidence"></p>
+</div>
+
+</div>
 </section>
 
 <section id="contact">
-<h2>Contact</h2>
+<div class="container">
+<div class="section-header">
+<h2>CONTACT</h2>
+<p>Send us a message</p>
+</div>
 
-<input type="text" id="name" placeholder="Your Name">
-<input type="email" id="email" placeholder="Your Email">
-<textarea id="message" placeholder="Your Message"></textarea>
+<div class="contact-wrapper">
+<div>
+<input type="text" id="contactName" placeholder="Your Name">
+<input type="email" id="contactEmail" placeholder="Your Email" style="margin-top:15px;">
+<textarea id="contactMessage" placeholder="Your Message" style="margin-top:15px;"></textarea>
+<button class="submit-btn" style="margin-top:15px;">Send Message</button>
+</div>
+</div>
 
-<button id="sendBtn" class="predict">
-<i class="fas fa-paper-plane"></i> Send
-</button>
+</div>
 </section>
 
-<footer>
-Copyright TAFAFTIRE 2026
-</footer>
-
 <script>
-const API = "https://tafaftire-detection-system.onrender.com";
+document.addEventListener("DOMContentLoaded",()=>{
 
-const predictBtn = document.getElementById("predictBtn");
-const factBtn = document.getElementById("factBtn");
-const resetBtn = document.getElementById("resetBtn");
+const API_BASE_URL="https://tafaftire-detection-system.onrender.com";
 
-const aiCard = document.getElementById("aiCard");
-const fcCard = document.getElementById("fcCard");
+const predictBtn=document.getElementById("predictBtn");
+const factCheckBtn=document.getElementById("factCheckBtn");
+const refreshBtn=document.getElementById("refreshBtn");
+const aiResultCard=document.getElementById("aiResultCard");
+const aiResult=document.getElementById("aiResult");
+const aiConfidence=document.getElementById("aiConfidence");
 
-const aiResult = document.getElementById("aiResult");
-const fcResult = document.getElementById("fcResult");
-
-function validate(text){
-if(text.length < 20){
-alert("Minimum 20 characters required.");
-return false;
-}
-return true;
-}
-
-predictBtn.onclick = ()=>{
-let text = document.getElementById("newsText").value.trim();
-if(!validate(text)) return;
-
-aiCard.style.display="block";
-aiResult.innerHTML="⏳ Analyzing...";
-
-fetch(API+"/predict",{
+function callAPI(endpoint,data){
+aiResultCard.style.display="block";
+aiResult.innerText="Analyzing...";
+fetch(API_BASE_URL+endpoint,{
 method:"POST",
 headers:{"Content-Type":"application/json"},
-body:JSON.stringify({type:"text",data:text})
+body:JSON.stringify({type:"text",data:data})
 })
-.then(r=>r.json())
-.then(data=>{
-if(data.prediction.includes("Trusted")){
-aiResult.innerHTML="Real News";
-aiResult.className="real";
+.then(res=>res.json())
+.then(res=>{
+if(endpoint==="/predict"){
+aiResult.innerText=res.prediction||"No result";
+aiConfidence.innerText="Confidence: "+(res.confidence||"N/A");
 }else{
-aiResult.innerHTML="Fake News";
-aiResult.className="fake";
+aiResult.innerText=res.rating||"No result";
+aiConfidence.innerText="Confidence: "+(res.confidence||"N/A");
 }
 })
 .catch(()=>{
-aiResult.innerHTML="Server Error";
-aiResult.className="fake";
+aiResult.innerText="Server Error";
 });
-};
-
-factBtn.onclick = ()=>{
-let text = document.getElementById("newsText").value.trim();
-if(!validate(text)) return;
-
-fcCard.style.display="block";
-fcResult.innerHTML="⏳ Checking...";
-
-fetch(API+"/fact-check",{
-method:"POST",
-headers:{"Content-Type":"application/json"},
-body:JSON.stringify({type:"text",data:text})
-})
-.then(r=>r.json())
-.then(data=>{
-if(data.rating.toLowerCase().includes("trusted")){
-fcResult.innerHTML="TRUSTED";
-fcResult.className="real";
-}else{
-fcResult.innerHTML="UNVERIFIED";
-fcResult.className="unverified";
 }
-})
-.catch(()=>{
-fcResult.innerHTML="Server Error";
-fcResult.className="fake";
-});
-};
 
-resetBtn.onclick = ()=>{
+predictBtn.addEventListener("click",()=>{
+const text=document.getElementById("newsText").value.trim();
+if(text.length<5)return;
+callAPI("/predict",text);
+});
+
+factCheckBtn.addEventListener("click",()=>{
+const text=document.getElementById("newsText").value.trim();
+if(text.length<5)return;
+callAPI("/fact-check",text);
+});
+
+refreshBtn.addEventListener("click",()=>{
 document.getElementById("newsText").value="";
-aiCard.style.display="none";
-fcCard.style.display="none";
-};
+aiResultCard.style.display="none";
+});
 
-document.getElementById("sendBtn").onclick = ()=>{
-let name=document.getElementById("name");
-let email=document.getElementById("email");
-let message=document.getElementById("message");
-
-if(!name.value || !email.value || !message.value){
-alert("Fill all fields.");
-return;
-}
-
-alert("Message sent successfully!");
-name.value="";
-email.value="";
-message.value="";
-};
+});
 </script>
 
 </body>
