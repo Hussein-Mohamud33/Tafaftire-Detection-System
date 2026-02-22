@@ -14,7 +14,7 @@ from nltk.stem import WordNetLemmatizer
 
 # ================= FLASK INIT =================
 app = Flask(__name__, 
-            static_folder=".", 
+            static_folder=os.getcwd(), 
             static_url_path="")
 CORS(app)
 
@@ -182,7 +182,10 @@ def heuristic_fact_check(text, url=None):
 # ================= ROUTES =================
 @app.route("/", methods=["GET"])
 def home():
-    return app.send_static_file("index.html")
+    try:
+        return app.send_static_file("index.html")
+    except Exception:
+        return "Frontend files not found. Please ensure index.html matches cases and is in the root directory.", 404
 
 @app.route("/health", methods=["GET"])
 def health():
