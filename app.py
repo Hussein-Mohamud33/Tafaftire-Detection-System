@@ -13,8 +13,13 @@ from nltk.stem import WordNetLemmatizer
 from bs4 import BeautifulSoup
 
 # ================= FLASK INIT =================
-app = Flask(__name__)
+app = Flask(__name__, static_folder=".", static_url_path="")
 CORS(app)
+
+# ================= HOME ROUTE =================
+@app.route("/")
+def home():
+    return send_from_directory(os.path.dirname(__file__), "index.html")
 
 # ================= NLTK SETUP =================
 for pkg in ["punkt", "stopwords", "wordnet"]:
@@ -363,3 +368,4 @@ def contact():
 if __name__ == "__main__":
     print("[*] Flask server starting...")
     app.run(host="0.0.0.0", port=3402, debug=False)
+
