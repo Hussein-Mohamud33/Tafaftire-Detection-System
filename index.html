@@ -1,209 +1,775 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Tafaftire</title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tafaftire</title>
+    <link rel="icon" type="image/svg+xml" sizes="any"
+        href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><defs><linearGradient id='orangeGrad' x1='0%25' y1='0%25' x2='100%25' y2='100%25'><stop offset='0%25' style='stop-color:%23ff9f1c;stop-opacity:1'/><stop offset='100%25' style='stop-color:%23ff8c00;stop-opacity:1'/></linearGradient></defs><path d='M0 50 C15 5 85 5 100 50 C85 95 15 95 0 50 Z' fill='url(%23orangeGrad)'/><circle cx='50' cy='50' r='28' fill='rgba(0,0,0,0.8)'/><path d='M38 50 L47 59 L63 41' fill='none' stroke='white' stroke-width='10' stroke-linecap='round' stroke-linejoin='round'/></svg>">
+    
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700;800&display=swap"
+        rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
 
-<link rel="icon" type="image/svg+xml" sizes="any"
-href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><defs><linearGradient id='orangeGrad' x1='0%25' y1='0%25' x2='100%25' y2='100%25'><stop offset='0%25' style='stop-color:%23ff9f1c;stop-opacity:1'/><stop offset='100%25' style='stop-color:%23ff8c00;stop-opacity:1'/></linearGradient></defs><path d='M0 50 C15 5 85 5 100 50 C85 95 15 95 0 50 Z' fill='url(%23orangeGrad)'/><circle cx='50' cy='50' r='28' fill='rgba(0,0,0,0.8)'/><path d='M38 50 L47 59 L63 41' fill='none' stroke='white' stroke-width='10' stroke-linecap='round' stroke-linejoin='round'/></svg>">
+    <style>
+        :root {
+            /* Dark Professional Color Scheme */
+            --dark-bg: #2c3e50;
+            --darker-bg: #1a252f;
+            --darkest-bg: #0f1419;
+            --accent-orange: #ff9f1c;
+            --accent-orange-dark: #ff8c00;
+            --text-white: #ffffff;
+            --text-gray: #b8c5d6;
+            --text-light-gray: #8899a6;
+            --card-bg: #34495e;
+            --border-color: #445566;
+        }
 
-<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Poppins', sans-serif;
+        }
 
-<style>
-/* ================= ROOT ================= */
-:root{
---dark-bg:#2c3e50;
---darker-bg:#1a252f;
---darkest-bg:#0f1419;
---accent-orange:#ff9f1c;
---accent-orange-dark:#ff8c00;
---text-white:#ffffff;
---text-gray:#b8c5d6;
---text-light-gray:#8899a6;
---card-bg:#34495e;
---border-color:#445566;
-}
-*{margin:0;padding:0;box-sizing:border-box;font-family:'Poppins',sans-serif}
-body{background:var(--darker-bg);color:var(--text-white);overflow-x:hidden}
-.container{max-width:1200px;margin:auto;padding:0 20px}
+        body {
+            background-color: var(--darker-bg);
+            color: var(--text-white);
+            line-height: 1.6;
+            overflow-x: hidden;
+        }
 
-/* ================= NAVBAR ================= */
-.navbar{background:var(--darkest-bg);padding:20px 0;position:sticky;top:0;z-index:1000}
-.nav-container{display:flex;justify-content:space-between;align-items:center}
-.logo-eye{display:flex;align-items:center;gap:15px}
-.eye-emblem i{font-size:2.5rem;color:var(--accent-orange)}
-.brand-name{font-size:1.8rem;font-weight:800}
-.tagline{font-size:.7rem;color:var(--text-light-gray)}
-.nav-links{display:flex;list-style:none;gap:25px}
-.nav-links a{text-decoration:none;color:white;font-size:.9rem}
-.nav-links a.active{color:var(--accent-orange)}
-.hamburger{display:none;cursor:pointer}
-.bar{width:25px;height:3px;background:white;margin:4px 0}
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 0 20px;
+        }
 
-/* ================= HERO ================= */
-.hero{height:70vh;display:flex;align-items:center;justify-content:center;text-align:center;position:relative}
-.hero-title{font-size:4rem;font-weight:800;letter-spacing:5px}
-.hero-description{font-size:1.5rem;color:var(--text-gray)}
-.highlight{color:var(--accent-orange)}
+        /* NAVIGATION */
+        .navbar {
+            background-color: var(--darkest-bg);
+            padding: 20px 0;
+            position: sticky;
+            top: 0;
+            z-index: 1000;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.3);
+        }
 
-/* ================= SECTION ================= */
-section{padding:80px 0}
-.section-header{text-align:center;margin-bottom:50px}
-.section-header h2{font-size:2rem;color:var(--accent-orange)}
-.section-header p{color:var(--text-light-gray)}
+        .nav-container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 0 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
 
-/* ================= FORM ================= */
-textarea,input{width:100%;padding:15px;background:var(--darkest-bg);border:1px solid var(--border-color);color:white;border-radius:8px}
-textarea{height:150px}
-.action-buttons{display:flex;gap:15px;margin-top:20px}
-button{padding:15px;border:none;border-radius:8px;cursor:pointer;font-weight:600}
-.analyze-btn{background:var(--accent-orange);color:white}
-.refresh-btn{background:var(--darkest-bg);color:var(--text-gray);border:1px solid var(--border-color)}
-.result-card-premium{margin-top:20px;padding:20px;background:var(--dark-bg);border-radius:10px}
+        /* GOLDEN EYE LOGO STYLING (PREMIUM) */
+        .logo-eye {
+            display: flex;
+            align-items: center;
+            gap: 20px;
+            padding: 10px 0;
+        }
 
-/* ================= CONTACT ================= */
-.contact-wrapper{display:grid;grid-template-columns:1fr 1fr;gap:40px}
-.submit-btn{background:var(--accent-orange);color:white}
+        .eye-emblem {
+            position: relative;
+            width: 65px;
+            height: 65px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
 
-/* ================= RESPONSIVE ================= */
-@media(max-width:768px){
-.nav-links{display:none}
-.hamburger{display:block}
-.contact-wrapper{grid-template-columns:1fr}
-.hero-title{font-size:2.5rem}
-}
-</style>
+        .eye-outer {
+            font-size: 3.5rem;
+            background: linear-gradient(135deg, var(--accent-orange) 0%, var(--accent-orange-dark) 100%);
+            -webkit-background-clip: text;
+            background-clip: text;
+            -webkit-text-fill-color: transparent;
+            filter: drop-shadow(0 0 15px rgba(255, 159, 28, 0.4));
+        }
+
+        .eye-inner-check {
+            position: absolute;
+            font-size: 1.6rem;
+            color: #FFFFFF;
+            background: rgba(0, 0, 0, 0.8);
+            border-radius: 50%;
+            padding: 4px;
+            box-shadow: 0 0 20px rgba(255, 255, 255, 0.5);
+            left: 50%;
+            top: 50%;
+            transform: translate(-50%, -50%);
+        }
+
+        .logo-text-premium {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .brand-name {
+            font-size: 2.2rem;
+            font-weight: 900;
+            color: var(--text-white);
+            letter-spacing: 2px;
+            line-height: 1;
+            text-transform: uppercase;
+        }
+
+        .tagline {
+            font-size: 0.75rem;
+            font-weight: 700;
+            color: var(--text-light-gray);
+            letter-spacing: 4px;
+            margin-top: 6px;
+            text-transform: uppercase;
+            opacity: 0.9;
+        }
+
+        /* PREMIUM RESULT DISPLAY */
+        .result-card-premium {
+            margin-top: 30px;
+            padding: 25px;
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 15px;
+            min-height: 100px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        .prediction-main {
+            font-size: 2.5rem;
+            font-weight: 900;
+            letter-spacing: 5px;
+            margin-bottom: 15px;
+            text-transform: uppercase;
+            text-shadow: 0 0 20px currentColor;
+            transition: all 0.3s ease;
+        }
+
+        .prediction-sub {
+            font-size: 1.1rem;
+            color: var(--text-light-gray);
+            font-weight: 600;
+            letter-spacing: 1px;
+        }
+
+        .reasons-list {
+            background: rgba(0, 0, 0, 0.2);
+            border-radius: 12px;
+            padding: 15px;
+            border: 1px solid rgba(255, 255, 255, 0.05);
+        }
+
+        .reason-item {
+            font-size: 0.85rem;
+            color: var(--text-gray);
+            margin-bottom: 8px;
+            display: flex;
+            gap: 10px;
+            line-height: 1.4;
+            animation: fadeInSlide 0.5s ease forwards;
+        }
+
+        .reason-item:last-child { margin-bottom: 0; }
+        .reason-item i { color: var(--accent-orange); font-size: 0.8rem; margin-top: 3px; }
+
+        @keyframes fadeInSlide {
+            from { opacity: 0; transform: translateX(-10px); }
+            to { opacity: 1; transform: translateX(0); }
+        }
+
+        .error-msg-ui {
+            color: #ff4757;
+            font-size: 0.95rem;
+            font-weight: 600;
+            margin: 5px 0 15px 0;
+            height: 24px;
+            text-align: left;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            justify-content: flex-start;
+            padding-left: 15px;
+            gap: 8px;
+            background: rgba(255, 71, 87, 0.05);
+            border-radius: 8px;
+        }
+
+        .error-msg-ui i { font-size: 1rem; color: #ff4757; }
+        .error-msg-ui:empty { display: none; }
+
+        .nav-links { display: flex; list-style: none; gap: 35px; }
+        .nav-links a {
+            color: var(--text-white);
+            text-decoration: none;
+            font-weight: 500;
+            font-size: 0.85rem;
+            letter-spacing: 1px;
+            transition: color 0.3s;
+            position: relative;
+        }
+
+        .nav-links a::after {
+            content: '';
+            position: absolute;
+            bottom: -5px;
+            left: 0;
+            width: 0;
+            height: 2px;
+            background-color: var(--accent-orange);
+            transition: width 0.3s;
+        }
+
+        .nav-links a:hover, .nav-links a.active { color: var(--accent-orange); }
+        .nav-links a:hover::after, .nav-links a.active::after { width: 100%; }
+
+        .hamburger { display: none; flex-direction: column; gap: 5px; cursor: pointer; }
+        .bar { width: 25px; height: 3px; background-color: var(--text-white); border-radius: 3px; transition: 0.3s; }
+
+        /* HERO SECTION */
+        .hero {
+            position: relative;
+            height: 70vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+            overflow: hidden;
+        }
+
+        .hero-slider { position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 0; }
+        .slide {
+            position: absolute;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background-size: cover; background-position: center; background-repeat: no-repeat;
+            opacity: 0; animation: crossfade 15s infinite;
+        }
+
+        .slide:nth-child(1) { animation-delay: 0s; }
+        .slide:nth-child(2) { animation-delay: 5s; }
+        .slide:nth-child(3) { animation-delay: 10s; }
+
+        @keyframes crossfade {
+            0% { opacity: 0; }
+            5% { opacity: 1; }
+            33.33% { opacity: 1; }
+            38.33% { opacity: 0; }
+            100% { opacity: 0; }
+        }
+
+        .hero::before {
+            content: ''; position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            background: linear-gradient(to bottom, rgba(15, 20, 25, 0.7), rgba(26, 37, 47, 0.5));
+            z-index: 1;
+        }
+
+        .hero-overlay {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            background: radial-gradient(circle at 30% 50%, rgba(255, 107, 53, 0.1), transparent 50%),
+                        radial-gradient(circle at 70% 50%, rgba(74, 144, 226, 0.1), transparent 50%);
+            z-index: 2;
+        }
+
+        .hero-content { position: relative; z-index: 3; max-width: 900px; padding: 0 20px; }
+        .hero-subtitle { font-size: 1.2rem; color: var(--text-gray); margin-bottom: 20px; letter-spacing: 2px; font-weight: 300; }
+        .hero-title { font-size: 6rem; font-weight: 800; color: var(--text-white); letter-spacing: 10px; margin-bottom: 30px; text-shadow: 0 5px 20px rgba(0, 0, 0, 0.5); line-height: 1; }
+        .hero-description { font-size: 1.8rem; color: var(--text-gray); font-weight: 300; letter-spacing: 1px; }
+        .hero-description .highlight { color: var(--accent-orange); font-weight: 600; }
+
+        /* SECTION STYLING */
+        section { padding: 100px 0; }
+        .section-header { text-align: center; margin-bottom: 80px; }
+        .section-header h2 {
+            font-size: 2.8rem; margin-bottom: 25px; letter-spacing: 5px; text-transform: uppercase;
+            background: linear-gradient(to right, var(--accent-orange), var(--accent-orange-dark));
+            -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent;
+            display: inline-block; position: relative;
+        }
+
+        .section-header h2::after {
+            content: ''; position: absolute; bottom: -10px; left: 50%; transform: translateX(-50%);
+            width: 60px; height: 4px; background: var(--accent-orange); border-radius: 2px; box-shadow: 0 0 10px rgba(255, 159, 28, 0.5);
+        }
+
+        .section-header p { color: var(--text-light-gray); font-size: 1.1rem; }
+
+        /* SERVICES SECTION */
+        .services-section { background-color: var(--darker-bg); }
+        .services-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 40px; }
+        .service-card {
+            background: rgba(255, 255, 255, 0.03); backdrop-filter: blur(15px);
+            padding: 50px 30px; text-align: center; border-radius: 20px;
+            transition: all 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+            border: 1px solid rgba(255, 255, 255, 0.08); position: relative; overflow: hidden;
+        }
+
+        .service-card:hover {
+            transform: translateY(-15px); border-color: rgba(255, 159, 28, 0.3);
+            box-shadow: 0 20px 50px rgba(0, 0, 0, 0.5), 0 0 20px rgba(255, 159, 28, 0.1);
+        }
+
+        .service-icon {
+            width: 90px; height: 90px; background: linear-gradient(135deg, rgba(255, 107, 53, 0.1), rgba(208, 0, 0, 0.1));
+            border: 1px solid rgba(255, 107, 53, 0.2); border-radius: 24px; display: flex; align-items: center;
+            justify-content: center; margin: 0 auto 30px; font-size: 2.2rem; color: var(--accent-orange);
+            transition: all 0.5s ease; box-shadow: 0 10px 20px rgba(0, 0, 0, 0.2);
+        }
+
+        .service-card:hover .service-icon {
+            transform: scale(1.1) rotate(5deg);
+            background: linear-gradient(135deg, var(--accent-orange), var(--accent-orange-dark));
+            color: white; box-shadow: 0 0 30px rgba(255, 159, 28, 0.5);
+        }
+
+        .service-card h3 { font-size: 1.5rem; margin-bottom: 20px; color: var(--text-white); letter-spacing: 2px; }
+        .service-card p { color: var(--text-gray); margin-bottom: 25px; line-height: 1.8; }
+        .view-more {
+            color: var(--accent-orange); text-decoration: none; font-weight: 700; font-size: 0.9rem;
+            letter-spacing: 1px; text-transform: uppercase; transition: all 0.3s;
+            display: inline-block; padding-bottom: 5px; border-bottom: 1px solid transparent;
+        }
+
+        .view-more:hover { color: white; border-bottom-color: var(--accent-orange); transform: translateX(5px); }
+
+        /* WORKS SECTION */
+        .works-section { background-color: var(--dark-bg); }
+        .works-content { max-width: 900px; margin: 0 auto; position: relative; }
+        .analysis-panel {
+            background: rgba(26, 37, 47, 0.8); backdrop-filter: blur(20px);
+            padding: 50px; border-radius: 24px; box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+            border: 1px solid rgba(255, 255, 255, 0.1); max-width: 900px; margin: 0 auto;
+        }
+
+        .analysis-panel h3 {
+            font-size: 2.2rem; margin-bottom: 30px; text-align: center;
+            background: linear-gradient(to right, #fff, var(--text-gray));
+            -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent;
+        }
+
+        .input-type-selector { display: flex; justify-content: center; gap: 20px; margin-bottom: 30px; }
+        @media (max-width: 768px) { .result-container { grid-template-columns: 1fr; } }
+
+        .radio-btn {
+            display: flex; align-items: center; gap: 12px; padding: 14px 35px;
+            background-color: var(--darkest-bg); color: var(--text-gray); border-radius: 50px;
+            cursor: pointer; transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            font-weight: 600; border: 1px solid rgba(255, 255, 255, 0.05); letter-spacing: 1px;
+        }
+
+        .radio-label input:checked+.radio-btn {
+            background: linear-gradient(135deg, var(--accent-orange), var(--accent-orange-dark));
+            color: var(--text-white); box-shadow: 0 10px 25px rgba(255, 159, 28, 0.4);
+            transform: translateY(-2px); border-color: rgba(255, 255, 255, 0.2);
+        }
+
+        .input-container { margin-bottom: 25px; }
+        .hidden { display: none !important; }
+
+        textarea, input[type="url"], input[type="text"], input[type="email"] {
+            width: 100%; padding: 22px; background-color: var(--darkest-bg) !important;
+            border: 2px solid var(--border-color); border-radius: 12px; color: var(--text-white);
+            font-size: 1rem; outline: none; transition: all 0.3s ease; font-family: 'Poppins', sans-serif;
+            box-shadow: inset 0 2px 10px rgba(0, 0, 0, 0.2);
+        }
+
+        textarea:focus, input:focus { border-color: var(--accent-orange); box-shadow: 0 0 15px rgba(255, 159, 28, 0.15); }
+        textarea { height: 180px; resize: none; }
+
+        .action-buttons { display: flex; gap: 20px; margin-bottom: 30px; }
+        .analyze-btn {
+            flex: 2; padding: 20px; background: linear-gradient(135deg, #ff9f1c, #ff6b35);
+            color: var(--text-white); border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 14px; font-size: 1rem; font-weight: 800; text-transform: uppercase;
+            letter-spacing: 2px; cursor: pointer; transition: all 0.4s;
+            display: flex; align-items: center; justify-content: center; gap: 12px;
+            position: relative; overflow: hidden; box-shadow: 0 10px 20px rgba(0, 0, 0, 0.2);
+        }
+
+        #factCheckBtn { background: linear-gradient(135deg, #3498db, #2980b9); }
+        .analyze-btn:hover:not(:disabled) { transform: translateY(-5px); filter: brightness(1.1); }
+        .analyze-btn:disabled { background: var(--text-light-gray); opacity: 0.5; cursor: not-allowed; }
+
+        .refresh-btn {
+            flex: 1; padding: 20px; background-color: var(--darkest-bg); color: var(--text-gray);
+            border: 1px solid var(--border-color); border-radius: 14px; font-size: 0.9rem;
+            font-weight: 700; text-transform: uppercase; cursor: pointer;
+            display: flex; align-items: center; justify-content: center; gap: 10px;
+        }
+
+        .refresh-btn:hover { background-color: #34495e; color: var(--text-white); transform: translateY(-3px); }
+
+        .result-container {
+            min-height: 80px; padding: 20px; background-color: var(--darker-bg);
+            border-radius: 10px; border: 2px solid var(--border-color);
+        }
+
+        /* ABOUT SECTION */
+        .about-section { background-color: var(--darker-bg); }
+        .about-content { max-width: 1000px; margin: 0 auto; display: grid; grid-template-columns: 1fr 1fr; gap: 50px; align-items: center; }
+        .about-img { width: 100%; border-radius: 15px; box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5); border: 2px solid var(--border-color); }
+        .about-text h3 { font-size: 2rem; margin-bottom: 25px; color: var(--text-white); }
+        .about-text p { color: var(--text-gray); font-size: 1.1rem; line-height: 1.9; margin-bottom: 20px; }
+        .feature-item { display: flex; align-items: center; gap: 15px; color: var(--text-white); font-size: 1.1rem; margin-top: 20px; }
+        .feature-item i { color: var(--accent-orange); font-size: 1.5rem; }
+
+        /* CONTACT SECTION */
+        .contact-section { background-color: var(--dark-bg); }
+        .contact-wrapper { display: grid; grid-template-columns: 1fr 1.5fr; gap: 50px; max-width: 1000px; margin: 0 auto; }
+        .info-item { display: flex; gap: 20px; margin-bottom: 30px; }
+        .info-item i { width: 50px; height: 50px; background-color: var(--accent-orange); border-radius: 50%; display: flex; align-items: center; justify-content: center; }
+        .contact-form { display: flex; flex-direction: column; gap: 20px; }
+        .submit-btn {
+            padding: 18px; background-color: var(--accent-orange); color: var(--text-white);
+            border: none; border-radius: 10px; font-size: 1.1rem; font-weight: 600; cursor: pointer;
+            display: flex; align-items: center; justify-content: center; gap: 10px;
+        }
+
+        /* FOOTER */
+        .footer { background-color: var(--darkest-bg); padding: 60px 0 30px; border-top: 3px solid var(--accent-orange); text-align: center; }
+        .footer-links { margin-bottom: 20px; }
+        .footer-links a { color: var(--text-gray); text-decoration: none; margin: 0 5px; }
+        .copyright { color: var(--text-light-gray); font-size: 0.9rem; }
+
+        @media (max-width: 968px) {
+            .nav-links { display: none; }
+            .hamburger { display: flex; }
+            .nav-links.active {
+                display: flex; flex-direction: column; position: absolute; top: 80px; left: 0;
+                width: 100%; background-color: var(--darkest-bg); padding: 30px;
+            }
+            .hero-title { font-size: 3.5rem; }
+            .about-content, .contact-wrapper { grid-template-columns: 1fr; }
+        }
+    </style>
 </head>
 
 <body>
 
-<nav class="navbar">
-<div class="container nav-container">
-<div class="logo-eye">
-<div class="eye-emblem"><i class="fas fa-eye"></i></div>
-<div>
-<div class="brand-name">TAFAFTIRE</div>
-<div class="tagline">PREMIUM NEWS VERIFICATION</div>
-</div>
-</div>
-<ul class="nav-links">
-<li><a href="#home" class="active">HOME</a></li>
-<li><a href="#tafaftire">TAFAFTIR</a></li>
-<li><a href="#contact">CONTACT</a></li>
-</ul>
-<div class="hamburger">
-<div class="bar"></div>
-<div class="bar"></div>
-<div class="bar"></div>
-</div>
-</div>
-</nav>
+    <nav class="navbar">
+        <div class="nav-container">
+            <div class="logo-eye">
+                <div class="eye-emblem">
+                    <i class="fas fa-eye eye-outer"></i>
+                    <i class="fas fa-check eye-inner-check"></i>
+                </div>
+                <div class="logo-text-premium">
+                    <span class="brand-name">TAFAFTIRE</span>
+                    <span class="tagline">PREMIUM NEWS VERIFICATION</span>
+                </div>
+            </div>
+            <ul class="nav-links">
+                <li><a href="#home" class="active">HOME</a></li>
+                <li><a href="#tafaftire">TAFAFTIR NEWS</a></li>
+                <li><a href="#services">SERVICES</a></li>
+                <li><a href="#about">ABOUT US</a></li>
+                <li><a href="#contact">CONTACT</a></li>
+            </ul>
+            <div class="hamburger">
+                <span class="bar"></span>
+                <span class="bar"></span>
+                <span class="bar"></span>
+            </div>
+        </div>
+    </nav>
 
-<section id="home" class="hero">
-<div>
-<h1 class="hero-title">TAFAFTIRE</h1>
-<p class="hero-description">Verify the <span class="highlight">Truth</span></p>
-</div>
-</section>
+    <section id="home" class="hero">
+        <div class="hero-slider">
+            <div class="slide" style="background-image: url('https://images.unsplash.com/photo-1550751827-4bd374c3f58b?q=80&w=1920&auto=format&fit=crop');"></div>
+            <div class="slide" style="background-image: url('https://images.unsplash.com/photo-1451187580459-43490279c0fa?q=80&w=1920&auto=format&fit=crop');"></div>
+            <div class="slide" style="background-image: url('https://images.unsplash.com/photo-1504711434969-e33886168f5c?q=80&w=1920&auto=format&fit=crop');"></div>
+        </div>
+        <div class="hero-overlay"></div>
+        <div class="hero-content">
+            <p class="hero-subtitle">Hello, We Are</p>
+            <h1 class="hero-title">TAFAFTIRE</h1>
+            <p class="hero-description">And Trust Us, You Want To <span class="highlight">Verify Truth.</span></p>
+        </div>
+    </section>
 
-<section id="tafaftire">
-<div class="container">
-<div class="section-header">
-<h2>TAFAFTIR NEWS</h2>
-<p>Analyze news authenticity</p>
-</div>
+    <section id="services" class="services-section">
+        <div class="container">
+            <div class="section-header">
+                <h2>SERVICES</h2>
+                <p>Comprehensive fake news detection and verification solutions</p>
+            </div>
+            <div class="services-grid">
+                <div class="service-card">
+                    <div class="service-icon"><i class="fas fa-microchip"></i></div>
+                    <h3>ANALYSIS</h3>
+                    <p>Advanced AI-powered analysis to detect patterns of misinformation and verify news authenticity with high accuracy.</p>
+                    <a href="#tafaftire" class="view-more">View More</a>
+                </div>
+                <div class="service-card">
+                    <div class="service-icon"><i class="fas fa-file-contract"></i></div>
+                    <h3>VERIFICATION</h3>
+                    <p>Real-time verification of news articles and social media content to protect you from fake news and misinformation.</p>
+                    <a href="#tafaftire" class="view-more">View More</a>
+                </div>
+                <div class="service-card">
+                    <div class="service-icon"><i class="fas fa-chart-line"></i></div>
+                    <h3>REPORTING</h3>
+                    <p>Detailed reports and insights on news credibility, helping you make informed decisions based on verified information.</p>
+                    <a href="#tafaftire" class="view-more">View More</a>
+                </div>
+            </div>
+        </div>
+    </section>
 
-<textarea id="newsText" placeholder="Paste news text here..."></textarea>
+    <section id="tafaftire" class="works-section">
+        <div class="container">
+            <div class="section-header">
+                <h2>TAFAFTIR NEWS</h2>
+                <p>Analyze and verify news authenticity in real-time</p>
+            </div>
+            <div class="works-content">
+                <div class="analysis-panel">
+                    <h3>News Analysis Tool</h3>
+                    <div class="input-type-selector">
+                        <label class="radio-label">
+                            <input type="radio" name="inputType" value="text" checked>
+                            <span class="radio-btn"><i class="fas fa-align-left"></i> NEWS TEXT</span>
+                        </label>
+                        <label class="radio-label">
+                            <input type="radio" name="inputType" value="url">
+                            <span class="radio-btn"><i class="fas fa-link"></i> NEWS URL</span>
+                        </label>
+                    </div>
+                    <div id="textInput" class="input-container">
+                        <textarea id="newsText" placeholder="Paste the news text here (min 20 characters)..."></textarea>
+                    </div>
+                    <div id="urlInput" class="input-container hidden">
+                        <input id="newsURL" type="url" placeholder="Paste the news article URL here...">
+                    </div>
+                    <div id="errorMessage" class="error-msg-ui"></div>
+                    <div class="action-buttons">
+                        <button id="predictBtn" class="analyze-btn"><i class="fas fa-microchip"></i> Model Predict</button>
+                        <button id="factCheckBtn" class="analyze-btn"><i class="fas fa-shield-alt"></i> Fact Check</button>
+                        <button id="refreshBtn" class="refresh-btn"><i class="fas fa-sync-alt"></i> Reset</button>
+                    </div>
+                    <div class="result-container" style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
+                        <div id="aiResultCard" class="result-card-premium hidden">
+                            <h4 style="color: var(--accent-orange); margin-bottom: 10px; font-size: 0.9rem; letter-spacing: 2px;">MODEL PREDICTION</h4>
+                            <div id="aiResult" class="prediction-main" style="font-size: 1.8rem;"></div>
+                            <div id="aiConfidence" class="prediction-sub"></div>
+                        </div>
+                        <div id="fcResultCard" class="result-card-premium hidden">
+                            <h4 style="color: #3498db; margin-bottom: 10px; font-size: 0.9rem; letter-spacing: 2px;">FACT CHECK</h4>
+                            <div id="fcResult" class="prediction-main" style="font-size: 1.8rem;"></div>
+                            <div id="fcConfidence" class="prediction-sub"></div>
+                            <div id="fcReasons" class="reasons-list" style="margin-top: 20px; text-align: left; width: 100%;"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
 
-<div class="action-buttons">
-<button id="predictBtn" class="analyze-btn">Model Predict</button>
-<button id="factCheckBtn" class="analyze-btn">Fact Check</button>
-<button id="refreshBtn" class="refresh-btn">Reset</button>
-</div>
+    <section id="about" class="about-section">
+        <div class="container">
+            <div class="section-header">
+                <h2>ABOUT US</h2>
+                <p>Empowering communities with verified information</p>
+            </div>
+            <div class="about-content">
+                <div class="about-text">
+                    <h3>Our Mission</h3>
+                    <p>"Tafaftire" means Investigation & Insight in Somali. We are dedicated to combating misinformation by providing advanced AI-powered tools that help users verify news authenticity.</p>
+                    <div class="feature-item"><i class="fas fa-check-circle"></i><span>AI-Powered Analysis</span></div>
+                </div>
+                <div class="about-image-wrapper">
+                    <img src="https://images.unsplash.com/photo-1485827404703-89b55fcc595e?q=80&w=800&auto=format&fit=crop" alt="Future Tech" class="about-img">
+                </div>
+            </div>
+        </div>
+    </section>
 
-<div id="aiResultCard" class="result-card-premium" style="display:none;">
-<h3 id="aiResult"></h3>
-<p id="aiConfidence"></p>
-</div>
+    <section id="contact" class="contact-section">
+        <div class="container">
+            <div class="section-header"><h2>CONTACT</h2><p>Get in touch with us</p></div>
+            <div class="contact-wrapper">
+                <div class="contact-info">
+                    <h3>Contact Information</h3>
+                    <div class="info-item"><i class="fas fa-map-marker-alt"></i><div><h4>Address</h4><p>Howl-wadaag, Mogadishu</p></div></div>
+                    <div class="info-item"><i class="fas fa-phone"></i><div><h4>Phone</h4><p>+252 61 337 7606</p></div></div>
+                    <div class="info-item"><i class="fas fa-envelope"></i><div><h4>E-mail</h4><p>husseinmohamud854@gmail.com</p></div></div>
+                </div>
+                <form class="contact-form">
+                    <input type="text" id="contactName" placeholder="Your Name" required>
+                    <input type="email" id="contactEmail" placeholder="Your Email" required>
+                    <textarea id="contactMessage" placeholder="Your Message" required></textarea>
+                    <button type="button" class="submit-btn"><i class="fas fa-paper-plane"></i> Send Message</button>
+                </form>
+            </div>
+        </div>
+    </section>
 
-</div>
-</section>
+    <footer class="footer">
+        <div class="footer-links">
+            <a href="#home">Home</a> / <a href="#tafaftire">Tafaftir News</a> / <a href="#services">Services</a> / <a href="#about">About Us</a> / <a href="#contact">Contact</a>
+        </div>
+        <p class="copyright">Copyright TAFAFTIRE 2026. All right reserved. </p>
+    </footer>
 
-<section id="contact">
-<div class="container">
-<div class="section-header">
-<h2>CONTACT</h2>
-<p>Send us a message</p>
-</div>
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const API_BASE_URL = 'https://tafaftire-detection-system.onrender.com';
+            const predictBtn = document.getElementById("predictBtn");
+            const submitBtn = document.querySelector('.submit-btn');
 
-<div class="contact-wrapper">
-<div>
-<input type="text" id="contactName" placeholder="Your Name">
-<input type="email" id="contactEmail" placeholder="Your Email" style="margin-top:15px;">
-<textarea id="contactMessage" placeholder="Your Message" style="margin-top:15px;"></textarea>
-<button class="submit-btn" style="margin-top:15px;">Send Message</button>
-</div>
-</div>
+            // Health Check
+            fetch(`${API_BASE_URL}/`)
+                .then(res => res.json())
+                .then(data => {
+                    if (data.status === "OK") {
+                        console.log("✅ Flask server online");
+                        if (predictBtn) predictBtn.disabled = false;
+                        if (submitBtn) submitBtn.disabled = false;
+                    }
+                })
+                .catch(err => console.warn("⚠️ Server Error."));
 
-</div>
-</section>
+            // Navigation
+            const sections = document.querySelectorAll('section');
+            const navLinks = document.querySelectorAll('.nav-links a');
+            const navMenu = document.querySelector('.nav-links');
+            const hamburger = document.querySelector('.hamburger');
 
-<script>
-document.addEventListener("DOMContentLoaded",()=>{
+            function showSection(id) {
+                sections.forEach(s => s.style.display = 'none');
+                const target = document.getElementById(id) || document.getElementById('home');
+                target.style.display = 'block';
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+                navLinks.forEach(l => {
+                    l.classList.remove('active');
+                    if(l.getAttribute('href') === '#' + id) l.classList.add('active');
+                });
+            }
 
-const API_BASE_URL="https://tafaftire-detection-system.onrender.com";
+            document.querySelectorAll('a[href^="#"]').forEach(link => {
+                link.addEventListener('click', e => {
+                    e.preventDefault();
+                    const id = link.getAttribute('href').substring(1);
+                    showSection(id);
+                    if(navMenu.classList.contains('active')) navMenu.classList.remove('active');
+                });
+            });
 
-const predictBtn=document.getElementById("predictBtn");
-const factCheckBtn=document.getElementById("factCheckBtn");
-const refreshBtn=document.getElementById("refreshBtn");
-const aiResultCard=document.getElementById("aiResultCard");
-const aiResult=document.getElementById("aiResult");
-const aiConfidence=document.getElementById("aiConfidence");
+            if(hamburger) hamburger.addEventListener('click', () => navMenu.classList.toggle('active'));
+            showSection(window.location.hash.substring(1) || 'home');
 
-function callAPI(endpoint,data){
-aiResultCard.style.display="block";
-aiResult.innerText="Analyzing...";
-fetch(API_BASE_URL+endpoint,{
-method:"POST",
-headers:{"Content-Type":"application/json"},
-body:JSON.stringify({type:"text",data:data})
-})
-.then(res=>res.json())
-.then(res=>{
-if(endpoint==="/predict"){
-aiResult.innerText=res.prediction||"No result";
-aiConfidence.innerText="Confidence: "+(res.confidence||"N/A");
-}else{
-aiResult.innerText=res.rating||"No result";
-aiConfidence.innerText="Confidence: "+(res.confidence||"N/A");
-}
-})
-.catch(()=>{
-aiResult.innerText="Server Error";
-});
-}
+            // Hero Slider
+            const slides = document.querySelectorAll('.slide');
+            let currentSlide = 0;
+            function nextSlide() {
+                slides.forEach((s, i) => s.style.opacity = i === currentSlide ? '1' : '0');
+                currentSlide = (currentSlide + 1) % slides.length;
+            }
+            if(slides.length) { slides.forEach(s => s.style.animation = 'none'); nextSlide(); setInterval(nextSlide, 5000); }
 
-predictBtn.addEventListener("click",()=>{
-const text=document.getElementById("newsText").value.trim();
-if(text.length<5)return;
-callAPI("/predict",text);
-});
+            // Tool Logic
+            const errorDiv = document.getElementById("errorMessage");
+            const newsText = document.getElementById("newsText");
+            const newsURL = document.getElementById("newsURL");
+            const aiResultCard = document.getElementById("aiResultCard");
+            const fcResultCard = document.getElementById("fcResultCard");
 
-factCheckBtn.addEventListener("click",()=>{
-const text=document.getElementById("newsText").value.trim();
-if(text.length<5)return;
-callAPI("/fact-check",text);
-});
+            function showError(msg) {
+                errorDiv.innerHTML = `<i class="fas fa-exclamation-triangle"></i> ${msg}`;
+                setTimeout(() => errorDiv.innerHTML = "", 4000);
+            }
 
-refreshBtn.addEventListener("click",()=>{
-document.getElementById("newsText").value="";
-aiResultCard.style.display="none";
-});
+            function callAPI(endpoint, payload) {
+                const isAI = endpoint === "/predict";
+                const card = isAI ? aiResultCard : fcResultCard;
+                const resEl = isAI ? document.getElementById("aiResult") : document.getElementById("fcResult");
+                const confEl = isAI ? document.getElementById("aiConfidence") : document.getElementById("fcConfidence");
+                const reasonsEl = document.getElementById("fcReasons");
 
-});
-</script>
+                card.classList.remove("hidden");
+                resEl.innerText = "⏳ Analyzing...";
+                resEl.style.color = "white";
 
+                fetch(`${API_BASE_URL}${endpoint}`, {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify(payload)
+                })
+                .then(res => res.json())
+                .then(res => {
+                    if (res.error) {
+                        resEl.innerText = "❌ " + res.error;
+                        resEl.style.color = "#ff4757";
+                    } else {
+                        if (isAI) {
+                            const isReal = res.prediction.includes("Trusted");
+                            resEl.innerText = isReal ? "Real News" : "Fake News";
+                            resEl.style.color = isReal ? "#2ecc71" : "#ff4757";
+                            confEl.innerText = "Kalsoonida: " + res.confidence;
+                        } else {
+                            const isTrusted = res.rating.toLowerCase().includes("trusted");
+                            resEl.innerText = isTrusted ? "TRUSTED" : "UNVERIFIED";
+                            resEl.style.color = isTrusted ? "#2ecc71" : "#f39c12";
+                            confEl.innerText = "Kalsoonida: " + res.confidence;
+                            if (res.reasons && reasonsEl) {
+                                reasonsEl.innerHTML = `<h5 style="font-size: 0.8rem; color:#fff; margin-bottom:10px; opacity:0.7;">DEEP ANALYSIS:</h5>`;
+                                res.reasons.forEach(r => {
+                                    reasonsEl.innerHTML += `<div class="reason-item"><i class="fas fa-check-circle"></i> <span>${r}</span></div>`;
+                                });
+                            }
+                        }
+                    }
+                }).catch(() => { resEl.innerText = "❌ Error"; resEl.style.color = "#ff4757"; });
+            }
+
+            function getPayload() {
+                const type = document.querySelector('input[name="inputType"]:checked').value;
+                const data = type === "text" ? newsText.value.trim() : newsURL.value.trim();
+                if (type === "text" && data.length < 20) { showError("Fadlan geli ugu yaraan 20 xaraf."); return null; }
+                if (!data) { showError("Fadlan buuxi meesha banaan."); return null; }
+                return { type, data };
+            }
+
+            predictBtn.addEventListener('click', () => { const p = getPayload(); if(p) callAPI("/predict", p); });
+            document.getElementById("factCheckBtn").addEventListener('click', () => { const p = getPayload(); if(p) callAPI("/fact-check", p); });
+            document.getElementById("refreshBtn").addEventListener('click', () => {
+                newsText.value = ""; newsURL.value = "";
+                aiResultCard.classList.add("hidden"); fcResultCard.classList.add("hidden");
+            });
+
+            document.querySelectorAll('input[name="inputType"]').forEach(r => {
+                r.addEventListener('change', () => {
+                    document.getElementById("textInput").classList.toggle("hidden", r.value !== "text");
+                    document.getElementById("urlInput").classList.toggle("hidden", r.value !== "url");
+                });
+            });
+
+            // Contact Form
+            submitBtn.addEventListener('click', () => {
+                const name = document.getElementById("contactName").value;
+                const email = document.getElementById("contactEmail").value;
+                const message = document.getElementById("contactMessage").value;
+                if(!name || !email || !message) return alert("Fadlan buuxi dhamaan.");
+                submitBtn.disabled = true;
+                fetch(`${API_BASE_URL}/contact`, {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ name, email, message })
+                }).then(res => res.json()).then(res => {
+                    alert(res.message || res.error);
+                    if(res.status === "Success") { document.getElementById("contactName").value = ""; document.getElementById("contactEmail").value = ""; document.getElementById("contactMessage").value = ""; }
+                }).finally(() => submitBtn.disabled = false);
+            });
+        });
+    </script>
 </body>
 </html>
