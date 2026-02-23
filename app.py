@@ -205,7 +205,6 @@ def heuristic_fact_check(text, url=None):
         "confidence": f"{int(confidence)}%",
         "reasons": reasons
     }
-
 # ================= ROUTES =================
 @app.route("/", methods=["GET"])
 def home():
@@ -227,12 +226,11 @@ def predict():
         input_type = data.get("type", "text")
         input_url = None
         
-        # Haddii input uu URL yahay ama ciddida u eg tahay URL
+        # Haddii input uu URL yahay ama u egyahay URL
         if input_type == "url" or is_url(content):
             if not content.startswith(("http://", "https://")):
                 content = "https://" + content
             
-            url_to_extract = content
             input_url = content
             extracted = extract_text_from_url(input_url)
             
@@ -241,23 +239,45 @@ def predict():
                 extracted = extract_text_from_url(input_url)
             
             if not extracted:
-                return jsonify({"error": "NIDAMKA: Ma suurtagalin in xog laga soo saaro URL-ka. Fadlan hubi link-ga."}), 400
+                return jsonify({
+                    "error": "NIDAMKA: Ma suurtagalin in xog laga soo saaro URL-ka. Fadlan hubi link-ga."
+                }), 400
+            
             content = extracted
 
         # ================= Preprocess =================
         clean_input = preprocess_text(content)
 
-# Vectorize
-X = vectorizer.transform([clean_input])
+        # ================= Vectorize =================
+        X = vectorizer.transform([clean_input])
 
-# Hubi mismatch
-print("Vectorizer features:", X.shape[1])
-print("Model expects:", model.n_features_in_)
+        # Hubi mismatch
+        print("Vectorizer features:", X.shape[1])
+        print("Model expects:", model.n_features_in_)
 
-if X.shape[1] != model.n_features_in_:
-    return jsonify({"error": "Feature mismatch between model and vectorizer"}), 500
+        if X.shape[1] != model.n_features_in_:
+            return jsonify({
+                "error": "Feature mismatch between model and vectorizer"
+            }), 500
 
-X = X.toarray()
+        X = X.toarray()
+
+        # ================= Prediction =================
+        prediction = model.predict(X)[0]
+        confidence = None
+
+        if hasattr(model, "predict_proba"):
+            confidence = float(max(model.predict_proba(X)[0]) * 100)
+
+        return jsonify({
+            "prediction": str(prediction),
+            "confidence": confidence
+        })
+
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return jsonify({"error": "Server error ayaa dhacay"}), 500
 
         # ================= Hybrid Decision Logic =================
         # 1. Base AI Score (LinearSVC decision function returns distance from hyperplane)
@@ -368,4 +388,5 @@ if __name__ == "__main__":
     print("[*] Flask server starting...")
     port = int(os.environ.get("PORT", 10000))
     app.run(host="0.0.0.0", port=port)
+
 
