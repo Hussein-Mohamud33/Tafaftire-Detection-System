@@ -247,13 +247,17 @@ def predict():
         # ================= Preprocess =================
         clean_input = preprocess_text(content)
 
-        # Vectorize
-        X = vectorizer.transform([clean_input])
-        ext = is_extreme_claim(content)
-        vague = is_vague_source(content)
-        
-        X_dense = X.toarray()
-        X = np.hstack([X_dense, np.array([[ext, vague]])])
+# Vectorize
+X = vectorizer.transform([clean_input])
+
+# Hubi mismatch
+print("Vectorizer features:", X.shape[1])
+print("Model expects:", model.n_features_in_)
+
+if X.shape[1] != model.n_features_in_:
+    return jsonify({"error": "Feature mismatch between model and vectorizer"}), 500
+
+X = X.toarray()
 
         # ================= Hybrid Decision Logic =================
         # 1. Base AI Score (LinearSVC decision function returns distance from hyperplane)
@@ -364,3 +368,4 @@ if __name__ == "__main__":
     print("[*] Flask server starting...")
     port = int(os.environ.get("PORT", 10000))
     app.run(host="0.0.0.0", port=port)
+
