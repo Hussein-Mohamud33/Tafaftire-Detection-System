@@ -61,7 +61,8 @@ def extract_text_from_url(url):
         for script in soup(["script", "style"]):
             script.decompose()
         return soup.get_text(separator=" ").strip()
-    except Exception:
+    except Exception as e:
+        print(f"[!] URL extraction failed: {e}")
         return ""
 
 # ================= EXTRA FEATURES =================
@@ -93,14 +94,18 @@ except Exception as e:
     exit(1)
 
 # ================= HEURISTIC FACT CHECKER =================
-TRUSTED_SOURCES = ["bbc.com","voasomali.com","goobjoog.com","garoweonline.com","somalistream.com",
-                   "somnn.com","somaliglobe.net","sntv.so","sonna.so","aljazeera.com","reuters.com",
-                   "apnews.com","hiiraan.com"]
+TRUSTED_SOURCES = [
+    "bbc.com","voasomali.com","goobjoog.com","garoweonline.com","somalistream.com",
+    "somnn.com","somaliglobe.net","sntv.so","sonna.so","aljazeera.com","reuters.com",
+    "apnews.com","hiiraan.com"
+]
 
-UNTRUSTED_PATTERNS = ["shidan","fayras","dawo mucjiso ah","lacag bilaash ah","guji halkan",
-                      "win iphone","naxdin","deg deg","nin yaaban","naag yaaban",
-                      "subxaanallaah","yaabka aduunka","arrin lala yaabo","qarax cusub",
-                      "war hadda soo dhacay","daawasho naxdin leh"]
+UNTRUSTED_PATTERNS = [
+    "shidan","fayras","dawo mucjiso ah","lacag bilaash ah","guji halkan",
+    "win iphone","naxdin","deg deg","nin yaaban","naag yaaban",
+    "subxaanallaah","yaabka aduunka","arrin lala yaabo","qarax cusub",
+    "war hadda soo dhacay","daawasho naxdin leh"
+]
 
 def heuristic_fact_check(text, url=None):
     score = 0
@@ -164,12 +169,15 @@ def predict():
         clean_input=preprocess_text(content)
         X=vectorizer.transform([clean_input])
 
-        # ✅ SAXID: feature mismatch ka hortag
-        if hasattr(model,"n_features_in_") and X.shape[1]==model.n_features_in_:
+        # ✅ FEATURE MISMATCH CHECK
+        if hasattr(model,"n_features_in_"):
+            if X.shape[1]!=model.n_features_in_:
+                return jsonify({"error":"Feature mismatch: Input lama habeyn karo"}),400
             ext=is_extreme_claim(content)
             vague=is_vague_source(content)
             X_dense=X.toarray()
             X=np.hstack([X_dense, np.array([[ext,vague]])])
+
         score=model.decision_function(X)[0] if hasattr(model,"decision_function") else 0
         trust_boost=0.0
         if input_url:
@@ -185,9 +193,9 @@ def predict():
         confidence_val=min(98.5,max(70.0,confidence_val))
         result="Trusted" if final_score>0 else "Fake Information"
         return jsonify({"prediction":result,"confidence":f"{round(confidence_val,2)}%","hybrid_score":round(final_score,2)})
-    except Exception:
+    except Exception as e:
         traceback.print_exc()
-        return jsonify({"error":"Server error ayaa dhacay"}),500
+        return jsonify({"error":"Server error ayaa dhacay","detail":str(e)}),500
 
 @app.route("/fact-check", methods=["POST"])
 def fact_check():
@@ -211,9 +219,9 @@ def fact_check():
         if not content or len(str(content).strip())<5:
             return jsonify({"error":"Qoraalka laga helay URL-ka lama heli karo ama waa mid aad u yar"}),400
         return jsonify(heuristic_fact_check(content,input_url))
-    except Exception:
+    except Exception as e:
         traceback.print_exc()
-        return jsonify({"error":"Server error ayaa dhacay"}),500
+        return jsonify({"error":"Server error ayaa dhacay","detail":str(e)}),500
 
 @app.route("/contact", methods=["POST"])
 def contact():
@@ -229,9 +237,9 @@ def contact():
         with open("contacts.txt","a",encoding="utf-8") as f:
             f.write(f"Name:{name}\nEmail:{email}\nMessage:{message}\n---\n")
         return jsonify({"status":"Success","message":"Fariintaada waa nala soo gaarsiiyey!"})
-    except Exception:
+    except Exception as e:
         traceback.print_exc()
-        return jsonify({"error":"Server error ayaa dhacay"}),500
+        return jsonify({"error":"Server error ayaa dhacay","detail":str(e)}),500
 
 if __name__=="__main__":
     print("[*] Flask server starting...")
