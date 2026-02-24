@@ -206,187 +206,290 @@ def heuristic_fact_check(text, url=None):
         "reasons": reasons
     }
 # ================= ROUTES =================
+# ================= ROUTES =================
+
 @app.route("/", methods=["GET"])
 def home():
-    return jsonify({"status": "OK", "message": "Fake News Detection API is running"})
+    return jsonify({
+        "status": "OK",
+        "message": "Fake News Detection API is running"
+    })
+
+
+# ================= PREDICT =================
 
 @app.route("/predict", methods=["POST"])
 def predict():
+
     try:
+
         data = request.get_json(silent=True)
+
         if not data:
             return jsonify({"error": "JSON lama helin"}), 400
 
+
         content = data.get("text") or data.get("data")
+
         if not content:
             return jsonify({"error": "Qoraal lama soo dirin"}), 400
 
+
         content = str(content).strip()
 
-        input_type = data.get("type", "text")
+        input_type = data.get("type","text")
+
         input_url = None
-        
-        # Haddii input uu URL yahay ama u egyahay URL
-        if input_type == "url" or is_url(content):
-            if not content.startswith(("http://", "https://")):
-                content = "https://" + content
-            
-            input_url = content
-            extracted = extract_text_from_url(input_url)
-            
+
+
+
+        # ========= URL EXTRACTION =========
+
+        if input_type=="url" or is_url(content):
+
+            if not content.startswith(("http://","https://")):
+                content="https://"+content
+
+
+            input_url=content
+
+            extracted=extract_text_from_url(input_url)
+
+
             if not extracted and input_url.startswith("https://"):
-                input_url = input_url.replace("https://", "http://")
-                extracted = extract_text_from_url(input_url)
-            
+
+                input_url=input_url.replace("https://","http://")
+
+                extracted=extract_text_from_url(input_url)
+
+
             if not extracted:
+
                 return jsonify({
-                    "error": "NIDAMKA: Ma suurtagalin in xog laga soo saaro URL-ka. Fadlan hubi link-ga."
-                }), 400
-            
-            content = extracted
 
-        # ================= Preprocess =================
-        clean_input = preprocess_text(content)
+                    "error":"NIDAMKA: Ma suurtagalin in xog laga soo saaro URL-ka."
 
-        # ================= Vectorize =================
-        X = vectorizer.transform([clean_input])
+                }),400
 
-        # Hubi mismatch
-        print("Vectorizer features:", X.shape[1])
-        print("Model expects:", model.n_features_in_)
 
-        if X.shape[1] != model.n_features_in_:
+            content=extracted
+
+
+
+        # ========= PREPROCESS =========
+
+        clean_input=preprocess_text(content)
+
+
+
+        # ========= VECTORIZE =========
+
+        X=vectorizer.transform([clean_input])
+
+
+        print("Vectorizer features:",X.shape[1])
+        print("Model expects:",model.n_features_in_)
+
+
+        if X.shape[1]!=model.n_features_in_:
+
             return jsonify({
-                "error": "Feature mismatch between model and vectorizer"
-            }), 500
 
-        X = X.toarray()
+                "error":"Feature mismatch between model and vectorizer"
 
-        # ================= Prediction =================
-        prediction = model.predict(X)[0]
-        confidence = None
+            }),500
 
-        if hasattr(model, "predict_proba"):
-            confidence = float(max(model.predict_proba(X)[0]) * 100)
+
+        X=X.toarray()
+
+
+
+        # ========= AI SCORE =========
+
+        score=model.decision_function(X)[0] if hasattr(model,"decision_function") else 0
+
+
+
+        # ========= HYBRID =========
+
+        trust_boost=0.0
+
+
+        if input_url:
+
+            h_result=heuristic_fact_check(content,input_url)
+
+
+            is_verified_domain=any(t in input_url.lower() for t in TRUSTED_SOURCES)
+
+
+            if is_verified_domain:
+
+                trust_boost+=5.0
+
+
+            if h_result["rating"]=="Trusted":
+
+                trust_boost+=2.5
+
+            else:
+
+                trust_boost-=2.0
+
+
+
+        final_score=score+trust_boost
+
+
+
+        confidence_val=(1/(1+np.exp(-abs(final_score))))*100
+
+
+        confidence_val=min(98.5,max(70.0,confidence_val))
+
+
+        is_trusted=final_score>0
+
+
+        result="Trusted" if is_trusted else "Fake Information"
+
+
 
         return jsonify({
-            "prediction": str(prediction),
-            "confidence": confidence
+
+            "prediction":result,
+
+            "confidence":round(confidence_val,2),
+
+            "hybrid_score":round(final_score,2)
+
         })
+
 
     except Exception as e:
-        import traceback
+
         traceback.print_exc()
-        return jsonify({"error": "Server error ayaa dhacay"}), 500
-
-        # ================= Hybrid Decision Logic =================
-        # 1. Base AI Score (LinearSVC decision function returns distance from hyperplane)
-        score = model.decision_function(X)[0] if hasattr(model, "decision_function") else 0
-        
-        # 2. Heuristic Check (Expert System Integration)
-        trust_boost = 0.0
-        if input_url:
-            h_result = heuristic_fact_check(content, input_url)
-            
-            # Check if source is explicitly trusted (massive boost)
-            is_verified_domain = any(t in input_url.lower() for t in TRUSTED_SOURCES)
-            if is_verified_domain:
-                trust_boost += 5.0 # Override most AI hesitation for known good domains
-            
-            # Additional boost based on heuristic consensus
-            if h_result["rating"] == "Trusted":
-                trust_boost += 2.5
-            else:
-                # If heuristic finds bad patterns, penalize heavily
-                trust_boost -= 2.0
-
-        # Final Combined Score (Hybrid Verdict)
-        final_score = score + trust_boost
-        
-        # Sigmoid function to normalize confidence between 0-100%
-        confidence_val = (1 / (1 + np.exp(-abs(final_score)))) * 100
-        
-        # Cap confidence for reliability
-        confidence_val = min(98.5, max(70.0, confidence_val))
-        
-        is_trusted = final_score > 0
-        result = "Trusted" if is_trusted else "Fake Information"
 
         return jsonify({
-            "prediction": result, 
-            "confidence": f"{round(confidence_val, 2)}%",
-            "hybrid_score": round(final_score, 2) # For internal calibration
-        })
 
-    except Exception:
-        traceback.print_exc()
-        return jsonify({"error": "Server error ayaa dhacay"}), 500
+            "error":"Server error ayaa dhacay"
+
+        }),500
+
+
+
+
+# ================= FACT CHECK =================
 
 @app.route("/fact-check", methods=["POST"])
 def fact_check():
+
     try:
-        data = request.get_json(silent=True)
+
+        data=request.get_json(silent=True)
+
         if not data:
-            return jsonify({"error": "JSON lama helin"}), 400
+            return jsonify({"error":"JSON lama helin"}),400
 
-        content = data.get("text") or data.get("data")
+
+        content=data.get("text") or data.get("data")
+
         if not content:
-            return jsonify({"error": "Xog lama soo dirin"}), 400
+            return jsonify({"error":"Xog lama soo dirin"}),400
 
-        input_url = None
-        input_type = data.get("type", "text")
 
-        if input_type == "url" or is_url(content):
-            temp_content = content.strip()
-            if not temp_content.startswith(("http://", "https://")):
-                temp_content = "https://" + temp_content
-            
-            input_url = temp_content
-            content = extract_text_from_url(input_url)
-            
+
+        input_url=None
+
+        input_type=data.get("type","text")
+
+
+
+        if input_type=="url" or is_url(content):temp_content=content.strip()
+
+
+            if not temp_content.startswith(("http://","https://")):
+                temp_content="https://"+temp_content
+
+
+            input_url=temp_content
+
+
+            content=extract_text_from_url(input_url)
+
+
             if not content:
-                input_url = input_url.replace("https://", "http://")
-                content = extract_text_from_url(input_url)
 
-        if not content or len(str(content).strip()) < 5:
-            return jsonify({"error": "Qoraalka laga helay URL-ka lama heli karo ama waa mid aad u yar"}), 400
+                input_url=input_url.replace("https://","http://")
 
-        fact_result = heuristic_fact_check(content, input_url)
+                content=extract_text_from_url(input_url)
+
+
+
+        if not content or len(str(content).strip())<5:
+
+            return jsonify({"error":"Qoraalka laga helay URL-ka lama heli karo"}),400
+
+        fact_result=heuristic_fact_check(content,input_url)
+
         return jsonify(fact_result)
 
+
+
     except Exception:
+
         traceback.print_exc()
-        return jsonify({"error": "Server error ayaa dhacay"}), 500
+
+        return jsonify({"error":"Server error ayaa dhacay"}),500
+
+# ================= CONTACT =================
 
 @app.route("/contact", methods=["POST"])
 def contact():
+
     try:
-        data = request.get_json(silent=True)
+
+        data=request.get_json(silent=True)
+
         if not data:
-            return jsonify({"error": "Data lama helin"}), 400
+            return jsonify({"error":"Data lama helin"}),400
 
-        name = data.get("name")
-        email = data.get("email")
-        message = data.get("message")
 
-        if not all([name, email, message]):
-            return jsonify({"error": "Fadlan buuxi dhamaan meelaha banaan"}), 400
+        name=data.get("name")
+        email=data.get("email")
+        message=data.get("message")
 
-        # Log to file
-        with open("contacts.txt", "a", encoding="utf-8") as f:
+
+        if not all([name,email,message]):
+
+            return jsonify({
+
+                "error":"Fadlan buuxi dhamaan meelaha"
+
+            }),400
+
+
+
+        with open("contacts.txt","a",encoding="utf-8") as f:
+
             f.write(f"Name: {name}\nEmail: {email}\nMessage: {message}\n---\n")
-
-        print(f"[*] New message from {name} ({email})")
-        return jsonify({"status": "Success", "message": "Fariintaada waa nala soo gaarsiiyey!"})
-
+        print(f"New message from {name}")
+        return jsonify({ "status":"Success", "message":"Fariintaada waa nala soo gaarsiiyey"})
     except Exception:
-        traceback.print_exc()
-        return jsonify({"error": "Server error ayaa dhacay"}), 500
 
-# ================= RUN SERVER =================
-if __name__ == "__main__":
-    print("[*] Flask server starting...")
-    port = int(os.environ.get("PORT", 10000))
-    app.run(host="0.0.0.0", port=port)
+        traceback.print_exc()
+
+        return jsonify({"error":"Server error ayaa dhacay"}),500
+
+# ================= RUN =================
+
+if __name__=="__main__":
+
+    print("Flask server starting...")
+
+    port=int(os.environ.get("PORT",10000))
+
+    app.run(host="0.0.0.0",port=port)
+
 
 
