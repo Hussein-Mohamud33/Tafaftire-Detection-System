@@ -24,114 +24,147 @@ for pkg in ["punkt", "stopwords", "wordnet"]:
         nltk.download(pkg)
 
 stop_words = set(stopwords.words("english"))
-somali_stopwords = [
-    "waa","iyo","in","uu","ay","ayuu","ayey","ka","u","ee","oo","ah",
-    "sidii","waxaan","waxaad","wuxuu","waxay","iska","ahaa","lagu","loogu",
-    "isagoo","iyadoo","ku","soo","isaga","iyada","labada","kala","inta",
-    "ilaa","wax","kale","mar","markii","la","si","aad","eeg","ayaa",
-    "ayay","kuwa","kuwaas","kuwan","kaas","kan","kuwaa","loo","loona"
-]
-stop_words.update(somali_stopwords)
 lemmatizer = WordNetLemmatizer()
 
 # ================= HELPERS =================
-def preprocess_text(text):
-    if not text:
+def sanitize_text(text):
+    """Remove HTML tags and strip text."""
+    if not isinstance(text, str):
         return ""
+    text = BeautifulSoup(text, "html.parser").get_text()
+    return text.strip()
+
+def preprocess_text(text):
+    """Lowercase, remove non-alphabetic, tokenize, remove stopwords, lemmatize."""
     text = text.lower()
-    text = re.sub(r"[^a-z' ]", " ", text)
+    text = re.sub(r"[^a-zA-Z ]", " ", text)
     tokens = word_tokenize(text)
-    tokens = [lemmatizer.lemmatize(w) for w in tokens if w not in stop_words and len(w)>2]
+    tokens = [lemmatizer.lemmatize(w) for w in tokens if w not in stop_words and len(w) > 2]
     return " ".join(tokens)
 
 def is_url(text):
-    text = str(text).strip().lower()
-    pattern = r'^(https?://|www\.)[a-z0-9-]+(\.[a-z0-9-]+)+([/?#].*)?$'
-    return bool(re.match(pattern, text))
+    """Detect if input is URL."""
+    return bool(re.match(r'^(http|https)://', text.strip()))
 
 def extract_text_from_url(url):
+    """Ka soo saar qoraalka bogga webka URL"""
     try:
         resp = requests.get(url, timeout=5)
-        if resp.status_code != 200: return ""
+        if resp.status_code != 200:
+            return ""
         soup = BeautifulSoup(resp.content, "html.parser")
-        for script in soup(["script","style"]): script.decompose()
+        for script in soup(["script", "style"]):
+            script.decompose()
         text = soup.get_text(separator=" ")
         return text.strip()
     except Exception:
         return ""
 
-# ================= LOAD MODEL =================
+# ================= LOAD MODELS =================
 try:
     BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-    MODEL_PATH = os.path.join(BASE_DIR,"saved_model","svm_high_confidence.pkl")
-    VECTORIZER_PATH = os.path.join(BASE_DIR,"saved_model","fake_real_TF_IDF_vectorizer.pkl")
-    ENCODER_PATH = os.path.join(BASE_DIR,"saved_model","fake_real_label_encoder.pkl")
+    SAVED_MODEL_DIR = os.path.join(BASE_DIR, "..", "saved_model")
+
+    MODEL_PATH = os.path.join(SAVED_MODEL_DIR, "svm_high_confidence.pkl")
+    VECTORIZER_PATH = os.path.join(SAVED_MODEL_DIR, "fake_real_TF_IDF_vectorizer.pkl")
+    ENCODER_PATH = os.path.join(SAVED_MODEL_DIR, "fake_real_label_encoder.pkl")
 
     model = joblib.load(MODEL_PATH)
     vectorizer = joblib.load(VECTORIZER_PATH)
     label_encoder = joblib.load(ENCODER_PATH)
 
-    print("✅ Models loaded successfully")
+    print("[SUCCESS] Models loaded successfully")
+
 except Exception as e:
-    print("❌ Model loading failed:", e)
+    print("[ERROR] Loading models failed:", e)
     traceback.print_exc()
     exit(1)
 
 # ================= ROUTES =================
 @app.route("/", methods=["GET"])
 def home():
-    return jsonify({"status":"OK","message":"Fake News Detection API is running"})
+    return jsonify({"status": "OK", "message": "Fake News Detection API is running"})
 
 @app.route("/predict", methods=["POST"])
 def predict():
     try:
         data = request.get_json(silent=True)
         if not data:
-            return jsonify({"error":"JSON lama helin"}),400
+            return jsonify({"error": "JSON lama helin"}), 400
 
         content = data.get("text") or data.get("data")
         if not content:
-            return jsonify({"error":"Qoraal lama soo dirin"}),400
+            return jsonify({"error": "Qoraal lama soo dirin"}), 400
 
         content = str(content).strip()
-        input_type = data.get("type","text")
-        input_url = None
 
-        # ========= URL EXTRACTION =========
-        if input_type=="url" or is_url(content):
-            if not content.startswith(("http://","https://")):
-                content="https://"+content
-            input_url=content
-            extracted=extract_text_from_url(input_url)
-            if not extracted and input_url.startswith("https://"):
-                input_url=input_url.replace("https://","http://")
-                extracted=extract_text_from_url(input_url)
-            if not extracted:
-                return jsonify({"error":"Ma suurtagalin in xog laga soo saaro URL-ka"}),400
-            content = extracted
+        # Haddii input uu URL yahay → ka soo saar text
+        if is_url(content):
+            content = extract_text_from_url(content)
+            if not content:
+                return jsonify({"error": "Qoraalka laga helay URL-ka lama heli karo"}), 400
 
-        # ========= PREPROCESS =========
+        # ================= Preprocess =================
         clean_input = preprocess_text(content)
-        if not clean_input:
-            return jsonify({"error":"Qoraalka kadib preprocessing waa madhan"}),400
 
-        # ========= VECTORIZE =========
+        # Vectorize & Predict
         X = vectorizer.transform([clean_input])
-        if X.shape[1]!=model.n_features_in_:
-            return jsonify({"error":"Feature mismatch between vectorizer and model"}),500
-        X = X.toarray()
+        expected_features = model.coef_.shape[1]
 
-        # ========= PREDICTION =========
-        prediction = model.predict(X)[0]
-        confidence = float(max(model.predict_proba(X)[0])*100) if hasattr(model,"predict_proba") else None
+        if X.shape[1] != expected_features:
+            diff = expected_features - X.shape[1]
+            if diff > 0:
+                X = np.hstack([X.toarray(), np.zeros((X.shape[0], diff))])
+            else:
+                X = X.toarray()[:, :expected_features]
+        else:
+            X = X.toarray()
 
-        return jsonify({"prediction":str(prediction),"confidence":round(confidence,2) if confidence else None})
+        pred = model.predict(X)[0]
 
-    except Exception as e:
+        if hasattr(model, "predict_proba"):
+            probs = model.predict_proba(X)[0]
+            confidence = round(float(max(probs)) * 100, 2)
+        else:
+            score = model.decision_function(X)
+            score = abs(score[0])
+            confidence = round((1 / (1 + np.exp(-score))) * 100, 2)
+
+        label = label_encoder.inverse_transform([pred])[0]
+        result = "REAL NEWS" if label == 1 else "FAKE NEWS"
+
+        return jsonify({"prediction": result, "confidence": f"{confidence}%"})
+
+    except Exception:
         traceback.print_exc()
-        return jsonify({"error":"Server error ayaa dhacay","detail":str(e)}),500
+        return jsonify({"error": "Server error ayaa dhacay"}), 500
+
+@app.route("/contact", methods=["POST"])
+def contact():
+    try:
+        data = request.get_json(silent=True)
+        if not data:
+            return jsonify({"error": "Data lama helin"}), 400
+
+        name = data.get("name")
+        email = data.get("email")
+        message = data.get("message")
+
+        if not all([name, email, message]):
+            return jsonify({"error": "Fadlan buuxi dhamaan meelaha banaan"}), 400
+
+        # Log to file
+        with open("contacts.txt", "a", encoding="utf-8") as f:
+            f.write(f"Name: {name}\nEmail: {email}\nMessage: {message}\n---\n")
+
+        print(f"[*] New message from {name} ({email})")
+        return jsonify({"status": "Success", "message": "Fariintaada waa nala soo gaarsiiyey!"})
+
+    except Exception:
+        traceback.print_exc()
+        return jsonify({"error": "Server error ayaa dhacay"}), 500
 
 # ================= RUN SERVER =================
-if __name__=="__main__":
-    port=int(os.environ.get("PORT",3402))
-    app.run(host="0.0.0.0",port=port,debug=True)
+if __name__ == "__main__":
+    print("[*] Flask server starting...")
+    app.run(host="0.0.0.0", port=3402, debug=False)
