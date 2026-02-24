@@ -17,11 +17,14 @@ app = Flask(__name__)
 CORS(app)
 
 # ================= NLTK SETUP =================
+# We try to load resources, and only download if they are missing.
+# Downloads are slow on Render, so we use a silent download.
 for pkg in ["punkt", "punkt_tab", "stopwords", "wordnet"]:
     try:
         nltk.data.find(pkg)
-    except LookupError:
-        nltk.download(pkg)
+    except (LookupError, AttributeError):
+        nltk.download(pkg, quiet=True)
+
 
 stop_words = set(stopwords.words("english"))
 somali_stopwords = [
@@ -61,19 +64,33 @@ def is_url(text):
     """Fast URL detection."""
     return bool(URL_PATTERN.match(text.strip()))
 
+# Setup a requests session for speed (connection pooling)
+session = requests.Session()
+session.headers.update({
+    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36"
+})
+
 def extract_text_from_url(url):
-    """Ka soo saar qoraalka bogga webka URL"""
+    """Ka soo saar qoraalka bogga webka URL si dhakhso leh"""
     try:
-        resp = requests.get(url, timeout=5)
+        # Reduced timeout to 4s and use session for pooling
+        resp = session.get(url, timeout=4)
         if resp.status_code != 200:
             return ""
+        
         soup = BeautifulSoup(resp.content, "html.parser")
-        for script in soup(["script", "style"]):
+        
+        # Remove unwanted tags
+        for script in soup(["script", "style", "nav", "footer", "header"]):
             script.decompose()
+            
+        # Get text with a separator
         text = soup.get_text(separator=" ")
+        
         return text.strip()
     except Exception:
         return ""
+
 
 # ================= EXTRA FEATURES =================
 def is_extreme_claim(text):
@@ -147,29 +164,30 @@ def heuristic_fact_check(text, url=None):
                 score -= 30
                 reasons.append("Domain-ka loo isticmaalo warkaan (xyz/tk/ml) inta badan waxaa loo isticmaalaa warar been ah.")
 
-    # 2. Sensationalism & Clickbait (Max -40)
+    # 2. Sensationalism & Clickbait (Cumulative Penalty)
     text_lower = text.lower()
     found_scary = [p for p in UNTRUSTED_PATTERNS if p in text_lower]
     if found_scary:
-        score -= 40 # Increased from -25
-        reasons.append(f"Waxaa la helay ereyo kicin ah oo ka baxsan anshaxa saxaafadda: {', '.join(found_scary)}.")
+        # Subtract 25 for EACH pattern found (Cumulative)
+        score -= (len(found_scary) * 25)
+        reasons.append(f"Waxaa la helay ereyo kicin ah: {', '.join(found_scary)}.")
     else:
         score += 5
-        reasons.append("Qoraalku uma muuqdo mid kicin ah (Professional tone).")
 
     # 3. Punctuation Analysis (Sensationalism)
-    if "!!!" in text or "???" in text:
-        score -= 35 # Increased from -15
-        reasons.append("Waxa la isticmaalay calaamado aad u badan oo lagu kicinayo dareenka akhristaha (Excessive punctuation).")
+    # Catching !!, !!!, ??, ??? or combinations
+    if re.search(r'!!|\?\?', text):
+        score -= 40
+        reasons.append("Waxa la isticmaalay calaamado kicin ah (Excessive punctuation).")
     
     # 4. Capitalization Check (Shouting)
-    # Check if more than 20% of words are ALL CAPS
     words = text.split()
     if len(words) > 5:
         caps_words = [w for w in words if w.isupper() and len(w) > 2]
         if (len(caps_words) / len(words)) > 0.2:
-            score -= 30 # Increased from -15
-            reasons.append("Qoraalku wuxuu u qoran yahay si qaylo ah (Too many CAPS), taas oo muujinaysa inaan loo qorin si xirfad leh.")
+            score -= 30
+            reasons.append("Qoraalku wuxuu u qoran yahay si qaylo ah (Too many CAPS).")
+
 
     # 5. Consensus Keywords (Max +30)
     consensus_keywords = [
@@ -196,14 +214,14 @@ def heuristic_fact_check(text, url=None):
     confidence = 50 + (abs(score) / 2)
     if confidence > 98: confidence = 98
 
-    if score >= 15:
+    if score >= 20:
         rating = "Trusted"
-    elif score <= -10: # Lowered threshold to catch suspicious better
+    elif score <= -15: 
         rating = "Suspicious" 
-        if confidence < 75: confidence = 80
+        confidence = min(98, 75 + abs(score)/2)
     else:
         rating = "Unverified"
-        confidence = max(60, confidence - 5)
+        confidence = max(60, 70 - abs(score))
 
     return {
         "rating": rating,
@@ -215,7 +233,7 @@ def heuristic_fact_check(text, url=None):
 # ================= ROUTES =================
 @app.route("/", methods=["GET"])
 def home():
-    return jsonify({"status": "OK", "message": "Tafaftire News Detection API is running"})
+    return jsonify({"status": "OK", "message": "Fake News Detection API is running"})
 
 @app.route("/predict", methods=["POST"])
 def predict():
@@ -262,32 +280,32 @@ def predict():
         X = np.hstack([X_dense, np.array([[ext, vague]])])
 
         # ================= Hybrid Decision Logic =================
-        # 1. Base AI Score (LinearSVC decision function returns distance from hyperplane)
-        score = model.decision_function(X)[0] if hasattr(model, "decision_function") else 0
-        
-        # 2. Heuristic Check (Expert System Integration)
         trust_boost = 0.0
         
-        # Helitaanka dhibcaha heuristic si loo xoojiyo AI-da
-        h_result = heuristic_fact_check(content, input_url)
-        
-        # Boost for quality content (Professional tone)
-        if h_result["rating"] == "Trusted":
-            trust_boost += 1.5
-        
+        # 1. EARLY TRUST CHECK (Fast Path)
+        is_verified_domain = False
         if input_url:
-            # Check if source is explicitly trusted (massive boost)
             is_verified_domain = any(t in input_url.lower() for t in TRUSTED_SOURCES)
             if is_verified_domain:
-                trust_boost += 5.0
-            
-            if h_result["rating"] != "Trusted":
-                # If heuristic finds bad patterns, penalize
+                trust_boost += 6.5 # Direct massive boost for verified sources
+
+        # 2. Heuristic Check (Only if not already verified or to check for clickbait)
+        # We only run full heuristic if it's NOT a verified domain to save speed,
+        # OR we just do a quick check.
+        if not is_verified_domain:
+            h_result = heuristic_fact_check(content, input_url)
+            if h_result["rating"] == "Trusted":
+                trust_boost += 1.5
+            elif h_result["rating"] == "Suspicious":
                 trust_boost -= 2.5
+        
+        # 3. Base AI Score
+        score = model.decision_function(X)[0] if hasattr(model, "decision_function") else 0
 
         # Final Combined Score (Hybrid Verdict)
         # Haddii dhibcuhu ka badan yihiin -0.5, waa Trusted (si loo yareeyo qaladaadka)
         final_score = score + trust_boost
+
         
         # Sigmoid function to normalize confidence between 0-100%
         confidence_val = (1 / (1 + np.exp(-abs(final_score)))) * 100
@@ -374,5 +392,8 @@ def contact():
 
 # ================= RUN SERVER =================
 if __name__ == "__main__":
-    print("[*] Flask server starting...")
-    app.run(host="0.0.0.0", port=3402, debug=False)
+    # Render uses the PORT environment variable
+    port = int(os.environ.get("PORT", 3402))
+    print(f"[*] Flask server starting on port {port}...")
+    app.run(host="0.0.0.0", port=port, debug=False)
+
