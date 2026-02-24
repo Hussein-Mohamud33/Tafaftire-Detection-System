@@ -151,25 +151,25 @@ def heuristic_fact_check(text, url=None):
     text_lower = text.lower()
     found_scary = [p for p in UNTRUSTED_PATTERNS if p in text_lower]
     if found_scary:
-        score -= 25
+        score -= 40 # Increased from -25
         reasons.append(f"Waxaa la helay ereyo kicin ah oo ka baxsan anshaxa saxaafadda: {', '.join(found_scary)}.")
     else:
-        score += 10
+        score += 5
         reasons.append("Qoraalku uma muuqdo mid kicin ah (Professional tone).")
 
     # 3. Punctuation Analysis (Sensationalism)
     if "!!!" in text or "???" in text:
-        score -= 15
-        reasons.append("Waxa la isticmaalay calaamado lagu kicinayo dareenka akhristaha (Excessive punctuation).")
+        score -= 35 # Increased from -15
+        reasons.append("Waxa la isticmaalay calaamado aad u badan oo lagu kicinayo dareenka akhristaha (Excessive punctuation).")
     
     # 4. Capitalization Check (Shouting)
-    # Check if more than 30% of words are ALL CAPS (excluding short acronyms)
+    # Check if more than 20% of words are ALL CAPS
     words = text.split()
-    if len(words) > 10:
-        caps_words = [w for w in words if w.isupper() and len(w) > 3]
-        if (len(caps_words) / len(words)) > 0.3:
-            score -= 15
-            reasons.append("Qoraalku wuxuu u qoran yahay si qaylo ah (Too many CAPS), taas oo ka mid ah calaamadaha wararka qashinka ah.")
+    if len(words) > 5:
+        caps_words = [w for w in words if w.isupper() and len(w) > 2]
+        if (len(caps_words) / len(words)) > 0.2:
+            score -= 30 # Increased from -15
+            reasons.append("Qoraalku wuxuu u qoran yahay si qaylo ah (Too many CAPS), taas oo muujinaysa inaan loo qorin si xirfad leh.")
 
     # 5. Consensus Keywords (Max +30)
     consensus_keywords = [
@@ -196,14 +196,14 @@ def heuristic_fact_check(text, url=None):
     confidence = 50 + (abs(score) / 2)
     if confidence > 98: confidence = 98
 
-    if score >= 20:
+    if score >= 15:
         rating = "Trusted"
-    elif score <= -20:
+    elif score <= -10: # Lowered threshold to catch suspicious better
         rating = "Suspicious" 
-        if confidence < 75: confidence = 78
+        if confidence < 75: confidence = 80
     else:
         rating = "Unverified"
-        confidence = max(60, confidence - 10)
+        confidence = max(60, confidence - 5)
 
     return {
         "rating": rating,
@@ -215,7 +215,7 @@ def heuristic_fact_check(text, url=None):
 # ================= ROUTES =================
 @app.route("/", methods=["GET"])
 def home():
-    return jsonify({"status": "OK", "message": "Fake News Detection API is running"})
+    return jsonify({"status": "OK", "message": "Tafaftire News Detection API is running"})
 
 @app.route("/predict", methods=["POST"])
 def predict():
