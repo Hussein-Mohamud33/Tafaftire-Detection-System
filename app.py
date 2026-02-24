@@ -294,9 +294,10 @@ def predict():
             "hybrid_score": float(round(float(final_score), 2)) # For internal calibration
         })
 
-    except Exception:
-        traceback.print_exc()
-        return jsonify({"error": "Server error ayaa dhacay"}), 500
+    except Exception as e:
+        error_msg = traceback.format_exc()
+        print("Error during prediction:", error_msg)
+        return jsonify({"error": f"Server error: {str(e)}"}), 500
 
 @app.route("/fact-check", methods=["POST"])
 def fact_check():
