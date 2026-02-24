@@ -34,27 +34,32 @@ somali_stopwords = [
 stop_words.update(somali_stopwords)
 lemmatizer = WordNetLemmatizer()
 
+# ================= PRE-COMPILED REGEX FOR SPEED =================
+URL_PATTERN = re.compile(r'^(https?://|www\.)[a-z0-9-]+(\.[a-z0-9-]+)+([/?#].*)?$', re.IGNORECASE)
+CLEAN_TEXT_PATTERN = re.compile(r"[^a-z' ]")
+DOMAIN_CLEAN_PATTERN = re.compile(r'^https?://(www\.)?')
+SUSPICIOUS_EXT_PATTERN = re.compile(r"\.(tk|ga|ml|cf|icu|xyz)$")
+
 # ================= HELPERS =================
 def sanitize_text(text):
     """Remove HTML tags and strip text."""
     if not isinstance(text, str):
         return ""
+    # Use 'html.parser' which is built-in and fast enough
     text = BeautifulSoup(text, "html.parser").get_text()
     return text.strip()
 
 def preprocess_text(text):
-    """Lowercase, remove non-alphabetic (keep apostrophe), tokenize, remove stopwords, lemmatize."""
+    """High-accuracy preprocessing using NLTK word_tokenize."""
     text = text.lower()
-    text = re.sub(r"[^a-z' ]", " ", text)
-    tokens = word_tokenize(text)
-    tokens = [lemmatizer.lemmatize(w) for w in tokens if w not in stop_words and len(w) > 2]
-    return " ".join(tokens)
+    text = CLEAN_TEXT_PATTERN.sub(" ", text)
+    tokens = word_tokenize(text) # AI-du tan ayay ku tababarantay
+    cleaned_tokens = [lemmatizer.lemmatize(w) for w in tokens if w not in stop_words and len(w) > 2]
+    return " ".join(cleaned_tokens)
 
 def is_url(text):
-    """Detect if input is URL (handles http, https, or www)."""
-    text = text.strip().lower()
-    pattern = r'^(https?://|www\.)[a-z0-9-]+(\.[a-z0-9-]+)+([/?#].*)?$'
-    return bool(re.match(pattern, text))
+    """Fast URL detection."""
+    return bool(URL_PATTERN.match(text.strip()))
 
 def extract_text_from_url(url):
     """Ka soo saar qoraalka bogga webka URL"""
@@ -261,24 +266,26 @@ def predict():
         
         # 2. Heuristic Check (Expert System Integration)
         trust_boost = 0.0
+        
+        # Helitaanka dhibcaha heuristic si loo xoojiyo AI-da
+        h_result = heuristic_fact_check(content, input_url)
+        
+        # Boost for quality content (Professional tone)
+        if h_result["rating"] == "Trusted":
+            trust_boost += 1.5
+        
         if input_url:
-            h_result = heuristic_fact_check(content, input_url)
-            
             # Check if source is explicitly trusted (massive boost)
             is_verified_domain = any(t in input_url.lower() for t in TRUSTED_SOURCES)
             if is_verified_domain:
-                trust_boost += 5.0 # Override most AI hesitation for known good domains
+                trust_boost += 5.0
             
-            # Additional boost based on heuristic consensus
-            if h_result["rating"] == "Trusted":
-                trust_boost += 2.5
-            else:
-                # If heuristic finds bad patterns, penalize heavily
-                trust_boost -= 2.0
+            if h_result["rating"] != "Trusted":
+                # If heuristic finds bad patterns, penalize
+                trust_boost -= 2.5
 
         # Final Combined Score (Hybrid Verdict)
-        # Haddii dhibcuhu ka badan yihiin -0.1, waxaan u tixgelinaynaa mid la aamini karo (Trusted)
-        # Si looga fogaado in wararka runta ah loo saaro Fake si fudud.
+        # Haddii dhibcuhu ka badan yihiin -0.5, waa Trusted (si loo yareeyo qaladaadka)
         final_score = score + trust_boost
         
         # Sigmoid function to normalize confidence between 0-100%
@@ -287,8 +294,8 @@ def predict():
         # Cap confidence for reliability
         confidence_val = min(98.5, max(70.0, confidence_val))
         
-        # Adjustment: Haddii AI-du ay sheegto wax ka weyn -0.1, waa run (Real/Trusted)
-        is_trusted = final_score > -0.1
+        # adjustment: -0.5 threshold allows more real news to pass
+        is_trusted = final_score > -0.5
         result = "Trusted" if is_trusted else "Fake Information"
 
         return jsonify({
@@ -367,4 +374,3 @@ def contact():
 if __name__ == "__main__":
     print("[*] Flask server starting...")
     app.run(host="0.0.0.0", port=3402, debug=False)
-
