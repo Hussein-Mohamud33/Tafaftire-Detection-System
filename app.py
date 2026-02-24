@@ -198,23 +198,24 @@ def heuristic_fact_check(text, url=None):
 
     if score >= 20:
         rating = "Trusted"
-    elif score > -10:
-        rating = "Unverified"
-        confidence -= 10 # Lower confidence for middle ground
+    elif score <= -20:
+        rating = "Suspicious" 
+        if confidence < 75: confidence = 78
     else:
         rating = "Unverified"
-        if confidence < 70: confidence = 75
+        confidence = max(60, confidence - 10)
 
     return {
         "rating": rating,
         "confidence": f"{int(confidence)}%",
-        "reasons": reasons
+        "reasons": reasons,
+        "score": score
     }
 
 # ================= ROUTES =================
 @app.route("/", methods=["GET"])
 def home():
-    return jsonify({"status": "OK", "message": "Tafaftire News Detection API is running"})
+    return jsonify({"status": "OK", "message": "Fake News Detection API is running"})
 
 @app.route("/predict", methods=["POST"])
 def predict():
@@ -341,9 +342,10 @@ def fact_check():
         fact_result = heuristic_fact_check(content, input_url)
         return jsonify(fact_result)
 
-    except Exception:
-        traceback.print_exc()
-        return jsonify({"error": "Server error ayaa dhacay"}), 500
+    except Exception as e:
+        error_msg = traceback.format_exc()
+        print("Error during fact-check:", error_msg)
+        return jsonify({"error": f"Server error: {str(e)}"}), 500
 
 @app.route("/contact", methods=["POST"])
 def contact():
