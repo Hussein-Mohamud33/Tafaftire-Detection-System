@@ -177,49 +177,62 @@ def home_route():
 def predict_route():
     try:
         data = request.get_json(silent=True)
-        if not data: return jsonify({"error":"JSON lama helin"}),400
+        if not data:
+            return jsonify({"error":"JSON lama helin"}),400
+
         content = data.get("text") or data.get("data")
-        if not content: return jsonify({"error":"Qoraal lama soo dirin"}),400
+        if not content:
+            return jsonify({"error":"Qoraal lama soo dirin"}),400
+
         content = str(content).strip()
         input_type = data.get("type","text")
         input_url = None
 
+        # URL Extraction
         if input_type=="url" or is_url(content):
             if not content.startswith(("http://","https://")):
                 content="https://"+content
             input_url=content
-            extracted=extract_text_from_url(input_url)
+            extracted = extract_text_from_url(input_url)
             if not extracted and input_url.startswith("https://"):
-                input_url=input_url.replace("https://","http://")
-                extracted=extract_text_from_url(input_url)
-            if not extracted: return jsonify({"error":"NIDAMKA: Ma suurtagalin in xog laga soo saaro URL-ka"}),400
+                input_url = input_url.replace("https://","http://")
+                extracted = extract_text_from_url(input_url)
+            if not extracted:
+                return jsonify({"error":"Ma suurtagalin in xog laga soo saaro URL-ka"}),400
             content=extracted
 
         clean_input=preprocess_text(content)
+        if not clean_input:
+            return jsonify({"error":"Qoraalka ka dib preprocess-ka waa madhan"}),400
+
         X=vectorizer.transform([clean_input])
         if X.shape[1]!=model.n_features_in_:
-            return jsonify({"error":"Feature mismatch"}),500
+            return jsonify({
+                "error":"Feature mismatch: vectorizer iyo model features ma jaan go'aan"
+            }),500
         X=X.toarray()
 
-        score=model.decision_function(X)[0] if hasattr(model,"decision_function") else 0
+        score = model.decision_function(X)[0] if hasattr(model,"decision_function") else 0
         trust_boost=0.0
         if input_url:
-            h_result=heuristic_fact_check(content,input_url)
+            h_result = heuristic_fact_check(content,input_url)
             if any(t in input_url.lower() for t in TRUSTED_SOURCES): trust_boost+=5.0
             if h_result["rating"]=="Trusted": trust_boost+=2.5
             else: trust_boost-=2.0
 
-        final_score=score+trust_boost
-        confidence_val=(1/(1+np.exp(-abs(final_score))))*100
-        confidence_val=min(98.5,max(70.0,confidence_val))
-        result="Trusted" if final_score>0 else "Fake Information"
+        final_score = score + trust_boost
+        confidence_val = (1/(1+np.exp(-abs(final_score))))*100
+        confidence_val = min(98.5,max(70.0,confidence_val))
+        result = "Trusted" if final_score>0 else "Fake Information"
 
         return jsonify({"prediction":result,"confidence":round(confidence_val,2),"hybrid_score":round(final_score,2)})
 
     except Exception as e:
         traceback.print_exc()
-        return jsonify({"error":"Server error ayaa dhacay","details":str(e)}),500
-
+        return jsonify({
+            "error":"Server error ayaa dhacay",
+            "details":str(e)
+        }),500
 @app.route("/fact-check", methods=["POST"])
 def fact_check_route():
     try:
@@ -266,3 +279,4 @@ def contact_route():
 if __name__=="__main__":
     port=int(os.environ.get("PORT",3402))
     app.run(host="0.0.0.0",port=port)
+
