@@ -59,6 +59,7 @@ def extract_text_from_url(url):
 # ================= LOAD MODELS SAFELY =================
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 SAVED_MODEL_DIR = os.path.join(BASE_DIR, "saved_model")  # hubi path-kan
+
 MODEL_PATH = os.path.join(SAVED_MODEL_DIR, "svm_high_confidence.pkl")
 VECTORIZER_PATH = os.path.join(SAVED_MODEL_DIR, "fake_real_TF_IDF_vectorizer.pkl")
 ENCODER_PATH = os.path.join(SAVED_MODEL_DIR, "fake_real_label_encoder.pkl")
