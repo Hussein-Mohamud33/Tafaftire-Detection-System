@@ -209,7 +209,7 @@ def heuristic_fact_check(text, url=None):
 # ================= ROUTES =================
 @app.route("/", methods=["GET"])
 def home():
-    return jsonify({"status": "OK", "message": "Tafaftire News Detection API is running"})
+    return jsonify({"status": "OK", "message": "Fake News Detection API is running"})
 
 @app.route("/predict", methods=["POST"])
 def predict():
@@ -277,6 +277,8 @@ def predict():
                 trust_boost -= 2.0
 
         # Final Combined Score (Hybrid Verdict)
+        # Haddii dhibcuhu ka badan yihiin -0.1, waxaan u tixgelinaynaa mid la aamini karo (Trusted)
+        # Si looga fogaado in wararka runta ah loo saaro Fake si fudud.
         final_score = score + trust_boost
         
         # Sigmoid function to normalize confidence between 0-100%
@@ -285,7 +287,8 @@ def predict():
         # Cap confidence for reliability
         confidence_val = min(98.5, max(70.0, confidence_val))
         
-        is_trusted = final_score > 0
+        # Adjustment: Haddii AI-du ay sheegto wax ka weyn -0.1, waa run (Real/Trusted)
+        is_trusted = final_score > -0.1
         result = "Trusted" if is_trusted else "Fake Information"
 
         return jsonify({
