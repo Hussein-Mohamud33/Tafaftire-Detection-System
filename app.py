@@ -28,14 +28,12 @@ lemmatizer = WordNetLemmatizer()
 
 # ================= HELPERS =================
 def sanitize_text(text):
-    """Remove HTML tags and strip text."""
     if not isinstance(text, str):
         return ""
     text = BeautifulSoup(text, "html.parser").get_text()
     return text.strip()
 
 def preprocess_text(text):
-    """Lowercase, remove non-alphabetic, tokenize, remove stopwords, lemmatize."""
     text = text.lower()
     text = re.sub(r"[^a-zA-Z ]", " ", text)
     tokens = word_tokenize(text)
@@ -43,11 +41,9 @@ def preprocess_text(text):
     return " ".join(tokens)
 
 def is_url(text):
-    """Detect if input is URL."""
     return bool(re.match(r'^(http|https)://', text.strip()))
 
 def extract_text_from_url(url):
-    """Ka soo saar qoraalka bogga webka URL"""
     try:
         resp = requests.get(url, timeout=5)
         if resp.status_code != 200:
@@ -60,25 +56,31 @@ def extract_text_from_url(url):
     except Exception:
         return ""
 
-# ================= LOAD MODELS =================
-try:
-    BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-    SAVED_MODEL_DIR = os.path.join(BASE_DIR, "..", "saved_model")
+# ================= LOAD MODELS SAFELY =================
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+SAVED_MODEL_DIR = os.path.join(BASE_DIR, "saved_model")  # hubi path-kan
+MODEL_PATH = os.path.join(SAVED_MODEL_DIR, "svm_high_confidence.pkl")
+VECTORIZER_PATH = os.path.join(SAVED_MODEL_DIR, "fake_real_TF_IDF_vectorizer.pkl")
+ENCODER_PATH = os.path.join(SAVED_MODEL_DIR, "fake_real_label_encoder.pkl")
 
-    MODEL_PATH = os.path.join(SAVED_MODEL_DIR, "svm_high_confidence.pkl")
-    VECTORIZER_PATH = os.path.join(SAVED_MODEL_DIR, "fake_real_TF_IDF_vectorizer.pkl")
-    ENCODER_PATH = os.path.join(SAVED_MODEL_DIR, "fake_real_label_encoder.pkl")
+model, vectorizer, label_encoder = None, None, None
 
-    model = joblib.load(MODEL_PATH)
-    vectorizer = joblib.load(VECTORIZER_PATH)
-    label_encoder = joblib.load(ENCODER_PATH)
-
-    print("[SUCCESS] Models loaded successfully")
-
-except Exception as e:
-    print("[ERROR] Loading models failed:", e)
-    traceback.print_exc()
-    exit(1)
+for path, name in zip([MODEL_PATH, VECTORIZER_PATH, ENCODER_PATH],
+                      ["Model", "Vectorizer", "Label Encoder"]):
+    if not os.path.isfile(path):
+        print(f"[WARNING] {name} not found at {path}")
+    else:
+        try:
+            if name == "Model":
+                model = joblib.load(path)
+            elif name == "Vectorizer":
+                vectorizer = joblib.load(path)
+            elif name == "Label Encoder":
+                label_encoder = joblib.load(path)
+            print(f"[SUCCESS] {name} loaded from {path}")
+        except Exception as e:
+            print(f"[ERROR] Failed to load {name}: {e}")
+            traceback.print_exc()
 
 # ================= ROUTES =================
 @app.route("/", methods=["GET"])
@@ -87,6 +89,9 @@ def home():
 
 @app.route("/predict", methods=["POST"])
 def predict():
+    if not all([model, vectorizer, label_encoder]):
+        return jsonify({"error": "Model ama files kale lama heli karo. Fadlan hubi saved_model folder-ka."}), 500
+
     try:
         data = request.get_json(silent=True)
         if not data:
@@ -98,16 +103,12 @@ def predict():
 
         content = str(content).strip()
 
-        # Haddii input uu URL yahay → ka soo saar text
         if is_url(content):
             content = extract_text_from_url(content)
             if not content:
                 return jsonify({"error": "Qoraalka laga helay URL-ka lama heli karo"}), 400
 
-        # ================= Preprocess =================
         clean_input = preprocess_text(content)
-
-        # Vectorize & Predict
         X = vectorizer.transform([clean_input])
         expected_features = model.coef_.shape[1]
 
@@ -121,7 +122,6 @@ def predict():
             X = X.toarray()
 
         pred = model.predict(X)[0]
-
         if hasattr(model, "predict_proba"):
             probs = model.predict_proba(X)[0]
             confidence = round(float(max(probs)) * 100, 2)
@@ -153,7 +153,6 @@ def contact():
         if not all([name, email, message]):
             return jsonify({"error": "Fadlan buuxi dhamaan meelaha banaan"}), 400
 
-        # Log to file
         with open("contacts.txt", "a", encoding="utf-8") as f:
             f.write(f"Name: {name}\nEmail: {email}\nMessage: {message}\n---\n")
 
@@ -168,4 +167,3 @@ def contact():
 if __name__ == "__main__":
     print("[*] Flask server starting...")
     app.run(host="0.0.0.0", port=3402, debug=False)
-
