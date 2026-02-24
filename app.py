@@ -17,7 +17,7 @@ app = Flask(__name__)
 CORS(app)
 
 # ================= NLTK SETUP =================
-for pkg in ["punkt", "stopwords", "wordnet"]:
+for pkg in ["punkt", "punkt_tab", "stopwords", "wordnet"]:
     try:
         nltk.data.find(pkg)
     except LookupError:
@@ -209,7 +209,7 @@ def heuristic_fact_check(text, url=None):
 # ================= ROUTES =================
 @app.route("/", methods=["GET"])
 def home():
-    return jsonify({"status": "OK", "message": "Fake News Detection API is running"})
+    return jsonify({"status": "OK", "message": "Tafaftire News Detection API is running"})
 
 @app.route("/predict", methods=["POST"])
 def predict():
