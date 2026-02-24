@@ -83,7 +83,7 @@ except Exception as e:
 # ================= ROUTES =================
 @app.route("/", methods=["GET"])
 def home():
-    return jsonify({"status": "OK", "message": "Fake News Detection API is running"})
+    return jsonify({"status": "OK", "message": "Tafaftire News Detection API is running"})
 
 @app.route("/predict", methods=["POST"])
 def predict():
@@ -168,3 +168,4 @@ def contact():
 if __name__ == "__main__":
     print("[*] Flask server starting...")
     app.run(host="0.0.0.0", port=3402, debug=False)
+
