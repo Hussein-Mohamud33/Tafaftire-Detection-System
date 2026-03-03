@@ -918,4 +918,3 @@ document.addEventListener('DOMContentLoaded', () => {
     handleRouting();
 });
 
-
