@@ -6,7 +6,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Tafaftire</title>
     <link rel="icon" type="image/svg+xml" sizes="any"
-        href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><defs><linearGradient id='orangeGrad' x1='0%25' y1='0%25' x2='100%25' y2='100%25'><stop offset='0%25' style='stop-color:%23ff9f1c;stop-opacity:1'/><stop offset='100%25' style='stop-color:%23ff4d00;stop-opacity:1'/></linearGradient></defs><path d='M0 50 C15 5 85 5 100 50 C85 95 15 95 0 50 Z' fill='url(%23orangeGrad)'/><circle cx='50' cy='50' r='28' fill='rgba(0,0,0,0.8)'/><path d='M38 50 L47 59 L63 41' fill='none' stroke='white' stroke-width='10' stroke-linecap='round' stroke-linejoin='round'/></svg>">
+        href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><defs><linearGradient id='orangeGrad' x1='0%25' y1='0%25' x2='100%25' y2='100%25'><stop offset='0%25' style='stop-color:%23ff9f1c;stop-opacity:1'/><stop offset='100%25' style='stop-color:%23ff4d00;stop-opacity:1'/></linearGradient></defs><path d='M0 50 C15 5 85 5 100 50 C85 95 15 95 0 50 Z' fill='url(%23orangeGrad)'/><circle cx='50' cy='50' r='28' fill='%231a365d'/><path d='M38 50 L47 59 L63 41' fill='none' stroke='white' stroke-width='10' stroke-linecap='round' stroke-linejoin='round'/></svg>">
     <link rel="stylesheet" href="styles.css">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -81,8 +81,8 @@
                 <p>Comprehensive fake news detection and verification solutions</p>
             </div>
 
-            <div class="services-grid">
-                <div class="service-card">
+            <div class="grid-12">
+                <div class="service-card col-4">
                     <div class="service-icon">
                         <i class="fas fa-microchip"></i>
                     </div>
@@ -92,7 +92,7 @@
                     <a href="#tafaftire" class="view-more">View More</a>
                 </div>
 
-                <div class="service-card">
+                <div class="service-card col-4">
                     <div class="service-icon">
                         <i class="fas fa-file-contract"></i>
                     </div>
@@ -102,7 +102,7 @@
                     <a href="#tafaftire" class="view-more">View More</a>
                 </div>
 
-                <div class="service-card">
+                <div class="service-card col-4">
                     <div class="service-icon">
                         <i class="fas fa-chart-line"></i>
                     </div>
@@ -181,11 +181,11 @@
                             </div>
                         </div>
 
-                        <div class="results-grid-dual"
-                            style="display: grid; grid-template-columns: 1fr 1fr; gap: 40px;">
+                        <div class="grid-12"
+                            style="margin-top: 30px; border-top: 1px solid rgba(255,255,255,0.05); padding-top: 30px;">
 
                             <!-- AI Result Card -->
-                            <div id="aiResultCard" class="result-card-premium hidden"
+                            <div id="aiResultCard" class="result-card-premium col-6 hidden"
                                 style="border-right: 1px solid rgba(255,255,255,0.1); padding-right: 20px;">
                                 <h4
                                     style="color: var(--accent-orange); margin-bottom: 5px; font-size: 0.9rem; letter-spacing: 2px;">
@@ -200,7 +200,7 @@
                             </div>
 
                             <!-- Fact-Check Result Card -->
-                            <div id="fcResultCard" class="result-card-premium hidden">
+                            <div id="fcResultCard" class="result-card-premium col-6 hidden">
                                 <h4 style="color: #3498db; margin-bottom: 5px; font-size: 0.9rem; letter-spacing: 2px;">
                                     EXPERT FACT-CHECK</h4>
                                 <p style="font-size: 0.75rem; color: var(--text-light-gray); margin-bottom: 15px;">Cloud
@@ -229,8 +229,8 @@
                 <p>Empowering communities with verified information</p>
             </div>
 
-            <div class="about-content">
-                <div class="about-text">
+            <div class="grid-12">
+                <div class="about-text col-6">
                     <h3>Our Mission</h3>
                     <p>"Tafaftire" means Investigation & Insight in Somali. We are dedicated to combating
                         misinformation by providing advanced AI-powered tools that help users verify news authenticity.
@@ -243,7 +243,7 @@
                         <span>AI-Powered Analysis</span>
                     </div>
                 </div>
-                <div class="about-image-wrapper">
+                <div class="about-image-wrapper col-6">
                     <img src="https://images.unsplash.com/photo-1485827404703-89b55fcc595e?q=80&w=800&auto=format&fit=crop"
                         alt="Future Tech" class="about-img">
                 </div>
@@ -259,8 +259,8 @@
                 <p>Get in touch with us</p>
             </div>
 
-            <div class="contact-wrapper">
-                <div class="contact-info">
+            <div class="grid-12">
+                <div class="contact-info col-5">
                     <h3>Contact Information</h3>
                     <div class="info-item">
                         <i class="fas fa-map-marker-alt"></i>
@@ -285,7 +285,7 @@
                     </div>
                 </div>
 
-                <form class="contact-form">
+                <form class="contact-form col-7">
                     <div class="form-group">
                         <input type="text" id="contactName" placeholder="Your Name" required>
                     </div>
