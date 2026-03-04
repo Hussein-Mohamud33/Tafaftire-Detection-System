@@ -66,7 +66,6 @@ document.addEventListener('DOMContentLoaded', () => {
         const target = document.getElementById(sectionId);
         if (target) {
             target.style.display = 'block';
-            // Scroll completely disabled as per user request
         }
         mainNavLinks.forEach(link => {
             link.classList.remove('active');
@@ -89,6 +88,8 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         }
     }));
+
+
 
     if (hamburger) hamburger.addEventListener('click', () => navMenu.classList.toggle('active'));
 
