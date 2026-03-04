@@ -381,10 +381,12 @@ except Exception as e:
     exit(1)
 # ================= HEURISTIC FACT CHECKER =================
 TRUSTED_SOURCES = [
-    "bbc.com", "voasomali.com", "goobjoog.com", 
+    "bbc.com", "bbc.co.uk", "voasomali.com", "goobjoog.com", 
     "garoweonline.com", "somalistream.com", "somnn.com", 
     "somaliglobe.net", "sntv.so", "sonna.so", "aljazeera.com",
-    "reuters.com", "apnews.com", "hiiraan.com"
+    "reuters.com", "apnews.com", "hiiraan.com", "caasimada.net",
+    "horseedmedia.net", "jowhar.com", "universaltv.net", "somalicable.tv",
+    "puntlandpost.net", "radiomuqdisho.so", "halgan.net"
 ]
 
 UNTRUSTED_PATTERNS = [
@@ -432,7 +434,7 @@ def heuristic_fact_check(text, url=None):
         score -= 40 # Increased from -25
         reasons.append(f"Found sensational words outside journalistic ethics: {', '.join(found_scary)}.")
     else:
-        score += 5
+        score += 15
         reasons.append("The text does not appear sensational (Professional tone).")
 
 
@@ -462,28 +464,21 @@ def heuristic_fact_check(text, url=None):
     if len(found_consensus) >= 3:
         score += 20
         reasons.append("The news subject appears consistent with official news content.")
-    elif len(found_consensus) == 0:
-        score -= 10
-        reasons.append("No significant keywords linking this news to major events found.")
 
 
     # 6. Text Length & Quality
-    if len(words) < 50:
-        score -= 25
-        reasons.append("The text is relatively short and may lack sufficient context.")
-    else:
-        # Minor bonus for substantial length, but not enough to auto-trust
-        score += 5
+    if len(words) >= 30:
+        score += 15
+        reasons.append("The text is detailed and appears well-researched.")
 
     # Determine Rating & Confidence
     confidence = 50 + (abs(score) / 2)
     if confidence > 98: confidence = 98
 
-    if score >= 35: # Increased from 15 - requires more positive signals to be Trusted
+    if score >= 5: # Reverted back to 15 -> changed to 5 to avoid overly aggressive fake flagging
         rating = "Trusted"
-    elif score <= 5: # Increased from -10 - any negative or low-positive score is Suspicious
+    elif score <= -10: # Reverted back to -10
         rating = "Suspicious" 
-        if confidence < 75: confidence = 80
     else:
         rating = "Unverified"
         confidence = max(60, confidence - 5)
@@ -588,6 +583,9 @@ def predict():
         # Boost for quality content (Professional tone)
         if h_result["rating"] == "Trusted":
             trust_boost += 1.5
+        elif h_result["rating"] == "Suspicious":
+            # If heuristic finds really bad patterns, penalize heavy
+            trust_boost -= 2.5
         
         if input_url:
             # Check if source is explicitly trusted (massive boost)
@@ -595,12 +593,11 @@ def predict():
             if is_verified_domain:
                 trust_boost += 5.0
             
-            if h_result["rating"] != "Trusted":
-                # If heuristic finds bad patterns, penalize
-                trust_boost -= 2.5
+            if not is_verified_domain and h_result["rating"] != "Trusted":
+                # Additional penalty for unknown domain with poor heuristic
+                trust_boost -= 1.0
 
         # Final Combined Score (Hybrid Verdict)
-        # Threshold adjusted to be more conservative (0.5 instead of -0.5)
         final_score = score + trust_boost
         
         # Sigmoid function to normalize confidence between 0-100%
@@ -609,8 +606,8 @@ def predict():
         # Cap confidence for reliability
         confidence_val = min(98.5, max(70.0, confidence_val))
         
-        # adjustment: Positive threshold required for Trusted
-        is_trusted = final_score > 0.5
+        # adjustment: -0.5 threshold allows more real news to pass
+        is_trusted = final_score > -0.5
         result = "Trusted" if is_trusted else "Fake Information"
 
         return jsonify({
