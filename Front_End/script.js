@@ -349,7 +349,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (inputType === "text") {
             if (!newsText) return null;
             data = newsText.value.trim();
-            if (data.length < 20) { showError("Please enter at least 20 characters.", "newsText"); return null; }
+            if (data.length < 10) { showError("Please enter at least 10 characters.", "newsText"); return null; }
         } else {
             if (!newsURL) return null;
             data = newsURL.value.trim();
