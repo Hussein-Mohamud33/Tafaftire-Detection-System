@@ -286,13 +286,23 @@ def extract_text_from_url(url):
     """Ka soo saar qoraalka bogga webka URL si qoto dheer"""
     try:
         headers = {
-            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-            "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8",
-            "Accept-Language": "en-US,en;q=0.5"
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36",
+            "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8",
+            "Accept-Language": "en-US,en;q=0.5",
+            "Referer": "https://www.google.com/"
         }
-        resp = requests.get(url, headers=headers, timeout=5) # Reduced timeout from 12s to 5s for speed
+        
+        # SSL certificate errors are common on some Somali sites, so we try to be robust
+        try:
+            resp = requests.get(url, headers=headers, timeout=10, verify=True)
+        except requests.exceptions.SSLError:
+            print(f"[!] SSL Error for {url}, trying without verification...")
+            resp = requests.get(url, headers=headers, timeout=10, verify=False)
+
         if resp.status_code == 404:
             raise Exception("Boggan lama helin (404 Not Found). Fadlan hubi in link-gu sax yahay.")
+        elif resp.status_code == 403:
+            raise Exception("Websaydhkani wuxuu xannibay helitaanka tooska ah. Fadlan koobiyeey qoraalka oo halkan kusoo dheji.")
         elif resp.status_code != 200:
             raise Exception(f"Kala xiriirida bogga wey fashilantay. Status: {resp.status_code}")
         
@@ -302,38 +312,43 @@ def extract_text_from_url(url):
         page_title = soup.title.string if soup.title else "News from URL"
         
         # Remove unwanted elements
-        for element in soup(["script", "style", "noscript", "header", "footer", "nav", "aside", "form"]):
+        for element in soup(["script", "style", "noscript", "header", "footer", "nav", "aside", "form", "iframe", "ad"]):
             element.decompose()
             
         text_parts = []
         
-        # Try to find the main article container first (deep extraction)
+        # Expanded article containers search
         main_content = soup.find(['article', 'main']) or \
-                       soup.find('div', class_=re.compile(r'(post|article|content|entry-content|news-body)', re.I))
+                       soup.find('div', class_=re.compile(r'(post|article|content|entry-content|news-body|story-body|article-text|page-content)', re.I)) or \
+                       soup.find('div', id=re.compile(r'(post|article|content|story|main)', re.I))
         
         target_soup = main_content if main_content else soup
         
-        paragraphs = target_soup.find_all(['p', 'h1', 'h2', 'h3'])
+        # Extract from headings and paragraphs
+        elements = target_soup.find_all(['p', 'h1', 'h2', 'h3', 'h4', 'li'])
         
-        for p in paragraphs:
-            text = p.get_text(separator=" ", strip=True)
-            if len(text.split()) > 3: # Must have a few words
+        for el in elements:
+            text = el.get_text(separator=" ", strip=True)
+            # Filter out short fragments, menus, etc.
+            if len(text.split()) > 4:
                 text_parts.append(text)
                 
         extracted_text = " ".join(text_parts)
         
-        # Fallback to general text if very little is found
-        if len(extracted_text) < 100:
-            extracted_text = target_soup.get_text(separator=" ", strip=True)
+        # Fallback for sites with non-standard structures
+        if len(extracted_text) < 150:
+            all_text = target_soup.get_text(separator=" ", strip=True)
+            # Simple cleaning for fallback text
+            extracted_text = re.sub(r'\s+', ' ', all_text)
             
-        print(f"URL Extracted {len(extracted_text)} chars from {url}")
+        if len(extracted_text) < 50:
+             raise Exception("Ma jiro qoraal ku filan oo laga helay boggan.")
+
+        print(f"[🌐] URL Extracted: {len(extracted_text)} chars from {url}")
         return extracted_text.strip(), page_title.strip()
     except Exception as e:
-        print(f"Error extracting from {url}: {e}")
-        return "", "Error Extracting Title"
-    except Exception as e:
-        print(f"URL Extract Error: {e}")
-        raise Exception(f"Kahortaga Nidaamka: {str(e)}")
+        print(f"[❌] URL Extract Error: {e}")
+        raise Exception(f"Cilad ka timid barta webka: {str(e)}")
 
 # ================= EXTRA FEATURES =================
 def is_extreme_claim(text):
@@ -453,20 +468,20 @@ def heuristic_fact_check(text, url=None):
 
 
     # 6. Text Length & Quality
-    if len(words) < 30:
-        score -= 20
-        reasons.append("The text is very short and appears not to be fully researched.")
+    if len(words) < 50:
+        score -= 25
+        reasons.append("The text is relatively short and may lack sufficient context.")
     else:
-
-        score += 15
+        # Minor bonus for substantial length, but not enough to auto-trust
+        score += 5
 
     # Determine Rating & Confidence
     confidence = 50 + (abs(score) / 2)
     if confidence > 98: confidence = 98
 
-    if score >= 15:
+    if score >= 35: # Increased from 15 - requires more positive signals to be Trusted
         rating = "Trusted"
-    elif score <= -10: # Lowered threshold to catch suspicious better
+    elif score <= 5: # Increased from -10 - any negative or low-positive score is Suspicious
         rating = "Suspicious" 
         if confidence < 75: confidence = 80
     else:
@@ -585,7 +600,7 @@ def predict():
                 trust_boost -= 2.5
 
         # Final Combined Score (Hybrid Verdict)
-        # Haddii dhibcuhu ka badan yihiin -0.5, waa Trusted (si loo yareeyo qaladaadka)
+        # Threshold adjusted to be more conservative (0.5 instead of -0.5)
         final_score = score + trust_boost
         
         # Sigmoid function to normalize confidence between 0-100%
@@ -594,8 +609,8 @@ def predict():
         # Cap confidence for reliability
         confidence_val = min(98.5, max(70.0, confidence_val))
         
-        # adjustment: -0.5 threshold allows more real news to pass
-        is_trusted = final_score > -0.5
+        # adjustment: Positive threshold required for Trusted
+        is_trusted = final_score > 0.5
         result = "Trusted" if is_trusted else "Fake Information"
 
         return jsonify({
