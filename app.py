@@ -26,7 +26,14 @@ from functools import lru_cache
 # ================= FLASK INIT =================
 app = Flask(__name__, static_folder='Front_End', static_url_path='')
 app.config['SEND_FILE_MAX_AGE_DEFAULT'] = 0  # Disable caching
-CORS(app, resources={r"/*": {"origins": "*"}}, supports_credentials=True)
+
+# Allow CORS for both local testing and Cloudflare Pages
+CORS(app, resources={r"/*": {
+    "origins": [
+        "http://127.0.0.1:5500", 
+        "https://tafaftire.pages.dev"
+    ]
+}}, supports_credentials=True)
 
 # DATA_DIR in current project folder for better permission handling on Render
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -217,7 +224,11 @@ global_stats = load_stats()
 
 @app.route("/api/health", methods=["GET"])
 def health_check():
-    return jsonify({"status": "OK", "message": "Server is running"})
+    return jsonify({"status": "OK", "message": "Server is running", "environment": os.environ.get("RENDER", "local")})
+
+@app.route("/api/ping", methods=["GET"])
+def ping():
+    return jsonify({"status": "alive", "time": time.time()})
 
 @app.errorhandler(404)
 def not_found(e):
