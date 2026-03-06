@@ -1,4 +1,6 @@
-const API_BASE_URL = 'https://tafaftire-detection-system.onrender.com';
+const API_BASE_URL = (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' || window.location.protocol === 'file:')
+    ? 'http://127.0.0.1:3402'
+    : 'https://tafaftire-detection-system.onrender.com';
 
 window.isAnalyzing = false;
 
@@ -192,7 +194,6 @@ document.addEventListener('DOMContentLoaded', () => {
     const fcResult = document.getElementById("fcResult");
     const aiConfidence = document.getElementById("aiConfidence");
     const fcConfidence = document.getElementById("fcConfidence");
-    const fcReasons = document.getElementById("fcReasons");
     const factCheckBtn = document.getElementById("factCheckBtn");
 
     // New Winner Elements
@@ -226,12 +227,12 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
 
-        resultContainer.style.display = "flex"; // Changed from grid to flex for better vertical stacking
-        [aiResultCard, fcResultCard, unifiedVerdictCard].forEach(card => card.classList.remove("hidden"));
-        [aiResult, fcResult, unifiedVerdict].forEach(el => el.innerText = "⏳...");
-        [aiConfidence, fcConfidence, unifiedConfidence].forEach(el => el.innerText = "Loading...");
+        resultContainer.style.display = "flex";
+        [aiResultCard, fcResultCard, unifiedVerdictCard].forEach(card => card && card.classList.remove("hidden"));
+
+        [aiResult, fcResult, unifiedVerdict].forEach(el => el && (el.innerText = "⏳..."));
+        [aiConfidence, fcConfidence, unifiedConfidence].forEach(el => el && (el.innerText = "Loading..."));
         if (winnerSource) winnerSource.innerText = "Processing...";
-        if (fcReasons) fcReasons.innerHTML = "";
 
         // Removed artificial UI delays for maximum speed.
 
@@ -250,9 +251,17 @@ document.addEventListener('DOMContentLoaded', () => {
             const aiSuccess = !aiRes.error;
             let aiConfVal = 0;
             if (aiSuccess) {
-                const aiIsTrusted = aiRes.prediction.includes("Trusted");
-                aiResult.innerText = aiIsTrusted ? "REAL" : "FAKE";
-                aiResult.style.color = aiIsTrusted ? "#2ecc71" : "#ff4757";
+                const pred = aiRes.prediction;
+                if (pred.includes("Trusted")) {
+                    aiResult.innerText = "Real News";
+                    aiResult.style.color = "#2ecc71";
+                } else if (pred.includes("Suspicious") || pred.includes("Unverified")) {
+                    aiResult.innerText = "Suspicious";
+                    aiResult.style.color = "#f39c12";
+                } else {
+                    aiResult.innerText = "Fake News";
+                    aiResult.style.color = "#ff4757";
+                }
                 aiConfidence.innerText = `Confidence: ${aiRes.confidence}`;
                 aiConfVal = parseFloat(aiRes.confidence.replace('%', '')) || 0;
             } else {
@@ -260,28 +269,23 @@ document.addEventListener('DOMContentLoaded', () => {
                 aiConfidence.innerText = "Check Failed";
             }
 
-            // 2. Expert Result Process
+            // 2. Expert Result Process (Evidence List Removed)
             const fcSuccess = !fcRes.error;
             let fcConfVal = 0;
             if (fcSuccess) {
-                const fcIsTrusted = fcRes.rating.toLowerCase().includes("trusted");
-                fcResult.innerText = fcIsTrusted ? "TRUSTED" : "UNVERIFIED";
-                fcResult.style.color = fcIsTrusted ? "#2ecc71" : "#ff4757";
+                const fcRating = fcRes.rating.toLowerCase();
+                if (fcRating.includes("trusted")) {
+                    fcResult.innerText = "Trusted";
+                    fcResult.style.color = "#2ecc71";
+                } else if (fcRating.includes("suspicious")) {
+                    fcResult.innerText = "Suspicious";
+                    fcResult.style.color = "#f39c12";
+                } else {
+                    fcResult.innerText = "Fake";
+                    fcResult.style.color = "#ff4757";
+                }
                 fcConfidence.innerText = `Expert Score: ${fcRes.confidence}`;
                 fcConfVal = parseFloat(fcRes.confidence.replace('%', '')) || 0;
-
-                /* 
-                // 2. Expert Result Process (Reasons hidden as per user request)
-                if (fcRes.reasons && fcReasons) {
-                    fcReasons.innerHTML = `<h5 style="font-size: 0.75rem; color:rgba(255,255,255,0.4); margin-bottom:15px; letter-spacing:2px;">EVIDENCE:</h5>`;
-                    fcRes.reasons.forEach(reason => {
-                        const div = document.createElement("div");
-                        div.className = "reason-item";
-                        div.innerHTML = `<i class="fas fa-check-circle"></i> <span>${reason}</span>`;
-                        fcReasons.appendChild(div);
-                    });
-                }
-                */
             } else {
                 fcResult.innerText = "Error";
                 fcConfidence.innerText = "Search Failed";
