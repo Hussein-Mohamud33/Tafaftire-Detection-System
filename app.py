@@ -27,12 +27,11 @@ from functools import lru_cache
 app = Flask(__name__, static_folder='Front_End', static_url_path='')
 app.config['SEND_FILE_MAX_AGE_DEFAULT'] = 0  # Disable caching
 
-# Allow CORS for both local testing and Cloudflare Pages
+# Permissive CORS for production stability
 CORS(app, resources={r"/*": {
-    "origins": [
-        "http://127.0.0.1:5500", 
-        "https://tafaftire.pages.dev"
-    ]
+    "origins": "*",
+    "allow_headers": ["Content-Type", "Authorization"],
+    "methods": ["GET", "POST", "OPTIONS"]
 }}, supports_credentials=True)
 
 # DATA_DIR in current project folder for better permission handling on Render
@@ -772,19 +771,22 @@ def predict():
              result = "Trusted"
              confidence_val = max(92, confidence_val)
 
-        # ================= Save to History =================
-        save_analysis_result(
-            original_input=content,
-            confidence=f"{round(float(confidence_val), 2)}%",
-            label=result,
-            extracted_text=content,
-            data_type="AI Analysis",
-            ai_score=f"{round(float(confidence_val), 2)}%",
-            expert_score="N/A",
-            title=page_title,
-            link=input_url if input_url else "N/A",
-            subject=news_subject
-        )
+        # ================= Save to History (Non-blocking) =================
+        try:
+            save_analysis_result(
+                original_input=content,
+                confidence=f"{round(float(confidence_val), 2)}%",
+                label=result,
+                extracted_text=content,
+                data_type="AI Analysis",
+                ai_score=f"{round(float(confidence_val), 2)}%",
+                expert_score="N/A",
+                title=page_title,
+                link=input_url if input_url else "N/A",
+                subject=news_subject
+            )
+        except Exception as e:
+            print(f"[!] Warning: History saving failed: {e}")
 
         return jsonify({
             "prediction": result, 
@@ -800,7 +802,7 @@ def predict():
     except Exception as e:
         error_msg = traceback.format_exc()
         print("Error during prediction:", error_msg)
-        return jsonify({"error": f"Server error: {str(e)}"}), 500
+        return jsonify({"error": str(e)}), 500
 
 @app.route("/api/fact-check", methods=["POST"])
 def fact_check():
@@ -853,26 +855,28 @@ def fact_check():
         if "trusted" in rating_str: somali_label = "War Rasmi ah"
         elif "suspicious" in rating_str: somali_label = "Shaki Baa Ku Jira"
 
-        # ================= Save to History =================
-        save_analysis_result(
-            original_input=content if not input_url else input_url,
-            confidence=fact_result["confidence"],
-            label=somali_label,
-            extracted_text=content,
-            data_type="Expert Fact-Check",
-            ai_score="N/A",
-            expert_score=fact_result["confidence"],
-            title=page_title,
-            link=input_url if input_url else "N/A",
-            subject=fact_result["subject"]
-        )
+        # ================= Save to History (Non-blocking) =================
+        try:
+            save_analysis_result(
+                original_input=content if not input_url else input_url,
+                confidence=fact_result["confidence"],
+                label=somali_label,
+                extracted_text=content,
+                data_type="Expert Fact-Check",
+                ai_score="N/A",
+                expert_score=fact_result["confidence"],
+                title=page_title,
+                link=input_url if input_url else "N/A",
+                subject=fact_result["subject"]
+            )
+        except Exception as e:
+            print(f"[!] Warning: History saving failed: {e}")
 
         return jsonify(fact_result)
 
     except Exception as e:
-        error_msg = traceback.format_exc()
-        print("Error during fact-check:", error_msg)
-        return jsonify({"error": f"Server error: {str(e)}"}), 500
+        print("Error during fact-check:", traceback.format_exc())
+        return jsonify({"error": str(e)}), 500
 
 @app.route("/contact", methods=["POST"])
 def contact():
