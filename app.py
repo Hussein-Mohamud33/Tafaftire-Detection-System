@@ -28,12 +28,11 @@ app = Flask(__name__, static_folder='Front_End', static_url_path='')
 app.config['SEND_FILE_MAX_AGE_DEFAULT'] = 0  # Disable caching
 CORS(app, resources={r"/*": {"origins": "*"}}, supports_credentials=True)
 
-# Define DATA_DIR outside the workspace to prevent Live Server reloads
-# We store it in the user's home directory
-HOME_DIR = os.path.expanduser("~")
-DATA_DIR = os.path.join(HOME_DIR, ".tafaftire_system_data")
+# DATA_DIR in current project folder for better permission handling on Render
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+DATA_DIR = os.path.join(BASE_DIR, "system_data")
 if not os.path.exists(DATA_DIR):
-    os.makedirs(DATA_DIR)
+    os.makedirs(DATA_DIR, exist_ok=True)
 
 STATS_FILE = os.path.join(DATA_DIR, "stats.json")
 ANALYSIS_HISTORY_FILE = os.path.join(DATA_DIR, "analysis_history.json")
@@ -226,19 +225,19 @@ def not_found(e):
     return app.send_static_file('index.html')
 
 # ================= NLTK SETUP =================
-# Set NLTK data path to a folder in the home directory
-nltk_data_dir = os.path.join(DATA_DIR, "nltk_data")
+# Use local folder within project for NLTK packages
+nltk_data_dir = os.path.join(BASE_DIR, "nltk_data")
 if not os.path.exists(nltk_data_dir):
-    os.makedirs(nltk_data_dir)
+    os.makedirs(nltk_data_dir, exist_ok=True)
 nltk.data.path.append(nltk_data_dir)
 
 for pkg in ["punkt", "stopwords", "wordnet"]:
     try:
-        nltk.data.find(pkg)
-        print(f"[*] NLTK: {pkg} already exists.")
+        nltk.data.find(f"tokenizers/{pkg}" if pkg=="punkt" else f"corpora/{pkg}")
+        print(f"[*] NLTK: {pkg} exists.")
     except LookupError:
-        print(f"[*] NLTK: Downloading {pkg} to {nltk_data_dir}")
-        nltk.download(pkg, download_dir=nltk_data_dir)
+        print(f"[*] NLTK: Downloading {pkg}...")
+        nltk.download(pkg, download_dir=nltk_data_dir, quiet=True)
 
 from nltk.stem import WordNetLemmatizer
 lemmatizer = WordNetLemmatizer()
