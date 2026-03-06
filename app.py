@@ -246,10 +246,15 @@ if not os.path.exists(nltk_data_dir):
 nltk.data.path.append(nltk_data_dir)
 
 print("[*] NLTK: Initializing packages...")
-for pkg in ["punkt", "stopwords", "wordnet"]:
+for pkg in ["punkt", "punkt_tab", "stopwords", "wordnet"]:
     try:
         # Check if already downloaded
-        nltk.data.find(f"tokenizers/{pkg}" if pkg=="punkt" else f"corpora/{pkg}")
+        if pkg == "punkt":
+            nltk.data.find("tokenizers/punkt")
+        elif pkg == "punkt_tab":
+            nltk.data.find("tokenizers/punkt_tab")
+        else:
+            nltk.data.find(f"corpora/{pkg}")
     except (LookupError, Exception):
         try:
             print(f"[*] NLTK: Downloading {pkg}...")
