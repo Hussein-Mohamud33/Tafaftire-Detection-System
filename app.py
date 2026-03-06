@@ -32,7 +32,11 @@ CORS(app, resources={r"/*": {"origins": "*"}}, supports_credentials=True)
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 DATA_DIR = os.path.join(BASE_DIR, "system_data")
 if not os.path.exists(DATA_DIR):
-    os.makedirs(DATA_DIR, exist_ok=True)
+    try:
+        os.makedirs(DATA_DIR, exist_ok=True)
+        print(f"[*] Created DATA_DIR at {DATA_DIR}")
+    except Exception as e:
+        print(f"[!] Warning: Could not create DATA_DIR: {e}")
 
 STATS_FILE = os.path.join(DATA_DIR, "stats.json")
 ANALYSIS_HISTORY_FILE = os.path.join(DATA_DIR, "analysis_history.json")
@@ -231,13 +235,17 @@ if not os.path.exists(nltk_data_dir):
     os.makedirs(nltk_data_dir, exist_ok=True)
 nltk.data.path.append(nltk_data_dir)
 
+print("[*] NLTK: Initializing packages...")
 for pkg in ["punkt", "stopwords", "wordnet"]:
     try:
+        # Check if already downloaded
         nltk.data.find(f"tokenizers/{pkg}" if pkg=="punkt" else f"corpora/{pkg}")
-        print(f"[*] NLTK: {pkg} exists.")
-    except LookupError:
-        print(f"[*] NLTK: Downloading {pkg}...")
-        nltk.download(pkg, download_dir=nltk_data_dir, quiet=True)
+    except (LookupError, Exception):
+        try:
+            print(f"[*] NLTK: Downloading {pkg}...")
+            nltk.download(pkg, download_dir=nltk_data_dir, quiet=True)
+        except Exception as e:
+            print(f"[!] NLTK: Failed to download {pkg}: {e}")
 
 from nltk.stem import WordNetLemmatizer
 lemmatizer = WordNetLemmatizer()
