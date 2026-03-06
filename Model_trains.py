@@ -29,10 +29,12 @@ if not os.path.exists(DATA_DIR):
 # ======================================
 try:
     nltk.data.find('tokenizers/punkt')
+    nltk.data.find('tokenizers/punkt_tab')
     nltk.data.find('corpora/stopwords')
     nltk.data.find('corpora/wordnet')
 except LookupError:
     nltk.download("punkt")
+    nltk.download("punkt_tab")
     nltk.download("stopwords")
     nltk.download("wordnet")
 
@@ -43,7 +45,9 @@ somali_stopwords = [
     "sidii", "waxaan", "waxaad", "wuxuu", "waxay", "iska", "ahaa", "lagu", "loogu",
     "isagoo", "iyadoo", "ku", "soo", "isaga", "iyada", "labada", "kala", "inta",
     "ilaa", "wax", "kale", "mar", "markii", "la", "si", "aad", "eeg", "ayaa",
-    "ayay", "kuwa", "kuwaas", "kuwan", "kaas", "kan", "kuwaa", "loo", "loona"
+    "ayay", "kuwa", "kuwaas", "kuwan", "kaas", "kan", "kuwaa", "loo", "loona",
+    "yahay", "yihiin", "ahayd", "ahaa", "noqday", "noqon", "leh", "leeyihiin",
+    "kala", "hore", "danbe", "dhammaan", "kasta", "badnaa", "yar", "weyn"
 ]
 stop_words.update(somali_stopwords)
 
@@ -129,7 +133,8 @@ X_train, X_test, y_train, y_test, ext_train, ext_test, vague_train, vague_test =
 # TF-IDF
 # ======================================
 print("Vectorizing...")
-tfidf = TfidfVectorizer(max_features=10000, ngram_range=(1, 2))
+# Improvment: Use n-gram range (1, 3) and slightly better min_df to reduce noise
+tfidf = TfidfVectorizer(max_features=12000, ngram_range=(1, 3), min_df=2, use_idf=True)
 X_train_tfidf = tfidf.fit_transform(X_train)
 X_test_tfidf = tfidf.transform(X_test)
 
@@ -141,13 +146,14 @@ X_test_tfidf = hstack([X_test_tfidf, np.array([ext_test, vague_test]).T])
 # ======================================
 # MODELS
 # ======================================
-# PassiveAggressiveClassifier removed as requested
-
+# Using class_weight='balanced' to handle the heavy imbalance in the dataset
+from sklearn.linear_model import PassiveAggressiveClassifier
 
 models = {
-    "Naive_Bayes": MultinomialNB(),
-    "SVM": LinearSVC(max_iter=5000),
-    "Logistic_Regression": LogisticRegression(max_iter=2000),
+    "Naive_Bayes": MultinomialNB(alpha=0.01), # Lower alpha for more sensitivity
+    "SVM": LinearSVC(max_iter=15000, C=1.0, dual=True, class_weight='balanced'),
+    "Logistic_Regression": LogisticRegression(max_iter=4000, solver='lbfgs', class_weight='balanced'),
+    "Passive_Aggressive": PassiveAggressiveClassifier(max_iter=2000, random_state=42)
 }
 
 results = {}
