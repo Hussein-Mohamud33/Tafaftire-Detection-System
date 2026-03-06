@@ -465,10 +465,7 @@
 
         <div class="main-content">
             <div class="top-bar">
-                <div class="search-box">
-                    <i class="fas fa-search"></i>
-                    <input type="text" placeholder="Type to search...">
-                </div>
+                <div></div> <!-- Spacer to keep user profile on the right -->
                 <div class="user-profile" style="position: relative;">
                     <i class="far fa-bell" style="font-size: 1.2rem; cursor: pointer; position: relative;"
                         onclick="toggleNotificationDropdown()">
@@ -647,22 +644,32 @@
                                 <p style="color: var(--text-muted); font-size: 0.85rem; margin-top: 5px;">Comprehensive
                                     record of all news verifications performed.</p>
                             </div>
-                            <div style="display: flex; gap: 12px;">
-                                <button class="btn-action"
-                                    style="padding: 12px 20px; border-radius: 12px; background: rgba(59, 130, 246, 0.1); color: var(--accent-blue); border: 1px solid rgba(59, 130, 246, 0.2); transition: all 0.3s ease; display: flex; align-items: center; gap: 10px;"
-                                    onclick="syncHistoryToDataset()">
-                                    <i class="fas fa-sync"></i> Sync to Dataset
-                                </button>
-                                <button class="btn-action"
-                                    style="padding: 12px 20px; border-radius: 12px; background: rgba(239, 68, 68, 0.1); color: var(--accent-red); border: 1px solid rgba(239, 68, 68, 0.2); transition: all 0.3s ease; display: flex; align-items: center; gap: 10px;"
-                                    onclick="clearAnalysisHistory()">
-                                    <i class="fas fa-trash-alt"></i> Clear All
-                                </button>
-                                <button class="btn-action"
-                                    style="padding: 12px 25px; border-radius: 12px; background: linear-gradient(135deg, var(--accent-orange) 0%, var(--accent-orange-dark) 100%); color: #fff; font-weight: bold; border: none; transition: all 0.3s ease; display: flex; align-items: center; gap: 10px; box-shadow: 0 5px 15px rgba(255, 159, 28, 0.3);"
-                                    onclick="loadAnalysisHistory()">
-                                    <i class="fas fa-sync-alt"></i> Refresh
-                                </button>
+                            <div style="display: flex; flex-direction: column; gap: 15px;">
+                                <div style="display: flex; gap: 12px; justify-content: flex-end;">
+                                    <button class="btn-action"
+                                        style="padding: 12px 20px; border-radius: 12px; background: rgba(59, 130, 246, 0.1); color: var(--accent-blue); border: 1px solid rgba(59, 130, 246, 0.2); transition: all 0.3s ease; display: flex; align-items: center; gap: 10px;"
+                                        onclick="syncHistoryToDataset()">
+                                        <i class="fas fa-sync"></i> Sync to Dataset
+                                    </button>
+                                    <button class="btn-action"
+                                        style="padding: 12px 20px; border-radius: 12px; background: rgba(239, 68, 68, 0.1); color: var(--accent-red); border: 1px solid rgba(239, 68, 68, 0.2); transition: all 0.3s ease; display: flex; align-items: center; gap: 10px;"
+                                        onclick="clearAnalysisHistory()">
+                                        <i class="fas fa-trash-alt"></i> Clear All
+                                    </button>
+                                    <button class="btn-action"
+                                        style="padding: 12px 25px; border-radius: 12px; background: linear-gradient(135deg, var(--accent-orange) 0%, var(--accent-orange-dark) 100%); color: #fff; font-weight: bold; border: none; transition: all 0.3s ease; display: flex; align-items: center; gap: 10px; box-shadow: 0 5px 15px rgba(255, 159, 28, 0.3);"
+                                        onclick="loadAnalysisHistory()">
+                                        <i class="fas fa-sync-alt"></i> Refresh
+                                    </button>
+                                </div>
+                                <div style="position: relative; width: 100%;">
+                                    <i class="fas fa-search"
+                                        style="position: absolute; left: 20px; top: 50%; transform: translateY(-50%); color: var(--text-muted);"></i>
+                                    <input type="text" id="historySearchInput"
+                                        placeholder="Search in history (content, verdict, or date)..."
+                                        style="width: 100%; background: rgba(0,0,0,0.2); border: 1px solid rgba(255,255,255,0.05); padding: 15px 15px 15px 50px; border-radius: 12px; color: white; outline: none; transition: all 0.3s;"
+                                        onkeyup="filterAnalysisHistory()">
+                                </div>
                             </div>
                         </div>
 
@@ -679,7 +686,8 @@
                                             TRUST SCORE</th>
                                         <th
                                             style="padding: 18px; color: var(--text-muted); font-size: 0.75rem; letter-spacing: 2px; text-align: center;">
-                                            VERDICT</th>
+
+                                            PERDICT</th>
                                         <th
                                             style="padding: 18px; color: var(--text-muted); font-size: 0.75rem; letter-spacing: 2px;">
                                             TIMESTAMP</th>
@@ -738,7 +746,7 @@
 
     <script>
         const API_BASE_URL = (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' || window.location.protocol === 'file:')
-            ? 'http://127.0.0.1:5000'
+            ? 'http://127.0.0.1:3402'
             : 'https://tafaftire-detection-system.onrender.com';
         const API_BASE = `${API_BASE_URL}/api/admin`;
 
@@ -855,58 +863,7 @@
                     return;
                 }
 
-                tableBody.innerHTML = historyDataGlobal.map((item) => {
-                    const originalInput = item.original_input || item.name || item.data || '';
-                    if (!originalInput) console.warn("[*] Missing label data for item:", item);
-                    const nameSnippet = originalInput.length > 50 ? originalInput.substring(0, 50) + "..." : (originalInput || "Unknown");
-
-                    // Improved Real Check
-                    const labelStr = (item.label || "").toUpperCase();
-                    const isReal = labelStr.includes('TRUSTED') || labelStr.includes('RASMI') || labelStr === 'REAL';
-                    const isFake = labelStr.includes('FAKE') || labelStr.includes('BEEN') || labelStr === 'FAKE';
-
-                    let typeLabel = "🔍 EXPERT";
-                    let typeColor = "#ff9f1c";
-                    let typeIcon = "fas fa-shield-alt";
-
-                    if (item.type === "Model Prediction") {
-                        typeLabel = "🤖 AI";
-                        typeColor = "#3b82f6";
-                        typeIcon = "fas fa-robot";
-                    } else if (item.type === "Unified Analysis") {
-                        const aiNum = item.ai_score ? parseFloat(item.ai_score.replace('%', '')) : 0;
-                        const expNum = item.expert_score ? parseFloat(item.expert_score.replace('%', '')) : 0;
-
-                        if (aiNum >= expNum) {
-                            typeLabel = "🤖 AI";
-                            typeColor = "#3b82f6";
-                            typeIcon = "fas fa-robot";
-                        } else {
-                            typeLabel = "🔍 EXPERT";
-                            typeColor = "#ff9f1c";
-                            typeIcon = "fas fa-shield-alt";
-                        }
-                    }
-
-                    const badgeColor = isReal ? '#10b981' : (isFake ? '#ef4444' : '#f59e0b');
-                    const badgeBg = isReal ? 'rgba(16,185,129,0.1)' : (isFake ? 'rgba(239,68,68,0.1)' : 'rgba(245,158,11,0.1)');
-
-                    return `
-                        <tr>
-                            <td title="${originalInput}">
-                                ${nameSnippet}
-                            </td>
-                            <td><span class="badge" style="background: rgba(168,85,247,0.1); color: #a855f7; padding: 4px 8px; border-radius: 4px;">${item.confidence || '-'}</span></td>
-                            <td><span class="badge" style="background: ${badgeBg}; color: ${badgeColor}; padding: 4px 8px; border-radius: 4px;">${item.label || '-'}</span></td>
-                            <td style="color: #9ca3af; font-size: 0.85rem;">${item.date || '-'}</td>
-                            <td>
-                                <div style="display:flex; gap:10px;">
-                                    <i class="fas fa-eye" style="cursor: pointer; color: var(--accent-blue);" onclick="viewHistoryItem(${item.id})"></i>
-                                    <i class="fas fa-trash" style="cursor: pointer; color: var(--accent-red);" onclick="deleteHistoryItem(${item.id})"></i>
-                                </div>
-                            </td>
-                        </tr>
-                    `}).join('');
+                renderHistoryTable(historyDataGlobal);
             } catch (err) {
                 console.error("History Error:", err);
                 document.getElementById('historyTable').innerHTML = `<tr><td colspan="5" style="text-align: center; color: #ef4444; padding: 20px;">
@@ -914,6 +871,53 @@
                     <small>Hubi in Flask uuu shaqeynayo port 3402</small>
                 </td></tr>`;
             }
+        }
+
+        function filterAnalysisHistory() {
+            const query = document.getElementById('historySearchInput').value.toLowerCase();
+            const filtered = historyDataGlobal.filter(item => {
+                const content = (item.original_input || item.name || "").toLowerCase();
+                const verdict = (item.label || "").toLowerCase();
+                const date = (item.date || "").toLowerCase();
+                return content.includes(query) || verdict.includes(query) || date.includes(query);
+            });
+            renderHistoryTable(filtered);
+        }
+
+        function renderHistoryTable(data) {
+            const tableBody = document.getElementById('historyTable');
+            if (data.length === 0) {
+                tableBody.innerHTML = '<tr><td colspan="5" style="text-align: center; padding: 40px; color: var(--text-muted);">No matching results found.</td></tr>';
+                return;
+            }
+
+            tableBody.innerHTML = data.map((item) => {
+                const originalInput = item.original_input || item.name || item.data || '';
+                const nameSnippet = originalInput.length > 50 ? originalInput.substring(0, 50) + "..." : (originalInput || "Unknown");
+
+                const labelStr = (item.label || "").toUpperCase();
+                const isReal = labelStr.includes('TRUSTED') || labelStr.includes('RASMI') || labelStr === 'REAL';
+                const isFake = labelStr.includes('FAKE') || labelStr.includes('BEEN') || labelStr === 'FAKE';
+
+                const badgeColor = isReal ? '#10b981' : (isFake ? '#ef4444' : '#f59e0b');
+                const badgeBg = isReal ? 'rgba(16,185,129,0.1)' : (isFake ? 'rgba(239,68,68,0.1)' : 'rgba(245,158,11,0.1)');
+
+                return `
+                    <tr style="animation: fadeIn 0.3s ease;">
+                        <td title="${originalInput}">
+                            ${nameSnippet}
+                        </td>
+                        <td style="text-align: center;"><span class="badge" style="background: rgba(168,85,247,0.1); color: #a855f7; padding: 4px 8px; border-radius: 4px;">${item.confidence || '-'}</span></td>
+                        <td style="text-align: center;"><span class="badge" style="background: ${badgeBg}; color: ${badgeColor}; padding: 4px 8px; border-radius: 4px;">${item.label || '-'}</span></td>
+                        <td style="color: #9ca3af; font-size: 0.85rem;">${item.date || '-'}</td>
+                        <td>
+                            <div style="display:flex; gap:15px; justify-content: center;">
+                                <i class="fas fa-eye" style="cursor: pointer; color: var(--accent-blue); font-size: 1.1rem;" title="View Details" onclick="viewHistoryItem(${item.id})"></i>
+                                <i class="fas fa-trash" style="cursor: pointer; color: var(--accent-red); font-size: 1.1rem;" title="Delete" onclick="deleteHistoryItem(${item.id})"></i>
+                            </div>
+                        </td>
+                    </tr>
+                `}).join('');
         }
 
         window.viewHistoryItem = (id) => {
