@@ -266,7 +266,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 aiConfVal = parseFloat(aiRes.confidence.replace('%', '')) || 0;
             } else {
                 aiResult.innerText = "Error";
-                aiConfidence.innerText = "Check Failed";
+                aiConfidence.innerText = aiRes.error || "Check Failed";
+                aiConfidence.style.color = "#ff4757";
             }
 
             // 2. Expert Result Process (Evidence List Removed)
