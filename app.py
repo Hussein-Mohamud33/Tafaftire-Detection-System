@@ -1106,10 +1106,10 @@ def retrain_model():
         # Run Model_trains.py as a subprocess
         # On Windows, we use shell=True sometimes but let's try direct first
         script_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "Model_trains.py")
-        
+        import sys
         # Use a cross-platform command
         rm_cmd = "del" if os.name == "nt" else "rm"
-        cmd = f'python "{script_path}" && {rm_cmd} "{flag_file}"'
+        cmd = f'"{sys.executable}" "{script_path}" && {rm_cmd} "{flag_file}"'
         
         subprocess.Popen(cmd, shell=True)
         
