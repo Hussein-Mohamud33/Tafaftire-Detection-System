@@ -226,11 +226,19 @@ def not_found(e):
     return app.send_static_file('index.html')
 
 # ================= NLTK SETUP =================
-for pkg in ["punkt", "punkt_tab", "stopwords", "wordnet"]:
+# Set NLTK data path to a folder in the home directory
+nltk_data_dir = os.path.join(DATA_DIR, "nltk_data")
+if not os.path.exists(nltk_data_dir):
+    os.makedirs(nltk_data_dir)
+nltk.data.path.append(nltk_data_dir)
+
+for pkg in ["punkt", "stopwords", "wordnet"]:
     try:
         nltk.data.find(pkg)
+        print(f"[*] NLTK: {pkg} already exists.")
     except LookupError:
-        nltk.download(pkg)
+        print(f"[*] NLTK: Downloading {pkg} to {nltk_data_dir}")
+        nltk.download(pkg, download_dir=nltk_data_dir)
 
 from nltk.stem import WordNetLemmatizer
 lemmatizer = WordNetLemmatizer()
@@ -1099,8 +1107,9 @@ def retrain_model():
         # On Windows, we use shell=True sometimes but let's try direct first
         script_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "Model_trains.py")
         
-        # We wrap it in a small shell command to delete the flag when done
-        cmd = f'python "{script_path}" && del "{flag_file}"'
+        # Use a cross-platform command
+        rm_cmd = "del" if os.name == "nt" else "rm"
+        cmd = f'python "{script_path}" && {rm_cmd} "{flag_file}"'
         
         subprocess.Popen(cmd, shell=True)
         
@@ -1109,7 +1118,8 @@ def retrain_model():
         # Cleanup flag on failure to start
         flag_file = os.path.join(DATA_DIR, "training_in_progress.flag")
         if os.path.exists(flag_file):
-            os.remove(flag_file)
+            try: os.remove(flag_file)
+            except: pass
         return jsonify({"success": False, "message": str(e)}), 500
 
 @app.route("/api/admin/retrain_status", methods=["GET"])
@@ -1451,4 +1461,9 @@ def delete_log():
 # ================= RUN SERVER =================
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 3402))
-    app.run(host="0.0.0.0", port=port, debug=False)
+    print(f"[*] Starting server on 0.0.0.0:{port}...")
+    try:
+        app.run(host="0.0.0.0", port=port, debug=False)
+    except Exception as e:
+        print(f"[!] Server failed to start: {e}")
+        traceback.print_exc()
