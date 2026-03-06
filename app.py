@@ -21,6 +21,7 @@ import email
 from email.header import decode_header
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
+from functools import lru_cache
 
 # ================= FLASK INIT =================
 app = Flask(__name__, static_folder='Front_End', static_url_path='')
@@ -231,13 +232,17 @@ for pkg in ["punkt", "punkt_tab", "stopwords", "wordnet"]:
     except LookupError:
         nltk.download(pkg)
 
+from nltk.stem import WordNetLemmatizer
+lemmatizer = WordNetLemmatizer()
 stop_words = set(stopwords.words("english"))
 somali_stopwords = [
     "waa", "iyo", "in", "uu", "ay", "ayuu", "ayey", "ka", "u", "ee", "oo", "ah", 
     "sidii", "waxaan", "waxaad", "wuxuu", "waxay", "iska", "ahaa", "lagu", "loogu",
     "isagoo", "iyadoo", "ku", "soo", "isaga", "iyada", "labada", "kala", "inta",
     "ilaa", "wax", "kale", "mar", "markii", "la", "si", "aad", "eeg", "ayaa",
-    "ayay", "kuwa", "kuwaas", "kuwan", "kaas", "kan", "kuwaa", "loo", "loona"
+    "ayay", "kuwa", "kuwaas", "kuwan", "kaas", "kan", "kuwaa", "loo", "loona",
+    "yahay", "yihiin", "ahayd", "ahaa", "noqday", "noqon", "leh", "leeyihiin",
+    "kala", "hore", "danbe", "dhammaan", "kasta", "badnaa", "yar", "weyn"
 ]
 stop_words.update(somali_stopwords)
 lemmatizer = WordNetLemmatizer()
@@ -258,12 +263,14 @@ def sanitize_text(text):
     return text.strip()
 
 def preprocess_text(text):
-    """High-accuracy preprocessing using NLTK word_tokenize."""
-    text = text.lower()
+    """High-accuracy preprocessing using NLTK word_tokenize & lemmatization"""
+    if not text: return ""
+    text = sanitize_text(text).lower()
     text = CLEAN_TEXT_PATTERN.sub(" ", text)
-    tokens = word_tokenize(text) # AI-du tan ayay ku tababarantay
-    cleaned_tokens = [lemmatizer.lemmatize(w) for w in tokens if w not in stop_words and len(w) > 2]
-    return " ".join(cleaned_tokens)
+    tokens = word_tokenize(text)
+    # Filter stopwords, short words and lemmatize
+    cleaned = [lemmatizer.lemmatize(t) for t in tokens if t not in stop_words and len(t) > 2]
+    return " ".join(cleaned)
 
 def is_url(text):
     """Fast URL detection."""
@@ -282,6 +289,7 @@ def guess_subject(text):
         return "Finance"
     return "General"
 
+@lru_cache(maxsize=300)
 def extract_text_from_url(url):
     """Ka soo saar qoraalka bogga webka URL si qoto dheer"""
     try:
@@ -294,10 +302,10 @@ def extract_text_from_url(url):
         
         # SSL certificate errors are common on some Somali sites, so we try to be robust
         try:
-            resp = requests.get(url, headers=headers, timeout=10, verify=True)
+            resp = requests.get(url, headers=headers, timeout=4, verify=True)
         except requests.exceptions.SSLError:
             print(f"[!] SSL Error for {url}, trying without verification...")
-            resp = requests.get(url, headers=headers, timeout=10, verify=False)
+            resp = requests.get(url, headers=headers, timeout=4, verify=False)
 
         if resp.status_code == 404:
             raise Exception("Boggan lama helin (404 Not Found). Fadlan hubi in link-gu sax yahay.")
@@ -350,6 +358,35 @@ def extract_text_from_url(url):
         print(f"[❌] URL Extract Error: {e}")
         raise Exception(f"Cilad ka timid barta webka: {str(e)}")
 
+# ================= SEARCH ENGINE (DUCKDUCKGO LITE) =================
+@lru_cache(maxsize=128)
+def search_duckduckgo_lite(query):
+    """
+    Kala soo bax natiijooyin live ah DuckDuckGo Lite si loo xaqiijiyo dhacdooyinka hadda socda.
+    """
+    try:
+        url = "https://lite.duckduckgo.com/lite/"
+        headers = {"User-Agent": "Mozilla/5.0"}
+        res = requests.post(url, data={"q": query}, headers=headers, timeout=3.5)
+        soup = BeautifulSoup(res.text, 'html.parser')
+
+        results = []
+        for td in soup.find_all('td', class_='result-snippet'):
+            snippet = td.text.strip()
+            link = ""
+            tr = td.find_parent('tr')
+            if tr:
+                prev_tr = tr.find_previous_sibling('tr')
+                if prev_tr:
+                    a_tag = prev_tr.find('a', class_='result-link')
+                    if a_tag:
+                        link = a_tag.get('href', '')
+            results.append({'snippet': snippet, 'link': link})
+        
+        return results
+    except Exception:
+        return []
+
 # ================= EXTRA FEATURES =================
 def is_extreme_claim(text):
     if not isinstance(text, str): return 0
@@ -379,27 +416,28 @@ except Exception as e:
     print("Model loading failed:", e)
     traceback.print_exc()
     exit(1)
+
 # ================= HEURISTIC FACT CHECKER =================
 TRUSTED_SOURCES = [
-    "bbc.com", "bbc.co.uk", "voasomali.com", "goobjoog.com", 
+    "bbc.com", "voasomali.com", "goobjoog.com", 
     "garoweonline.com", "somalistream.com", "somnn.com", 
-    "somaliglobe.net", "sntv.so", "sonna.so", "aljazeera.com",
-    "reuters.com", "apnews.com", "hiiraan.com", "caasimada.net",
-    "horseedmedia.net", "jowhar.com", "universaltv.net", "somalicable.tv",
-    "puntlandpost.net", "radiomuqdisho.so", "halgan.net"
+    "somaliglobe.net", "sntv.so", "sonna.so",
+    "daljir.com", "puntlandpost.net", "horseedmedia.net",
+    "radioergo.org", "aljazeera.com", "reuters.com", "apnews.com"
 ]
 
 UNTRUSTED_PATTERNS = [
-    "shidan", "fayras", "dawo mucjiso ah", "lacag bilaash ah", 
-    "guji halkan", "win iphone", "naxdin", "deg deg", "nin yaaban",
+    "shidan", "dawo mucjiso ah", "lacag bilaash ah", 
+    "guji halkan", "win iphone", "naxdin", "nin yaaban",
     "naag yaaban", "subxaanallaah", "yaabka aduunka", "arrin lala yaabo",
-    "qarax cusub", "war hadda soo dhacay", "daawasho naxdin leh"
+    "qarax cusub", "war hadda soo dhacay", "daawasho naxdin leh",
+    "daawo video-ga", "mucjisooyin", "yaab", "cajiib"
 ]
 
 def heuristic_fact_check(text, url=None):
     """
     Analyzes news credibility based on source reputation, content patterns, 
-    and stylistic markers (sensationalism).
+    and live web results matching.
     """
     score = 0
     reasons = []
@@ -427,61 +465,147 @@ def heuristic_fact_check(text, url=None):
                 reasons.append("The domain used for this news (xyz/tk/ml) is often used for fake news.")
 
 
-    # 2. Sensationalism & Clickbait (Max -40)
+    # 2. Sensationalism & Recycled News (Max -50)
     text_lower = text.lower()
-    found_scary = [p for p in UNTRUSTED_PATTERNS if p in text_lower]
-    if found_scary:
-        score -= 40 # Increased from -25
-        reasons.append(f"Found sensational words outside journalistic ethics: {', '.join(found_scary)}.")
-    else:
+    
+    # Check for old years in supposedly new news
+    old_years = ["2016", "2017", "2018", "2019", "2020", "2021", "2022"]
+    found_old_year = any(y in text for y in old_years)
+    if found_old_year:
+        score -= 25
+        reasons.append("Warka waxaa ku jira taariikh hore oo looga shakiyo inuu yahay mid hore loo recycled gareeyay.")
+
+    # Check if the text is asking a question or asking to fact check
+    is_prompt = any(kw in text_lower for kw in ["fact-check", "is it true", "verify this", "runtii in", "ma dhabbaa", "xaqiiqo mise", "hubi", "waa maxay"])
+
+    # Specific danger keywords (Deep analysis)
+    danger_keywords = ["dhintey", "geeriyooday", "qarax", "shil", "dhaawacmay", "iscasilay", "xilka laga qaaday", "shut down", "banned", "killed", "attacked", "la dilay", "la xiray", "dhacdo naxdin leh"]
+    has_danger_keyword = any(kw in text_lower for kw in danger_keywords)
+
+    # Somali red flags (Increased sensitivity)
+    somali_red_flags = ["war hadda soo dhacay", "naxdin", "deg deg", "ninkii", "naagtii", "mucjiso", "dawo", "lacag bilaash", "guji", "hadda daawo", "subxaanallaah", "cajiib", "yaab"]
+    found_red_flags = [p for p in somali_red_flags if p in text_lower]
+    
+    # Official / Professional keywords (Trust builders)
+    official_keywords = ["wasaaradda", "afhayeenka", "golaha", "war-saxaafadeed", "shir jaraa'id", "maamulka", "booliska", "ayaa xaqiijiyay", "ayaa sheegay in", "munaasabadda"]
+    found_official = [p for p in official_keywords if p in text_lower]
+
+    if found_red_flags:
+        score -= 45
+        reasons.append(f"Qoraalka waxaa ku jira erayo kicin ah oo lagu yaqaano wararka been abuurka ah ({', '.join(found_red_flags[:3])}).")
+    elif found_official:
+        score += 25
+        reasons.append("Qoraalku wuxuu u muuqdaa mid leh qaab dhismeed rasmi ah (Professional Tone).")
+    elif not has_danger_keyword:
         score += 15
-        reasons.append("The text does not appear sensational (Professional tone).")
+        reasons.append("Qoraalku ma lahan erayo kicin ah ama dareen xambaarsan (Neutral Tone).")
+    else:
+        score -= 15
+        reasons.append("Warkan wuxuu xambaarsan yahay xog xasaasi ah oo u baahan cadayn dheeraad ah.")
 
 
     # 3. Punctuation Analysis (Sensationalism)
     if "!!!" in text or "???" in text:
-        score -= 35 # Increased from -15
-        reasons.append("Excessive punctuation used to manipulate reader emotions.")
+        score -= 25
+        reasons.append("Calaamado qaylo iyo yaab ah (!!!/???) ayaa loo isticmaalay si weyn, taasoo muujinaysa kicin.")
 
     
     # 4. Capitalization Check (Shouting)
-    # Check if more than 20% of words are ALL CAPS
     words = text.split()
     if len(words) > 5:
         caps_words = [w for w in words if w.isupper() and len(w) > 2]
-        if (len(caps_words) / len(words)) > 0.2:
-            score -= 30 # Increased from -15
-            reasons.append("The text is written in all caps (Shouting), which indicates a lack of professionalism.")
+        if (len(caps_words) / len(words)) > 0.25:
+            score -= 20
+            reasons.append("Qoraalku wuxuu u qoran yahay far waaweyn oo dhan (Shouting), badanaa looma adeegsado wararka saxda ah.")
 
 
-    # 5. Consensus Keywords (Max +30)
-    consensus_keywords = [
-        "wadahadal", "shir", "madaxweyne", "rayga", "amniga", "shaqo", 
-        "cusub", "gobolka", "isgaarsiinta", "waxbarashada", "caafimaadka",
-        "baarlamaanka", "doorashooyinka"
-    ]
-    found_consensus = [w for w in consensus_keywords if w in text_lower]
-    if len(found_consensus) >= 3:
+    # 5. Length & Short Text Logic
+    is_short = len(words) < 30
+    if not is_short:
         score += 20
-        reasons.append("The news subject appears consistent with official news content.")
+        reasons.append("Warbixintu waa mid faahfaahsan oo u muuqata mid loo soo diyaariyay si wanaagsan.")
+    else:
+        score -= 10
+        reasons.append("Warku waa mid aad u gaaban, xog yar ayuuna xambaarsan yahay.")
 
-
-    # 6. Text Length & Quality
-    if len(words) >= 30:
-        score += 15
-        reasons.append("The text is detailed and appears well-researched.")
+    # 6. LIVE WEB SEARCH VERIFICATION (MOST IMPORTANT)
+    # We only search significant words to avoid query clutter
+    query_words = [w for w in words if len(w) > 3 and w.lower() not in somali_stopwords and w.lower() not in stop_words]
+    
+    match_count = 0
+    trusted_hits = []
+    
+    if not is_url(text):
+        query = " ".join(query_words[:12]) if query_words else text[:60]
+        if len(query) > 8:
+            live_results = search_duckduckgo_lite(query)
+            if live_results:
+                live_context_lower = " ".join([r['snippet'] for r in live_results]).lower()
+                
+                # Dynamic matching based on keywords
+                match_count = sum(1 for w in query_words[:12] if w.lower() in live_context_lower)
+                
+                # Check if trusted sources reported it
+                trusted_hits = []
+                trusted_links = []
+                for res_item in live_results:
+                    res_snippet = res_item['snippet'].lower()
+                    res_link = res_item['link'].lower()
+                    
+                    for t in TRUSTED_SOURCES:
+                        t_domain = t.split('.')[0]
+                        if t in res_link or (t_domain in res_snippet and len(t_domain) > 3): 
+                             if t not in trusted_hits:
+                                  trusted_hits.append(t)
+                                  if res_item['link']:
+                                      trusted_links.append(res_item['link'])
+                
+                if trusted_hits:
+                    score += 80 # Massive boost
+                    valid_link = trusted_links[0] if trusted_links else "#"
+                    source_name = trusted_hits[0].split('.')[0].upper()
+                    link_html = f"<a href='{valid_link}' target='_blank' style='color:#3b82f6; text-decoration:underline;'>{source_name}</a>"
+                    reasons.append(f"Xogtaan waxaa si rasmi ah u xaqiijiyay ilo lagu kalsoon yahay: {link_html}.")
+                elif match_count >= 8:
+                    score += 45
+                    reasons.append(f"Warkan waxaa si isku mid ah u tebiyay shabakado badan oo internet-ka ah.")
+                elif has_danger_keyword and match_count >= 5:
+                    score += 30
+                    reasons.append(f"Dhacdadaan xasaasiga ah waxaa jira xog dhinacyo kala duwan leh oo internet-ka laga helay.")
+                elif is_prompt:
+                    score -= 85
+                    reasons.append("Xogta aad soo weydiisay lagama helin internet-ka (Waa macluumaad aan jirin).")
+                else:
+                    if has_danger_keyword:
+                        score -= 90
+                        reasons.append("Warka oo sheeganaya dhacdo weyn LAMA HELIN gabi ahaanba internet-ka (Red Flag: False Claim).")
+                    elif match_count < 4:
+                        score -= 50
+                        reasons.append("Baaritaan toos ah (Live Search) laguma helin xog ku filan oo xaqiijinaysa sheegashadan.")
+                    else:
+                        score -= 25
+                        reasons.append("Natiijooyinka internet-ka ma aha kuwo xooggan oo lagu aamini karo xaqiiqada warkan.")
+            else:
+                 score -= 20
+                 reasons.append("Natiijooyinka internet-ka kama jawaabayaan warkan (No data found).")
 
     # Determine Rating & Confidence
-    confidence = 50 + (abs(score) / 2)
+    confidence = 60 + (abs(score) * 0.45)
     if confidence > 98: confidence = 98
 
-    if score >= 5: # Reverted back to 15 -> changed to 5 to avoid overly aggressive fake flagging
+    # MUCH STRICTER THRESHOLDS
+    if score >= 55 and not is_prompt: # Increased from 35 to 55
         rating = "Trusted"
-    elif score <= -10: # Reverted back to -10
+    elif score < 0 or (has_danger_keyword and score <= 30) or (is_prompt and score < 20): 
         rating = "Suspicious" 
+        confidence = max(88, confidence) # Higher conviction
     else:
         rating = "Unverified"
-        confidence = max(60, confidence - 5)
+        if is_short or "Live Search laguma helin" in str(reasons):
+             rating = "Suspicious" 
+             confidence = max(80, confidence)
+        else:
+             confidence = max(60, confidence - 5)
 
     return {
         "rating": rating,
@@ -575,45 +699,72 @@ def predict():
         score = model.decision_function(X)[0] if hasattr(model, "decision_function") else 0
         
         # 2. Heuristic Check (Expert System Integration)
-        trust_boost = 0.0
-        
-        # Helitaanka dhibcaha heuristic si loo xoojiyo AI-da
         h_result = heuristic_fact_check(content, input_url)
+        h_score_raw = h_result.get("score", 0)
         
-        # Boost for quality content (Professional tone)
-        if h_result["rating"] == "Trusted":
-            trust_boost += 1.5
-        elif h_result["rating"] == "Suspicious":
-            # If heuristic finds really bad patterns, penalize heavy
-            trust_boost -= 2.5
+        # Proportional Trust Boost based on heuristic score (-100 to +150 range usually)
+        # We scale it to be comparable to the SVM score which is usually -3 to +3
+        trust_boost = h_score_raw / 40.0 # e.g. 80 score = +2 boost, -80 score = -2 boost
         
+        # Domain Verification Extra Boost
         if input_url:
-            # Check if source is explicitly trusted (massive boost)
             is_verified_domain = any(t in input_url.lower() for t in TRUSTED_SOURCES)
             if is_verified_domain:
-                trust_boost += 5.0
-            
-            if not is_verified_domain and h_result["rating"] != "Trusted":
-                # Additional penalty for unknown domain with poor heuristic
+                trust_boost += 2.0
+            elif h_result["rating"] == "Suspicious":
                 trust_boost -= 1.0
 
         # Final Combined Score (Hybrid Verdict)
-        final_score = score + trust_boost
+        # Weighted blend: AI (60%) + Heuristics (40%)
+        final_score = (score * 1.2) + (trust_boost * 0.8)
         
-        # Sigmoid function to normalize confidence between 0-100%
-        confidence_val = (1 / (1 + np.exp(-abs(final_score)))) * 100
+        print(f"[*] DEEP SCAN - AI: {score:.2f}, Heuristic Boost: {trust_boost:.2f}, Raw H-Score: {h_score_raw}, Final: {final_score:.2f}")
+
+        # Sigmoid function for confidence
+        # We use a slightly sharper sigmoid for better separation
+        confidence_val = (1 / (1 + np.exp(-abs(final_score * 0.8)))) * 100
+        confidence_val = min(99.0, max(75.0, confidence_val))
         
-        # Cap confidence for reliability
-        confidence_val = min(98.5, max(70.0, confidence_val))
-        
-        # adjustment: -0.5 threshold allows more real news to pass
-        is_trusted = final_score > -0.5
-        result = "Trusted" if is_trusted else "Fake Information"
+        # VERDICT LOGIC
+        # Threshold: 1.0 is enough for Trusted if both agree, but usually needs a bit more
+        if final_score > 1.2:
+            result = "Trusted"
+        elif final_score < -0.8:
+            result = "Fake Information"
+        else:
+            # Neutral zone - default to Fake if AI is suspicious, or Suspicious if slightly positive
+            if score < 0 or h_score_raw < 0:
+                result = "Fake Information"
+            else:
+                result = "Suspicious" # "Lama xaqiijin" style
+
+        # Override for high-certainty AI
+        if score < -2.5:
+             result = "Fake Information"
+             confidence_val = max(92, confidence_val)
+        elif score > 2.5 and h_score_raw > 20:
+             result = "Trusted"
+             confidence_val = max(92, confidence_val)
+
+        # ================= Save to History =================
+        save_analysis_result(
+            original_input=content,
+            confidence=f"{round(float(confidence_val), 2)}%",
+            label=result,
+            extracted_text=content,
+            data_type="AI Analysis",
+            ai_score=f"{round(float(confidence_val), 2)}%",
+            expert_score="N/A",
+            title=page_title,
+            link=input_url if input_url else "N/A",
+            subject=news_subject
+        )
 
         return jsonify({
             "prediction": result, 
             "confidence": f"{round(float(confidence_val), 2)}%",
-            "hybrid_score": float(round(float(final_score), 2)), # For internal calibration
+            "ai_score": float(round(float(score), 2)),
+            "expert_score": float(round(float(trust_boost), 2)),
             "raw_text": content,
             "title": page_title,
             "link": input_url if input_url else "N/A",
@@ -675,6 +826,20 @@ def fact_check():
         somali_label = "Lama xaqiijin"
         if "trusted" in rating_str: somali_label = "War Rasmi ah"
         elif "suspicious" in rating_str: somali_label = "Shaki Baa Ku Jira"
+
+        # ================= Save to History =================
+        save_analysis_result(
+            original_input=content if not input_url else input_url,
+            confidence=fact_result["confidence"],
+            label=somali_label,
+            extracted_text=content,
+            data_type="Expert Fact-Check",
+            ai_score="N/A",
+            expert_score=fact_result["confidence"],
+            title=page_title,
+            link=input_url if input_url else "N/A",
+            subject=fact_result["subject"]
+        )
 
         return jsonify(fact_result)
 
