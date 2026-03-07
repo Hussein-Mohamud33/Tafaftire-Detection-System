@@ -269,13 +269,13 @@ document.addEventListener('DOMContentLoaded', () => {
             if (!aiRes.error) {
                 const pred = aiRes.prediction;
                 if (pred.includes("Real News")) {
-                    aiText = "REAL";
-                    aiResult.innerText = "REAL";
+                    aiText = "War Rasmi ah";
+                    aiResult.innerText = "War Rasmi ah";
                     aiResult.style.color = "#2ecc71";
                     aiResult.style.textShadow = "0 0 20px rgba(46, 204, 113, 0.4)";
                 } else {
-                    aiText = "FAKE";
-                    aiResult.innerText = "FAKE";
+                    aiText = "War Been Abuur Ah";
+                    aiResult.innerText = "War Been Abuur Ah";
                     aiResult.style.color = "#ff4757";
                     aiResult.style.textShadow = "0 0 20px rgba(255, 71, 87, 0.4)";
                 }
@@ -294,14 +294,14 @@ document.addEventListener('DOMContentLoaded', () => {
                 const reasons = fcRes.reasons ? fcRes.reasons.join(" ") : "";
                 if (fcRating.includes("trusted") || reasons.includes("Hubinta Isha")) {
                     isTrustedSource = true;
-                    fcText = "REAL";
-                    fcResult.innerText = "TRUSTED";
+                    fcText = "War Rasmi ah";
+                    fcResult.innerText = "War Rasmi ah";
                     fcResult.style.color = "#2ecc71";
                     fcResult.style.textShadow = "0 0 20px rgba(46, 204, 113, 0.4)";
                     fcConfidence.innerText = `✅ SOURCE VALIDATED (${fcRes.confidence})`;
                 } else {
-                    fcText = "FAKE";
-                    fcResult.innerText = "UNVERIFIED";
+                    fcText = "Lama xaqiijin";
+                    fcResult.innerText = "Lama xaqiijin";
                     fcResult.style.color = "#f39c12";
                     fcResult.style.textShadow = "0 0 20px rgba(243, 156, 18, 0.4)";
                     fcConfidence.innerText = `Expert Score: ${fcRes.confidence}`;
@@ -318,8 +318,8 @@ document.addEventListener('DOMContentLoaded', () => {
             if (!aiRes.error && (fcRes.error || aiConfNum >= fcConfNum)) {
                 // AI is higher or Expert failed
                 finalVerdict.innerText = aiText;
-                finalVerdict.style.color = (aiText === "REAL") ? "#2ecc71" : "#ff4757";
-                finalVerdict.style.textShadow = (aiText === "REAL")
+                finalVerdict.style.color = (aiText === "War Rasmi ah") ? "#2ecc71" : "#ff4757";
+                finalVerdict.style.textShadow = (aiText === "War Rasmi ah")
                     ? "0 0 30px rgba(46, 204, 113, 0.6)"
                     : "0 0 30px rgba(255, 71, 87, 0.6)";
                 finalConfidence.innerText = `Confidence: ${aiRes.confidence}`;
@@ -327,10 +327,10 @@ document.addEventListener('DOMContentLoaded', () => {
             } else if (!fcRes.error) {
                 // Expert is higher
                 finalVerdict.innerText = fcText;
-                finalVerdict.style.color = (fcText === "REAL") ? "#2ecc71" : "#ff4757";
-                finalVerdict.style.textShadow = (fcText === "REAL")
+                finalVerdict.style.color = (fcText === "War Rasmi ah") ? "#2ecc71" : (fcText === "Lama xaqiijin" ? "#f39c12" : "#ff4757");
+                finalVerdict.style.textShadow = (fcText === "War Rasmi ah")
                     ? "0 0 30px rgba(46, 204, 113, 0.6)"
-                    : "0 0 30px rgba(255, 71, 87, 0.6)";
+                    : (fcText === "Lama xaqiijin" ? "0 0 30px rgba(243, 156, 18, 0.6)" : "0 0 30px rgba(255, 71, 87, 0.6)");
                 finalConfidence.innerText = `Confidence: ${fcRes.confidence}`;
                 finalSource.innerText = "Source: Live Web Verification";
             } else {
