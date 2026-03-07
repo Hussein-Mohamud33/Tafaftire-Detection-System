@@ -13,14 +13,16 @@ from nltk.stem import WordNetLemmatizer
 import subprocess
 import json
 import time
-from bs4 import BeautifulSoup
-import pandas as pd
+import csv
 import smtplib
 import imaplib
 import email
+import tldextract
 from email.header import decode_header
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
+from bs4 import BeautifulSoup
+import pandas as pd
 from functools import lru_cache
 
 # ================= FLASK INIT =================
@@ -616,17 +618,19 @@ def dashboard_page():
 @app.route("/api/predict", methods=["POST"])
 def predict():
     try:
+        # Check models first
+        if model is None or vectorizer is None:
+            return jsonify({"error": "AI Models are not loaded on the server. Please check server logs."}), 500
+
         global_stats["requests_handled"] = global_stats.get("requests_handled", 0) + 1
         save_stats(global_stats)
         data = request.get_json(silent=True)
         if not data:
             return jsonify({"error": "JSON not found"}), 400
 
-
         content = data.get("text") or data.get("data")
         if not content:
             return jsonify({"error": "No text provided"}), 400
-
 
         content = str(content).strip()
         raw_user_input = content # Save exactly what was entered
@@ -640,7 +644,6 @@ def predict():
             if not content.startswith(("http://", "https://")):
                 content = "https://" + content
             
-            url_to_extract = content
             input_url = content
             
             try:
@@ -675,9 +678,6 @@ def predict():
         X = np.hstack([X_dense, np.array([[ext, vague]])])
 
         # ================= AI Decision Logic (Models + Patterns) =================
-        if model is None or vectorizer is None:
-            return jsonify({"error": "AI Models are not loaded on the server. Please check server logs."}), 500
-
         # 1. AI Model Score (Training Data)
         ai_score_val = model.decision_function(X)[0] if hasattr(model, "decision_function") else 0
         
@@ -703,8 +703,8 @@ def predict():
         source_boost = 0
         if input_url:
             try:
-                extracted = tldextract.extract(input_url)
-                temp_domain = f"{extracted.domain}.{extracted.suffix}".lower()
+                extracted_tld = tldextract.extract(input_url)
+                temp_domain = f"{extracted_tld.domain}.{extracted_tld.suffix}".lower()
                 if temp_domain in TRUSTED_SOURCES:
                     source_boost = 5.0 # Very heavy boost for BBC, etc.
                     print(f"[*] VALIDATION: Trusted source detected ({temp_domain}). Boosting AI Score.")
