@@ -168,35 +168,58 @@
                     <div id="unifiedResultContainer" class="result-container"
                         style="display: none; flex-direction: column; gap: 30px; margin-top: 30px; border-top: 1px solid rgba(255,255,255,0.05); padding-top: 30px;">
 
-                        <div class="grid-12">
+                        <!-- Unified Verdict (Top Center) -->
+                        <div id="finalVerdictCard" class="result-card-premium col-12 hidden"
+                            style="text-align: center; background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.1); border-radius: 20px; padding: 40px 20px;">
+                            <div class="verdict-banner-pill"
+                                style="background: var(--accent-orange); width: fit-content; margin: 0 auto 20px; padding: 5px 25px; border-radius: 50px; font-weight: 800; font-size: 0.8rem; letter-spacing: 2px; box-shadow: 0 0 20px rgba(255,165,0,0.3);">
+                                FINAL VERDICT
+                            </div>
+                            <div id="finalVerdict" class="prediction-main"
+                                style="font-size: 4.5rem; font-weight: 900; letter-spacing: 5px; margin-bottom: 20px; text-transform: uppercase;">
+                                ---
+                            </div>
+                            <div
+                                style="display: flex; justify-content: center; align-items: center; gap: 15px; color: var(--text-gray); font-size: 1rem;">
+                                <span id="finalConfidence"
+                                    style="color: var(--accent-orange); font-weight: 700;">Confidence: --%</span>
+                                <span style="opacity: 0.3;">|</span>
+                                <span>Source: AI Model Analysis</span>
+                            </div>
+                        </div>
+
+                        <div class="grid-12" style="gap: 20px;">
                             <!-- AI Analysis Card -->
                             <div id="aiResultCard" class="result-card-premium col-6 hidden"
-                                style="border-right: 1px solid rgba(255,255,255,0.1); padding-right: 20px;">
-                                <div class="verdict-banner"
-                                    style="background: var(--accent-orange); font-size: 0.7rem; margin-bottom: 15px;">
-                                    TRAINED MODEL VERDICT</div>
+                                style="text-align: center; background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.05); padding: 30px 20px; border-radius: 15px;">
                                 <h4
-                                    style="color: var(--accent-orange); margin-bottom: 5px; font-size: 0.9rem; letter-spacing: 2px;">
+                                    style="color: var(--accent-orange); margin-bottom: 5px; font-size: 1rem; letter-spacing: 2px; font-weight: 800;">
                                     AI ANALYSIS</h4>
+                                <p
+                                    style="font-size: 0.8rem; color: var(--text-gray); margin-bottom: 20px; opacity: 0.7;">
+                                    Machine Learning Engine (ML)</p>
                                 <div id="aiResult" class="prediction-main"
-                                    style="font-size: 2.2rem; margin-bottom: 10px;">
+                                    style="font-size: 2.8rem; font-weight: 900; margin-bottom: 15px; text-transform: uppercase;">
                                 </div>
                                 <div id="aiConfidence" class="prediction-sub"
-                                    style="font-weight: 600; color: var(--text-gray);"></div>
+                                    style="font-weight: 600; color: var(--text-gray); font-size: 1rem;"></div>
                             </div>
 
                             <!-- Expert Fact-Check Card -->
-                            <div id="fcResultCard" class="result-card-premium col-6 hidden">
-                                <div class="verdict-banner"
-                                    style="background: #3498db; font-size: 0.7rem; margin-bottom: 15px;">LIVE WEB
-                                    VERIFICATION</div>
-                                <h4 style="color: #3498db; margin-bottom: 5px; font-size: 0.9rem; letter-spacing: 2px;">
+                            <div id="fcResultCard" class="result-card-premium col-6 hidden"
+                                style="text-align: center; background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.05); padding: 30px 20px; border-radius: 15px;">
+                                <h4
+                                    style="color: #3498db; margin-bottom: 5px; font-size: 1rem; letter-spacing: 2px; font-weight: 800;">
                                     EXPERT FACT-CHECK</h4>
+                                <p
+                                    style="font-size: 0.8rem; color: var(--text-gray); margin-bottom: 20px; opacity: 0.7;">
+                                    Cloud Verification (Expert/API)</p>
                                 <div id="fcResult" class="prediction-main"
-                                    style="font-size: 2.2rem; margin-bottom: 10px;">
+                                    style="font-size: 2.8rem; font-weight: 900; margin-bottom: 15px; text-transform: uppercase;">
                                 </div>
                                 <div id="fcConfidence" class="prediction-sub"
-                                    style="font-weight: 600; color: var(--text-gray);"></div>
+                                    style="font-weight: 600; color: var(--text-gray); font-size: 1rem;">Expert Score:
+                                    --%</div>
                             </div>
                         </div>
                     </div>
