@@ -1,5 +1,4 @@
 const API_BASE_URL = 'https://tafaftire-detection-system.onrender.com';
-
 window.isAnalyzing = false;
 
 window.addEventListener('beforeunload', (e) => {
@@ -210,6 +209,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const finalVerdictCard = document.getElementById("finalVerdictCard");
     const finalVerdict = document.getElementById("finalVerdict");
     const finalConfidence = document.getElementById("finalConfidence");
+    const finalSource = document.getElementById("finalSource");
 
     async function performDeepAnalysis(payload) {
         if (!payload) return;
@@ -260,13 +260,16 @@ document.addEventListener('DOMContentLoaded', () => {
             }
 
             // Handle Expert Result
+            let fcText = "UNVERIFIED";
             if (!fcRes.error) {
                 const fcRating = fcRes.rating.toLowerCase();
                 if (fcRating.includes("trusted")) {
+                    fcText = "REAL";
                     fcResult.innerText = "TRUSTED";
                     fcResult.style.color = "#2ecc71";
                     fcResult.style.textShadow = "0 0 20px rgba(46, 204, 113, 0.4)";
                 } else {
+                    fcText = "FAKE";
                     fcResult.innerText = "UNVERIFIED";
                     fcResult.style.color = "#f39c12";
                     fcResult.style.textShadow = "0 0 20px rgba(243, 156, 18, 0.4)";
@@ -277,14 +280,31 @@ document.addEventListener('DOMContentLoaded', () => {
                 fcConfidence.innerText = fcRes.error;
             }
 
-            // Final Unified Verdict Logic
-            if (!aiRes.error) {
+            // Final Unified Verdict Selection (Highest Confidence)
+            const aiConfNum = parseFloat(aiRes.confidence || "0");
+            const fcConfNum = parseFloat(fcRes.confidence || "0");
+
+            if (!aiRes.error && (fcRes.error || aiConfNum >= fcConfNum)) {
+                // AI is higher or Expert failed
                 finalVerdict.innerText = aiText;
                 finalVerdict.style.color = (aiText === "REAL") ? "#2ecc71" : "#ff4757";
                 finalVerdict.style.textShadow = (aiText === "REAL")
                     ? "0 0 30px rgba(46, 204, 113, 0.6)"
                     : "0 0 30px rgba(255, 71, 87, 0.6)";
                 finalConfidence.innerText = `Confidence: ${aiRes.confidence}`;
+                finalSource.innerText = "Source: AI Model Analysis";
+            } else if (!fcRes.error) {
+                // Expert is higher
+                finalVerdict.innerText = fcText;
+                finalVerdict.style.color = (fcText === "REAL") ? "#2ecc71" : "#ff4757";
+                finalVerdict.style.textShadow = (fcText === "REAL")
+                    ? "0 0 30px rgba(46, 204, 113, 0.6)"
+                    : "0 0 30px rgba(255, 71, 87, 0.6)";
+                finalConfidence.innerText = `Confidence: ${fcRes.confidence}`;
+                finalSource.innerText = "Source: Live Web Verification";
+            } else {
+                finalVerdict.innerText = "ERROR";
+                finalConfidence.innerText = "Verification Failed";
             }
 
         } catch (err) {
