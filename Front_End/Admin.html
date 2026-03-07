@@ -553,7 +553,11 @@
                     <div class="table-card">
                         <div style="display: flex; justify-content: space-between; align-items: center;">
                             <h3>Datasets Inventory</h3>
-                            <button class="btn-action btn-primary"><i class="fas fa-upload"></i> Upload CSV</button>
+                            <button class="btn-action btn-primary"
+                                onclick="document.getElementById('datasetUploadInput').click()"><i
+                                    class="fas fa-upload"></i> Upload CSV</button>
+                            <input type="file" id="datasetUploadInput" class="hidden" accept=".csv"
+                                onchange="handleDatasetUpload(event)">
                         </div>
                         <table>
                             <thead>
@@ -829,8 +833,10 @@
                         <td><i class="far fa-file-alt" style="margin-right: 10px;"></i> ${f.name}</td>
                         <td>${f.size}</td>
                         <td>${f.modified}</td>
-                        <td>
-                            <!-- Actions removed as requested -->
+                        <td style="text-align: center;">
+                            <button class="btn-action" style="background: rgba(59, 130, 246, 0.1); color: var(--accent-blue); border: 1px solid rgba(59, 130, 246, 0.2);" onclick="downloadDataset('${f.name}')">
+                                <i class="fas fa-download"></i> Download
+                            </button>
                         </td>
                     </tr>
                 `).join('');
@@ -1001,6 +1007,44 @@
             } catch (err) {
                 console.error("Clear Error:", err);
                 alert("Connection Error!");
+            }
+        };
+
+        window.downloadDataset = (filename) => {
+            window.open(`${API_BASE_URL}/api/admin/dataset/download?filename=${filename}`);
+        };
+
+        window.handleDatasetUpload = async (event) => {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            if (!file.name.endsWith('.csv')) {
+                alert("Kaliya faylasha CSV ayaan aqbalnaa.");
+                return;
+            }
+
+            const formData = new FormData();
+            formData.append('file', file);
+
+            try {
+                const res = await fetch(`${API_BASE_URL}/api/admin/dataset/upload`, {
+                    method: 'POST',
+                    body: formData
+                });
+                const data = await res.json();
+
+                if (data.success) {
+                    alert(data.message);
+                    loadDatasets();
+                    loadStats();
+                } else {
+                    alert("Upload Error: " + data.message);
+                }
+            } catch (err) {
+                console.error("Upload Error:", err);
+                alert("Connection Error while uploading.");
+            } finally {
+                event.target.value = ''; // Reset
             }
         };
 
