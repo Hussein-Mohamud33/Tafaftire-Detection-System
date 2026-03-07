@@ -63,15 +63,23 @@ for legacy_file in ["stats.json", "analysis_history.txt", "contacts.txt"]:
 # ================= HISTORY & DATASET =================
 def save_analysis_result(original_input, confidence, label, extracted_text=None, data_type="AI Analysis", ai_score=None, expert_score=None, title="N/A", link="N/A", subject="General"):
     """
-    Saves the analyzed result to the analysis_history.json file.
-    Only saves ONE result (the best one) to the history based on the new request.
+    Saves the analyzed result to the analysis_history.json file and appends to dataset.
     """
     try:
+        # 1. Prepare Entry
+        timestamp = time.strftime("%Y-%m-%d %H:%M:%S")
+        item_id = int(time.time() * 1000)
+        
+        # Clean inputs
+        clean_input = str(original_input).strip() if original_input else "N/A"
+        if not extracted_text:
+            extracted_text = clean_input
+            
         new_entry = {
-            "id": int(time.time() * 1000),
-            "date": time.strftime("%Y-%m-%d %H:%M:%S"),
-            "original_input": original_input,
-            "extracted_text": extracted_text[:2000] if extracted_text else "N/A",
+            "id": item_id,
+            "date": timestamp,
+            "original_input": clean_input,
+            "extracted_text": extracted_text[:2000],
             "label": label,
             "confidence": confidence,
             "data_type": data_type,
@@ -82,7 +90,7 @@ def save_analysis_result(original_input, confidence, label, extracted_text=None,
             "subject": subject
         }
 
-        # Keep only the last 500 records to save space
+        # 2. Save to History File
         history = []
         if os.path.exists(ANALYSIS_HISTORY_FILE):
             try:
@@ -90,88 +98,29 @@ def save_analysis_result(original_input, confidence, label, extracted_text=None,
                     content = f.read()
                     if content:
                         history = json.loads(content)
-            except:
-                history = []
+            except Exception as e:
+                print(f"[!] Warning: Could not read history: {e}")
         
+        # Add to top and limit to 500
         history.insert(0, new_entry)
         history = history[:500]
         
         with open(ANALYSIS_HISTORY_FILE, "w", encoding="utf-8") as f:
             json.dump(history, f, indent=4)
         
-        print(f"[✅] History Saved: {label} ({confidence})")
-    except Exception as e:
-        print(f"[!] Warning: History saving failed: {e}")
-    try:
-        # 1. Normalize input
-        clean_input = str(original_input).strip() if original_input else ""
-        if not clean_input:
-            print("[!] ERROR: Input is empty, cannot save to history.")
-            return False
-            
-        timestamp = time.strftime("%Y-%m-%d %H:%M:%S")
-        history_file = ANALYSIS_HISTORY_FILE
-        
-        history = []
-        if os.path.exists(history_file):
-            try:
-                with open(history_file, "r", encoding="utf-8") as f:
-                    history = json.load(f)
-            except Exception as e:
-                print(f"[!] Warning: Could not read history file {history_file}: {e}")
-                history = []
-        
-        # 2. Prevent exact sequential duplicates for same type
-        search_text = clean_input.lower()
-        if history and len(history) > 0:
-            last_entry = history[-1]
-            if last_entry.get("original_input", "").lower() == search_text and last_entry.get("type") == data_type:
-                print(f"[*] SKIPPING: Sequential duplicate for {data_type} detected.")
-                return True # Return true because it's already "saved" from the user perspective
-                
-        # Create unique ID
-        import random
-        item_id = int(time.time() * 1000) + random.randint(1, 999)
-        
-        # Auto-detect link if not provided
-        if link == "N/A" and clean_input.startswith("http"):
-            link = clean_input
-        
-        new_entry = {
-            "id": item_id,
-            "type": data_type,
-            "original_input": clean_input,
-            "extracted_text": extracted_text if extracted_text else clean_input,
-            "confidence": confidence,
-            "label": str(label),
-            "date": timestamp,
-            "ai_score": ai_score,
-            "expert_score": expert_score,
-            "title": title,
-            "link": link,
-            "subject": subject
-        }
-        
-        history.append(new_entry)
-        if len(history) > 2000: history = history[-2000:]
-            
-        with open(history_file, "w", encoding="utf-8") as f:
-            json.dump(history, f, indent=4)
-            
-        # 3. AUTO-DATASET LINK (Feedback Loop)
-        # Pass full details to add_to_dataset
+        # 3. Add to Dataset (Feedback Loop)
         add_to_dataset(
-            text=extracted_text if extracted_text else clean_input, 
+            text=extracted_text, 
             label=label,
             link=link,
             title=title,
             subject=subject
         )
-
-        print(f"[✅] HISTORY SAVED: {data_type} | ID: {item_id} | Input: {clean_input[:30]}...")
+        
+        print(f"[✅] History Saved: {label} ({confidence}) | Source: {data_type}")
         return True
     except Exception as e:
-        print(f"[❌] ERROR SAVING HISTORY: {traceback.format_exc()}")
+        print(f"[!] Critical Error in save_analysis_result: {traceback.format_exc()}")
         return False
 
 def add_to_dataset(text, label, link="N/A", title="N/A", subject="General"):
@@ -910,43 +859,58 @@ def unified_history_save():
         if not ai_res or not fc_res:
             return jsonify({"error": "Missing results"}), 400
             
-        ai_conf = float(ai_res.get("confidence", "0").replace("%", ""))
-        fc_conf = float(fc_res.get("confidence", "0").replace("%", ""))
+        # Ignore results with errors
+        ai_has_error = ai_res.get("error") is not None
+        fc_has_error = fc_res.get("error") is not None
+        
+        if ai_has_error and fc_has_error:
+            return jsonify({"success": False, "message": "Both engines returned errors. Nothing to save."})
+
+        # Calculate confidence safely
+        try:
+            ai_conf = float(ai_res.get("confidence", "0").replace("%", "")) if not ai_has_error else -1.0
+            fc_conf = float(fc_res.get("confidence", "0").replace("%", "")) if not fc_has_error else -1.0
+        except:
+            ai_conf = 0.0
+            fc_conf = 0.0
         
         # Determine the winner
-        if ai_conf >= fc_conf:
+        if ai_conf >= fc_conf and not ai_has_error:
             save_analysis_result(
                 original_input=raw_input,
-                confidence=ai_res["confidence"],
-                label=ai_res["prediction"],
-                extracted_text=ai_res["raw_text"],
+                confidence=ai_res.get("confidence", "0%"),
+                label=ai_res.get("prediction", "N/A"),
+                extracted_text=ai_res.get("raw_text", "N/A"),
                 data_type="AI Analysis",
-                ai_score=ai_res["confidence"],
+                ai_score=ai_res.get("confidence", "0%"),
                 expert_score="N/A",
-                title=ai_res["title"],
-                link=ai_res["link"],
-                subject=ai_res["subject"]
+                title=ai_res.get("title", "N/A"),
+                link=ai_res.get("link", "N/A"),
+                subject=ai_res.get("subject", "General")
             )
-        else:
+        elif not fc_has_error:
             # Fact check rating to somali label
             rating_str = fc_res.get("rating", "unverified").lower()
             somali_label = "War Rasmi ah" if "trusted" in rating_str else ("War Been Abuur Ah" if "fake" in rating_str else "Lama xaqiijin")
 
             save_analysis_result(
                 original_input=raw_input,
-                confidence=fc_res["confidence"],
+                confidence=fc_res.get("confidence", "0%"),
                 label=somali_label,
-                extracted_text=fc_res["raw_text"],
+                extracted_text=fc_res.get("raw_text", "N/A"),
                 data_type="Expert Fact-Check",
                 ai_score="N/A",
-                expert_score=fc_res["confidence"],
-                title=fc_res["title"],
-                link=fc_res["link"],
-                subject=fc_res["subject"]
+                expert_score=fc_res.get("confidence", "0%"),
+                title=fc_res.get("title", "N/A"),
+                link=fc_res.get("link", "N/A"),
+                subject=fc_res.get("subject", "General")
             )
+        else:
+            return jsonify({"success": False, "message": "No valid results to save."})
             
         return jsonify({"success": True, "message": "History saved for highest confidence."})
     except Exception as e:
+        print(f"[❌] Unified Save Error: {traceback.format_exc()}")
         return jsonify({"error": str(e)}), 500
 
 @app.route("/contact", methods=["POST"])
