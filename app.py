@@ -1506,6 +1506,32 @@ def delete_log():
         return jsonify({"success": False, "message": str(e)}), 500
 
 
+@app.route("/api/admin/dataset/upload", methods=["POST"])
+def upload_dataset():
+    """Handles CSV dataset uploads."""
+    try:
+        if 'file' not in request.files:
+            return jsonify({"success": False, "message": "No file part"}), 400
+        
+        file = request.files['file']
+        if file.filename == '':
+            return jsonify({"success": False, "message": "No selected file"}), 400
+            
+        if file and file.filename.endswith('.csv'):
+            target_dir = os.path.join(BASE_DIR, "Dataset")
+            if not os.path.exists(target_dir):
+                os.makedirs(target_dir)
+            
+            filename = file.filename
+            path = os.path.join(target_dir, filename)
+            file.save(path)
+            return jsonify({"success": True, "message": f"{filename} has been uploaded successfully!"})
+        
+        return jsonify({"success": False, "message": "Only CSV files are allowed"}), 400
+    except Exception as e:
+        return jsonify({"success": False, "message": str(e)}), 500
+
+
 # ================= RUN SERVER =================
 if __name__ == "__main__":
     # Local development fallback
