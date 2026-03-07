@@ -1,4 +1,5 @@
 const API_BASE_URL = 'https://tafaftire-detection-system.onrender.com';
+
 window.isAnalyzing = false;
 
 window.addEventListener('beforeunload', (e) => {
@@ -224,19 +225,30 @@ document.addEventListener('DOMContentLoaded', () => {
         [finalVerdictCard, aiResultCard, fcResultCard].forEach(card => card.classList.remove("hidden"));
 
         [finalVerdict, aiResult, fcResult].forEach(el => el.innerText = "⏳...");
-        [aiConfidence, fcConfidence].forEach(el => el.innerText = "Processing...");
-        finalConfidence.innerText = "Confidence: --%";
+        [aiConfidence, fcConfidence].forEach(el => el.innerText = "Searching...");
+        finalConfidence.innerText = "System validation in progress...";
 
+        // Trigger both in parallel but keep them independent
         try {
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), 60000); // 60s timeout
+
             const aiPromise = fetch(`${API_BASE_URL}/api/predict`, {
-                method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload)
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(payload),
+                signal: controller.signal
             }).then(r => r.json());
 
             const fcPromise = fetch(`${API_BASE_URL}/api/fact-check`, {
-                method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload)
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(payload),
+                signal: controller.signal
             }).then(r => r.json());
 
             const [aiRes, fcRes] = await Promise.all([aiPromise, fcPromise]);
+            clearTimeout(timeoutId);
 
             // Handle AI Result
             let aiText = "UNKNOWN";
@@ -261,20 +273,25 @@ document.addEventListener('DOMContentLoaded', () => {
 
             // Handle Expert Result
             let fcText = "UNVERIFIED";
+            let isTrustedSource = false;
+
             if (!fcRes.error) {
                 const fcRating = fcRes.rating.toLowerCase();
-                if (fcRating.includes("trusted")) {
+                const reasons = fcRes.reasons ? fcRes.reasons.join(" ") : "";
+                if (fcRating.includes("trusted") || reasons.includes("Hubinta Isha")) {
+                    isTrustedSource = true;
                     fcText = "REAL";
                     fcResult.innerText = "TRUSTED";
                     fcResult.style.color = "#2ecc71";
                     fcResult.style.textShadow = "0 0 20px rgba(46, 204, 113, 0.4)";
+                    fcConfidence.innerText = "✅ SOURCE VALIDATED";
                 } else {
                     fcText = "FAKE";
                     fcResult.innerText = "UNVERIFIED";
                     fcResult.style.color = "#f39c12";
                     fcResult.style.textShadow = "0 0 20px rgba(243, 156, 18, 0.4)";
+                    fcConfidence.innerText = `Expert Score: ${fcRes.confidence}`;
                 }
-                fcConfidence.innerText = `Expert Score: ${fcRes.confidence}`;
             } else {
                 fcResult.innerText = "Error";
                 fcConfidence.innerText = fcRes.error;
