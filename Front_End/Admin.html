@@ -683,11 +683,13 @@
                                             ANALYZED CONTENT</th>
                                         <th
                                             style="padding: 18px; color: var(--text-muted); font-size: 0.75rem; letter-spacing: 2px; text-align: center;">
-                                            TRUST SCORE</th>
+                                            ENGINE</th>
                                         <th
                                             style="padding: 18px; color: var(--text-muted); font-size: 0.75rem; letter-spacing: 2px; text-align: center;">
-
-                                            PERDICT</th>
+                                            SCORE</th>
+                                        <th
+                                            style="padding: 18px; color: var(--text-muted); font-size: 0.75rem; letter-spacing: 2px; text-align: center;">
+                                            VERDICT</th>
                                         <th
                                             style="padding: 18px; color: var(--text-muted); font-size: 0.75rem; letter-spacing: 2px;">
                                             TIMESTAMP</th>
@@ -866,7 +868,7 @@
                 console.error("History Error:", err);
                 document.getElementById('historyTable').innerHTML = `<tr><td colspan="5" style="text-align: center; color: #ef4444; padding: 20px;">
                     Cilad: ${err.message}<br>
-                    <small>Hubi in Flask uuu shaqeynayo port 3402</small>
+                    <small>Hubi in server-ka uu online yahay (Render)</small>
                 </td></tr>`;
             }
         }
@@ -877,7 +879,8 @@
                 const content = (item.original_input || item.name || "").toLowerCase();
                 const verdict = (item.label || "").toLowerCase();
                 const date = (item.date || "").toLowerCase();
-                return content.includes(query) || verdict.includes(query) || date.includes(query);
+                const engine = (item.data_type || "").toLowerCase();
+                return content.includes(query) || verdict.includes(query) || date.includes(query) || engine.includes(query);
             });
             renderHistoryTable(filtered);
         }
@@ -894,8 +897,8 @@
                 const nameSnippet = originalInput.length > 50 ? originalInput.substring(0, 50) + "..." : (originalInput || "Unknown");
 
                 const labelStr = (item.label || "").toUpperCase();
-                const isReal = labelStr.includes('TRUSTED') || labelStr.includes('RASMI') || labelStr === 'REAL';
-                const isFake = labelStr.includes('FAKE') || labelStr.includes('BEEN') || labelStr === 'FAKE';
+                const isReal = labelStr.includes('TRUSTED') || labelStr.includes('RASMI') || labelStr.includes('REAL');
+                const isFake = labelStr.includes('FAKE') || labelStr.includes('BEEN') || labelStr.includes('UNVERIFIED');
 
                 const badgeColor = isReal ? '#10b981' : (isFake ? '#ef4444' : '#f59e0b');
                 const badgeBg = isReal ? 'rgba(16,185,129,0.1)' : (isFake ? 'rgba(239,68,68,0.1)' : 'rgba(245,158,11,0.1)');
@@ -904,6 +907,11 @@
                     <tr style="animation: fadeIn 0.3s ease;">
                         <td title="${originalInput}">
                             ${nameSnippet}
+                        </td>
+                        <td style="text-align: center;">
+                            <span style="font-size: 0.7rem; color: #3b82f6; border: 1px solid rgba(59,130,246,0.3); padding: 2px 6px; border-radius: 4px;">
+                                ${item.data_type === 'AI Analysis' ? '🤖 AI' : '⚖️ EXPERT'}
+                            </span>
                         </td>
                         <td style="text-align: center;"><span class="badge" style="background: rgba(168,85,247,0.1); color: #a855f7; padding: 4px 8px; border-radius: 4px;">${item.confidence || '-'}</span></td>
                         <td style="text-align: center;"><span class="badge" style="background: ${badgeBg}; color: ${badgeColor}; padding: 4px 8px; border-radius: 4px;">${item.label || '-'}</span></td>
@@ -938,16 +946,16 @@
             const expertScore = document.getElementById("modalExpertScore");
             const scoresBox = document.getElementById("modalUnifiedScores");
 
-            if (item.type === "Unified Analysis") {
+            if (item.data_type === "AI Analysis") {
                 scoresBox.style.display = "grid";
-                aiScore.innerText = item.ai_score || "N/A";
-                expertScore.innerText = item.expert_score || "N/A";
+                aiScore.innerText = item.confidence || "N/A";
+                expertScore.innerText = "N/A (AI Run)";
+            } else if (item.data_type === "Expert Fact-Check") {
+                scoresBox.style.display = "grid";
+                aiScore.innerText = "N/A (Expert Run)";
+                expertScore.innerText = item.confidence || "N/A";
             } else {
                 scoresBox.style.display = "none";
-                // If it's old model prediction, show confidence in Result
-                if (item.confidence) {
-                    document.getElementById("modalResult").innerText += ` (${item.confidence})`;
-                }
             }
 
             const modal = document.getElementById("historyDetailModal");
