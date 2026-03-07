@@ -237,17 +237,14 @@ document.addEventListener('DOMContentLoaded', () => {
             // Handle AI Result
             if (!aiRes.error) {
                 const pred = aiRes.prediction;
-                if (pred.includes("Trusted")) {
-                    aiResult.innerText = "Trusted (Model)";
+                if (pred.includes("Real News")) {
+                    aiResult.innerText = "Real News";
                     aiResult.style.color = "#2ecc71";
-                } else if (pred.includes("Suspicious")) {
-                    aiResult.innerText = "Suspicious";
-                    aiResult.style.color = "#f39c12";
                 } else {
-                    aiResult.innerText = "Fake News";
+                    aiResult.innerText = "Fake news";
                     aiResult.style.color = "#ff4757";
                 }
-                aiConfidence.innerText = `Model Conf: ${aiRes.confidence}`;
+                aiConfidence.innerText = `AI Confidence: ${aiRes.confidence}`;
             } else {
                 aiResult.innerText = "Error";
                 aiConfidence.innerText = aiRes.error;
@@ -257,16 +254,13 @@ document.addEventListener('DOMContentLoaded', () => {
             if (!fcRes.error) {
                 const fcRating = fcRes.rating.toLowerCase();
                 if (fcRating.includes("trusted")) {
-                    fcResult.innerText = "Verified Web";
+                    fcResult.innerText = "Trusted";
                     fcResult.style.color = "#2ecc71";
-                } else if (fcRating.includes("suspicious")) {
-                    fcResult.innerText = "Suspicious Source";
-                    fcResult.style.color = "#f39c12";
                 } else {
-                    fcResult.innerText = "Verified Fake";
-                    fcResult.style.color = "#ff4757";
+                    fcResult.innerText = "Unverified";
+                    fcResult.style.color = "#f39c12";
                 }
-                fcConfidence.innerText = `Web Score: ${fcRes.confidence}`;
+                fcConfidence.innerText = `Web Evidence: ${fcRes.confidence}`;
             } else {
                 fcResult.innerText = "Error";
                 fcConfidence.innerText = fcRes.error;
