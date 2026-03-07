@@ -34,7 +34,7 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         })
         .catch(err => {
-            console.warn("⚠️ Fake News Detection server is offline.");
+            console.warn("⚠️ Tafaftire Detection server is offline.");
         });
 
 
@@ -920,6 +920,7 @@ document.addEventListener('DOMContentLoaded', () => {
     window.addEventListener('hashchange', handleRouting);
     handleRouting();
 });
+
 
 
 
