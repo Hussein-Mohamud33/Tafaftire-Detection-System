@@ -225,7 +225,7 @@ document.addEventListener('DOMContentLoaded', () => {
         [finalVerdictCard, aiResultCard, fcResultCard].forEach(card => card.classList.remove("hidden"));
 
         [finalVerdict, aiResult, fcResult].forEach(el => el.innerText = "⏳...");
-        [aiConfidence, fcConfidence].forEach(el => el.innerText = "Searching...");
+        [aiConfidence, fcConfidence].forEach(el => el.innerText = "Loading...");
         finalConfidence.innerText = "in progress...";
 
         // Trigger both in parallel but keep them independent
@@ -272,12 +272,12 @@ document.addEventListener('DOMContentLoaded', () => {
                     aiText = "Real News";
                     aiResult.innerText = "Real News";
                     aiResult.style.color = "#2ecc71";
-                    aiResult.style.textShadow = "0 0 20px rgba(46, 204, 113, 0.4)";
+                    aiResult.style.textShadow = "0 0 10px rgba(46, 204, 113, 0.4)";
                 } else {
                     aiText = "Fake News";
                     aiResult.innerText = "Fake News";
                     aiResult.style.color = "#ff4757";
-                    aiResult.style.textShadow = "0 0 20px rgba(255, 71, 87, 0.4)";
+                    aiResult.style.textShadow = "0 0 10px rgba(255, 71, 87, 0.4)";
                 }
                 aiConfidence.innerText = `Confidence: ${aiRes.confidence}`;
             } else {
@@ -297,13 +297,13 @@ document.addEventListener('DOMContentLoaded', () => {
                     fcText = "Trusted";
                     fcResult.innerText = "Trusted";
                     fcResult.style.color = "#2ecc71";
-                    fcResult.style.textShadow = "0 0 15px rgba(46, 204, 113, 0.4)";
+                    fcResult.style.textShadow = "0 0 10px rgba(46, 204, 113, 0.4)";
                     fcConfidence.innerText = `Confidence: (${fcRes.confidence})`;
                 } else {
                     fcText = "Unverfied";
                     fcResult.innerText = "Unverified";
                     fcResult.style.color = "#f39c12";
-                    fcResult.style.textShadow = "0 0 15px rgba(243, 156, 18, 0.4)";
+                    fcResult.style.textShadow = "0 0 10px rgba(243, 156, 18, 0.4)";
                     fcConfidence.innerText = `Confidence: ${fcRes.confidence}`;
                 }
             } else {
@@ -320,8 +320,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 finalVerdict.innerText = aiText;
                 finalVerdict.style.color = (aiText === "Real News") ? "#2ecc71" : "#ff4757";
                 finalVerdict.style.textShadow = (aiText === "Real News")
-                    ? "0 0 15px rgba(46, 204, 113, 0.6)"
-                    : "0 0 15px rgba(255, 71, 87, 0.6)";
+                    ? "0 0 10px rgba(46, 204, 113, 0.6)"
+                    : "0 0 10px rgba(255, 71, 87, 0.6)";
                 finalConfidence.innerText = `Confidence: ${aiRes.confidence}`;
                 finalSource.innerText = "Source: AI Model";
             } else if (!fcRes.error) {
@@ -329,8 +329,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 finalVerdict.innerText = fcText;
                 finalVerdict.style.color = (fcText === "Trusted") ? "#2ecc71" : (fcText === "Unverified" ? "#f39c12" : "#ff4757");
                 finalVerdict.style.textShadow = (fcText === "Trusted")
-                    ? "0 0 15px rgba(46, 204, 113, 0.6)"
-                    : (fcText === "Unverified" ? "0 0 15px rgba(243, 156, 18, 0.6)" : "0 0 15px rgba(255, 71, 87, 0.6)");
+                    ? "0 0 10px rgba(46, 204, 113, 0.6)"
+                    : (fcText === "Unverified" ? "0 0 10px rgba(243, 156, 18, 0.6)" : "0 0 15px rgba(255, 71, 87, 0.6)");
                 finalConfidence.innerText = `Confidence: ${fcRes.confidence}`;
                 finalSource.innerText = "Source: Fact-check";
             } else {
@@ -920,6 +920,7 @@ document.addEventListener('DOMContentLoaded', () => {
     window.addEventListener('hashchange', handleRouting);
     handleRouting();
 });
+
 
 
 
