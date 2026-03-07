@@ -404,6 +404,7 @@ def search_duckduckgo_lite(query):
         for td in soup.find_all('td', class_='result-snippet'):
             snippet = td.text.strip()
             link = ""
+            title = ""
             tr = td.find_parent('tr')
             if tr:
                 prev_tr = tr.find_previous_sibling('tr')
@@ -411,7 +412,8 @@ def search_duckduckgo_lite(query):
                     a_tag = prev_tr.find('a', class_='result-link')
                     if a_tag:
                         link = a_tag.get('href', '')
-            results.append({'snippet': snippet, 'link': link})
+                        title = a_tag.text.strip()
+            results.append({'snippet': snippet, 'link': link, 'title': title})
         
         return results
     except Exception:
@@ -570,74 +572,78 @@ def heuristic_fact_check(text, url=None):
         score -= 15 # Increased from 10
         reasons.append("Warku waa mid aad u gaaban, xog yar ayuuna xambaarsan yahay.")
 
-    # 6. LIVE WEB SEARCH VERIFICATION (MOST IMPORTANT)
-    # We only search significant words to avoid query clutter
-    query_words = [w for w in words if len(w) > 3 and w.lower() not in somali_stopwords and w.lower() not in stop_words]
+    # 6. LIVE WEB SEARCH VERIFICATION (DEEP ANALYSIS)
+    # Extract Subjects (Capitalized words usually names/places in Somali/English)
+    subjects = [w for w in words if w[0].isupper() and len(w) > 3]
+    # Remove subjects from query words to find unique actions
+    action_words = [w for w in query_words if w.lower() not in [s.lower() for s in subjects]]
     
-    match_count = 0
-    trusted_hits = []
+    # Priority Query: Subject + Danger Keyword
+    if subjects and has_danger_keyword:
+        query = f"{subjects[0]} {', '.join([kw for kw in danger_keywords if kw in text_lower])}"
+    else:
+        query = " ".join(query_words[:10]) if query_words else text[:60]
     
-    if not is_url(text):
-        query = " ".join(query_words[:12]) if query_words else text[:60]
-        if len(query) > 8:
+    if not is_url(text) and len(query) > 8:
             live_results = search_duckduckgo_lite(query)
             if live_results:
-                live_context_lower = " ".join([r['snippet'] for r in live_results]).lower()
+                max_sim = 0
+                match_results = []
                 
-                # Dynamic matching based on keywords
-                match_count = sum(1 for w in query_words[:12] if w.lower() in live_context_lower)
+                # Check for debunking globally
+                debunk_keywords = ["fake", "false", "misleading", "hoax", "fact check", "been abuur", "ma dhab baa", "been abuur ah", "been-abuur", "checked", "debunked"]
                 
-                # Check if trusted sources reported it (Secure check)
-                trusted_hits = []
-                trusted_links = []
-                for res_item in live_results:
-                    res_snippet_low = res_item['snippet'].lower()
-                    res_link = res_item['link'].lower()
+                for res in live_results:
+                    res_text = (res['title'] + " " + res['snippet']).lower()
                     
+                    # 1. Per-Result Match Calculation
+                    # How many of our query words appear in THIS specific result?
+                    res_matches = sum(1 for w in query_words[:10] if w.lower() in res_text)
+                    if res_matches > max_sim: max_sim = res_matches
+                    
+                    # 2. Trusted Source Check
                     try:
-                        ext_res = tldextract.extract(res_link)
+                        ext_res = tldextract.extract(res['link'])
                         res_domain = f"{ext_res.domain}.{ext_res.suffix}".lower()
-                        if res_domain in TRUSTED_SOURCES:
+                        if res_domain in TRUSTED_SOURCES and res_matches >= 6:
                             if res_domain not in trusted_hits:
                                 trusted_hits.append(res_domain)
-                                trusted_links.append(res_item['link'])
-                    except:
-                        continue
+                                trusted_links.append(res['link'])
+                    except: pass
+                    
+                    # 3. Debunk Check in THIS result
+                    res_is_debunk = any(dk in res_text for dk in debunk_keywords)
+                    if res_is_debunk and res_matches >= 5:
+                         found_debunk = True
                 
-                # Check for debunking keywords in search results
-                debunk_keywords = ["fake", "false", "misleading", "hoax", "fact check", "been abuur", "ma dhab baa", "been abuur ah", "been-abuur", "checked", "debunked"]
-                found_debunk = any(dk in live_context_lower for dk in debunk_keywords)
-                
-                # Logic: If fact-checking/debunking is found, it's a huge RED FLAG
                 if found_debunk:
-                    score -= 100 # Heavy penalty regardless of trusted hits
-                    reasons.append("Internet-ka waxaa laga helay xog muujinaysa in warkan uu yahay mid la beeniyay ama laga shakisan yahay.")
-                
-                if trusted_hits and not found_debunk:
-                    score += 85 
-                    valid_link = trusted_links[0] if trusted_links else "#"
+                    score -= 150 # Absolute kill on credibility
+                    reasons.append("Xog internet-ka laga helay ayaa sheegaysa in warkan hore loo beeniyay (Falsified/Debunked).")
+                elif trusted_hits:
+                    score += 90 # High trust
+                    valid_link = trusted_links[0]
                     source_name = trusted_hits[0].split('.')[0].upper()
-                    link_html = f"<a href='{valid_link}' target='_blank' style='color:#3b82f6; text-decoration:underline;'>{source_name}</a>"
-                    reasons.append(f"Xogtaan waxaa si rasmi ah u xaqiijiyay ilo lagu kalsoon yahay: {link_html}.")
-                elif match_count >= 10: # Increased threshold
-                    score += 40
-                    reasons.append(f"Warkan waxaa si isku mid ah u tebiyay ilo badan, laakiin majiraan ilo caalami ah.")
+                    link_html = f"<a href='{valid_link}' target='_blank' style='color:#3b82f6; font-weight:bold;'>{source_name}</a>"
+                    reasons.append(f"Xaqiiqada warkan waxaa laga helay ilo caalami ah oo sugan: {link_html}.")
+                elif max_sim >= 8:
+                    score += 50
+                    reasons.append("Internet-ka waxaa laga helay xog badan oo u dhiganta warka aad soo gudbisay.")
                 elif is_prompt:
-                    score -= 100
-                    reasons.append("Sheegashooyinkan laguma helin xog ku filan oo lagu aamino.")
+                    score -= 120
+                    reasons.append("Su'aashaas ama sheegashadaas lagama helin xog sugan oo caalami ah (UNVERIFIED).")
                 else:
                     if has_danger_keyword:
-                        score -= 120 # Increased
-                        reasons.append("Dhacdo xasaasi ah (Dangerous Event) oo aan internet-ka laga helayn waa Red Flag weyn.")
-                    elif match_count < 6: 
-                        score -= 75
-                        reasons.append("Baaritaan toos ah laguma helin xog dhab ah oo xaqiijinaysa warkan.")
+                        score -= 150 # Even stricter for dangerous news
+                        reasons.append("Dhacdo xasaasi ah (Danger/Death) oo aan haba yaraatee lagu tebin ilaha rasmiga ah (VERY SUSPICIOUS).")
+                    elif max_sim < 5:
+                        score -= 90
+                        reasons.append("Markii la baaray internet-ka, laguma helin xog ku filan oo xaqiijinaysa warkan (Xog La'aan).")
                     else:
-                        score -= 50
-                        reasons.append("Xogta internet-ka laga helay kuma filna in lagu aamino xaqiiqada warkan.")
+                        score -= 60
+                        reasons.append("Natiijooyinka la helay ma aha kuwo xooggan oo xaqiijin kara sheegashadaan.")
             else:
-                 score -= 80 # Increased penalty
-                 reasons.append("Internet-ka maba laga helin xog xitaa ka hadlaysa sheegashadan (Non-existent Claim).")
+                 score -= 100
+                 reasons.append("Wax xog ah oo ku saabsan warkan lagama helin internet-ka (None Found).")
 
     # Determine Rating & Confidence
     confidence = 60 + (abs(score) * 0.45)
