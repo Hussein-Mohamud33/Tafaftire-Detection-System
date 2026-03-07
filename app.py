@@ -565,10 +565,8 @@ def heuristic_fact_check(text, url=None):
     confidence = 70 + (min(28, abs(score) * 0.15))
     if score >= 60:
         rating = "Trusted"
-    elif score < -30:
-        rating = "Fake Information"
     else:
-        rating = "Suspicious"
+        rating = "Unverified" # Simplified to Trusted/Unverified per user request
 
     return {
         "rating": rating,
@@ -686,15 +684,15 @@ def predict():
         
         # AI Verdict
         if final_ai_score > 1.2:
-            result = "Trusted"
+            result = "Real News"
         elif final_ai_score < -0.8:
-            result = "Fake Information"
+            result = "Fake news"
         else:
-            result = "Suspicious"
+            result = "Fake news" # Mapping Suspicious to Fake as per user's strict list
 
         # High-Certainty AI Overrides
-        if ai_score_val < -2.5: result = "Fake Information"
-        if ai_score_val > 2.5: result = "Trusted"
+        if ai_score_val < -2.5: result = "Fake news"
+        if ai_score_val > 2.5: result = "Real News"
 
         # ================= Save to History (Non-blocking) =================
         try:
@@ -775,14 +773,12 @@ def fact_check():
         fact_result["subject"] = guess_subject(content)
         
         # Somali Labels
-        rating_str = fact_result["rating"].lower()
-        somali_label = "Lama xaqiijin"
         if "trusted" in rating_str: 
             somali_label = "War Rasmi ah"
         elif "fake" in rating_str:
             somali_label = "War Been Abuur Ah"
-        elif "suspicious" in rating_str: 
-            somali_label = "Shaki Baa Ku Jira"
+        elif "suspicious" in rating_str or "unverified" in rating_str: 
+            somali_label = "Lama xaqiijin"
 
         # ================= Save to History (Non-blocking) =================
         try:
