@@ -470,10 +470,11 @@ TRUSTED_SOURCES = {
     "garoweonline.com", "somalistream.com", "somnn.com", 
     "somaliglobe.net", "sntv.so", "sonna.so", "hiiraan.com",
     "caasimada.net", "jowhar.com", "warsheekh.com",
-    "puntlandtimes.ca", "radiomuqdisho.net",
-    "daljir.com", "puntlandpost.net", "horseedmedia.net",
+    "puntlandtimes.ca", "radiomuqdisho.net", "villasomalia.gov.so",
+    "daljir.com", "puntlandpost.net", "horseedmedia.net", "barkulan.com",
     "radioergo.org", "aljazeera.com", "reuters.com", "apnews.com",
-    "nytimes.com", "cnn.com", "theguardian.com", "standardmedia.co.ke"
+    "nytimes.com", "cnn.com", "theguardian.com", "standardmedia.co.ke",
+    "mogadishucenter.com", "puntland.so", "galmudug.so", "hirshabelle.so"
 }
 
 UNTRUSTED_PATTERNS = [
@@ -568,13 +569,28 @@ def heuristic_fact_check(text, url=None):
                 score -= 70
                 reasons.append("Xog La'aan: Markii la baaray internet-ka, laguma helin natiijooyin xaqiijinaya warkaan (No citations found).")
         else:
-            score -= 100
-            reasons.append("Cilad Baaris: Wax xog ah lagama helin internet-ka oo ku saabsan nuxurka qoraalkan.")
+            if not is_trusted_domain:
+                score -= 100
+                reasons.append("Cilad Baaris: Wax xog ah lagama helin internet-ka oo ku saabsan nuxurka qoraalkan.")
+            else:
+                score += 50
+                reasons.append("Cilad Baaris: Search fashilmay laakiin isha warka ayaa la xaqiijiyay.")
+
+    # Add source-based override to ensure trusted domains don't get 'Unverified' label easily
+    is_trusted_domain = False
+    if url:
+        try:
+            extracted = tldextract.extract(url)
+            if f"{extracted.domain}.{extracted.suffix}".lower() in TRUSTED_SOURCES:
+                is_trusted_domain = True
+        except: pass
 
     # Final Verdict for Expert Fact-Check
     confidence = 70 + (min(28, abs(score) * 0.15))
-    if score >= 60:
+    if score >= 60 or is_trusted_domain:
         rating = "Trusted"
+        if is_trusted_domain:
+            confidence = max(94, confidence) # Boost confidence for trusted domains
     else:
         rating = "Unverified" # Simplified to Trusted/Unverified per user request
 
@@ -690,9 +706,20 @@ def predict():
         if len(content.split()) < 10:
              pattern_penalty += 3.0 # Strong penalty for very short "nuqul" text
 
-        final_ai_score = ai_score_val - pattern_penalty
+        # 2. Source-Based Validation (Highly Trusted Sources Boost)
+        source_boost = 0
+        if input_url:
+            try:
+                extracted = tldextract.extract(input_url)
+                temp_domain = f"{extracted.domain}.{extracted.suffix}".lower()
+                if temp_domain in TRUSTED_SOURCES:
+                    source_boost = 5.0 # Very heavy boost for BBC, etc.
+                    print(f"[*] VALIDATION: Trusted source detected ({temp_domain}). Boosting AI Score.")
+            except: pass
+
+        final_ai_score = ai_score_val - pattern_penalty + source_boost
         
-        print(f"[*] AI SCAN - Model: {ai_score_val:.2f}, Patterns: -{pattern_penalty:.2f}, Final: {final_ai_score:.2f}")
+        print(f"[*] AI SCAN - Model: {ai_score_val:.2f}, Patterns: -{pattern_penalty:.2f}, Boost: +{source_boost:.2f}, Final: {final_ai_score:.2f}")
 
         # Sigmoid function for confidence
         confidence_val = (1 / (1 + np.exp(-abs(final_ai_score * 0.8)))) * 100
@@ -705,7 +732,7 @@ def predict():
             result = "Fake news"
         else:
             # Fallback for borderline cases - use model's raw sign for a "strong" decision
-            result = "Real News" if ai_score_val > 0 else "Fake news"
+            result = "Real News" if final_ai_score > 0 else "Fake news"
 
         # ================= Save to History (Non-blocking) =================
         try:
