@@ -284,7 +284,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     fcResult.innerText = "TRUSTED";
                     fcResult.style.color = "#2ecc71";
                     fcResult.style.textShadow = "0 0 20px rgba(46, 204, 113, 0.4)";
-                    fcConfidence.innerText = "✅ SOURCE VALIDATED";
+                    fcConfidence.innerText = `✅ SOURCE VALIDATED (${fcRes.confidence})`;
                 } else {
                     fcText = "FAKE";
                     fcResult.innerText = "UNVERIFIED";
