@@ -880,10 +880,14 @@ def unified_history_save():
         
         # Determine the winner
         if ai_conf >= fc_conf and not ai_has_error:
+            # Map AI Prediction to Somali Terminology
+            ai_pred = ai_res.get("prediction", "N/A")
+            somali_label = "War Rasmi ah" if "Real" in ai_pred else "War Been Abuur Ah"
+            
             save_analysis_result(
                 original_input=raw_input,
                 confidence=ai_res.get("confidence", "0%"),
-                label=ai_res.get("prediction", "N/A"),
+                label=somali_label,
                 extracted_text=ai_res.get("raw_text", "N/A"),
                 data_type="AI Analysis",
                 ai_score=ai_res.get("confidence", "0%"),
@@ -895,7 +899,14 @@ def unified_history_save():
         elif not fc_has_error:
             # Fact check rating to somali label
             rating_str = fc_res.get("rating", "unverified").lower()
-            somali_label = "War Rasmi ah" if "trusted" in rating_str else ("War Been Abuur Ah" if "fake" in rating_str else "Lama xaqiijin")
+            
+            # Map Expert Rating to Somali Terminology
+            if "trusted" in rating_str:
+                somali_label = "War Rasmi ah"
+            elif "fake" in rating_str or "been" in rating_str:
+                somali_label = "War Been Abuur Ah"
+            else:
+                somali_label = "Lama xaqiijin"
 
             save_analysis_result(
                 original_input=raw_input,
