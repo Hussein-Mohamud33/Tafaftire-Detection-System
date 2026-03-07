@@ -9,3 +9,4 @@ beautifulsoup4
 scipy
 nltk>=3.9.1
 scikit-learn
+tldextract
