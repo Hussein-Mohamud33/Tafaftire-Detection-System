@@ -1,4 +1,4 @@
-const API_BASE_URL = 'https://tafaftire-detection-system.onrender.com';
+const API_BASE_URL = window.location.origin;
 
 window.isAnalyzing = false;
 
@@ -236,19 +236,33 @@ document.addEventListener('DOMContentLoaded', () => {
             const aiPromise = fetch(`${API_BASE_URL}/api/predict`, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify(payload),
+                body: JSON.stringify({ ...payload, skip_history: true }),
                 signal: controller.signal
             }).then(r => r.json());
 
             const fcPromise = fetch(`${API_BASE_URL}/api/fact-check`, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify(payload),
+                body: JSON.stringify({ ...payload, skip_history: true }),
                 signal: controller.signal
             }).then(r => r.json());
 
             const [aiRes, fcRes] = await Promise.all([aiPromise, fcPromise]);
             clearTimeout(timeoutId);
+
+            // 1. Save only the highest confidence result to history
+            const rawInputField = document.querySelector('input[name="inputType"]:checked').value === "text" ? newsText : newsURL;
+            const rawInputVal = rawInputField ? rawInputField.value.trim() : "";
+
+            fetch(`${API_BASE_URL}/api/unified-history-save`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    raw_input: rawInputVal,
+                    ai_res: aiRes,
+                    fc_res: fcRes
+                })
+            }).catch(err => console.warn("History save background error:", err));
 
             // Handle AI Result
             let aiText = "UNKNOWN";
