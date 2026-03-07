@@ -290,23 +290,36 @@ document.addEventListener('DOMContentLoaded', () => {
                 fcConfidence.innerText = "Search Failed";
             }
 
-            // 3. WINNER / UNIFIED VERDICT LOGIC
-            // Pick the source with the highest confidence
+            // 3. WINNER / UNIFIED VERDICT LOGIC (Stricter & Safer Integration)
             if (aiSuccess || fcSuccess) {
-                if (aiConfVal >= fcConfVal) {
-                    unifiedVerdict.innerText = aiResult.innerText;
-                    unifiedVerdict.style.color = aiResult.style.color;
-                    unifiedConfidence.innerText = `Confidence: ${aiRes.confidence}`;
-                    winnerSource.innerText = "Source: AI Model Analysis";
-                } else {
-                    unifiedVerdict.innerText = fcResult.innerText;
-                    unifiedVerdict.style.color = fcResult.style.color;
-                    unifiedConfidence.innerText = `Expert Score: ${fcRes.confidence}`;
-                    winnerSource.innerText = "Source: Expert Fact-Check";
+                // Determine normalized ratings: 0 = Fake, 1 = Suspicious, 2 = Trusted
+                const aiRating = aiResult.innerText.toLowerCase().includes("real") ? 2 : (aiResult.innerText.toLowerCase().includes("fake") ? 0 : 1);
+                const fcRatingVal = fcResult.innerText.toLowerCase().includes("trusted") ? 2 : (fcResult.innerText.toLowerCase().includes("fake") ? 0 : 1);
+
+                // SAFETY RULE: If either source says it's Fake, the Unified Verdict MUST be Fake
+                if (aiRating === 0 || fcRatingVal === 0) {
+                    unifiedVerdict.innerText = "Fake News";
+                    unifiedVerdict.style.color = "#ff4757";
+                    unifiedConfidence.innerText = `Danger Detected`;
+                    winnerSource.innerText = "Source: Security Consensus";
+                }
+                // CONSERVATIVE RULE: Only show "Real News" if BOTH agree OR one is Trusted and other is not Fake
+                else if (aiRating === 2 && fcRatingVal === 2) {
+                    unifiedVerdict.innerText = "Real News";
+                    unifiedVerdict.style.color = "#2ecc71";
+                    unifiedConfidence.innerText = `High Confidence: ${Math.max(aiConfVal, fcConfVal)}%`;
+                    winnerSource.innerText = "Source: Verified Sources";
+                }
+                else {
+                    // Default to Suspicious if there is any doubt or disagreement
+                    unifiedVerdict.innerText = "Suspicious News";
+                    unifiedVerdict.style.color = "#f39c12";
+                    unifiedConfidence.innerText = (aiConfVal + fcConfVal) / 2 + "% (Unverified)";
+                    winnerSource.innerText = "Source: Mixed Evidence";
                 }
             } else {
                 unifiedVerdict.innerText = "N/A";
-                winnerSource.innerText = "No Result";
+                winnerSource.innerText = "Analysis Failed";
             }
 
             // 4. Save history
