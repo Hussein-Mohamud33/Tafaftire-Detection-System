@@ -813,14 +813,14 @@ def fact_check():
         
         # Somali Labels
         rating_str = fact_result.get("rating", "unverified").lower()
-        somali_label = "Lama xaqiijin"
+        somali_label = "unverified"
         
         if "trusted" in rating_str: 
-            somali_label = "War Rasmi ah"
+            somali_label = "Trusted"
         elif "fake" in rating_str:
-            somali_label = "War Been Abuur Ah"
+            somali_label = "fake News"
         else:
-            somali_label = "Lama xaqiijin"
+            somali_label = "unverified"
 
         # ================= Save to History (Non-blocking) =================
         if not data.get("skip_history", False):
@@ -882,7 +882,7 @@ def unified_history_save():
         if ai_conf >= fc_conf and not ai_has_error:
             # Map AI Prediction to Somali Terminology
             ai_pred = ai_res.get("prediction", "N/A")
-            somali_label = "War Rasmi ah" if "Real" in ai_pred else "War Been Abuur Ah"
+            somali_label = "Real News" if "Real" in ai_pred else "Fake News"
             
             save_analysis_result(
                 original_input=raw_input,
@@ -902,11 +902,11 @@ def unified_history_save():
             
             # Map Expert Rating to Somali Terminology
             if "trusted" in rating_str:
-                somali_label = "War Rasmi ah"
+                somali_label = "Trusted"
             elif "fake" in rating_str or "been" in rating_str:
-                somali_label = "War Been Abuur Ah"
+                somali_label = "Fake"
             else:
-                somali_label = "Lama xaqiijin"
+                somali_label = "unverified"
 
             save_analysis_result(
                 original_input=raw_input,
@@ -959,7 +959,7 @@ def contact():
 # ================= ADMIN PANEL API =================
 ADMIN_CREDENTIALS = {
     "username": "admin",
-    "password": "password123" # In production, use env variables and hashing
+    "password": "123" # In production, use env variables and hashing
 }
 
 @app.route("/api/admin/debug/paths", methods=["GET"])
@@ -1554,3 +1554,4 @@ if __name__ == "__main__":
     except Exception as e:
         print(f"[!] Server failed to start: {e}")
         traceback.print_exc()
+
