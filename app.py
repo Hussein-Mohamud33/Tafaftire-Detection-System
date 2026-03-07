@@ -434,22 +434,33 @@ def is_vague_source(text):
 
 # ================= LOAD MODELS =================
 try:
-     
     BASE_DIR = os.path.dirname(os.path.abspath(__file__))
     MODEL_PATH = os.path.join(BASE_DIR, "saved_model", "svm_high_confidence.pkl")
     VECTORIZER_PATH = os.path.join(BASE_DIR, "saved_model", "fake_real_TF_IDF_vectorizer.pkl")
     ENCODER_PATH = os.path.join(BASE_DIR, "saved_model", "fake_real_label_encoder.pkl")
 
-    model = joblib.load(MODEL_PATH)
-    vectorizer = joblib.load(VECTORIZER_PATH)
-    label_encoder = joblib.load(ENCODER_PATH)
+    print(f"[*] Booting: {time.ctime()}")
+    print(f"[*] BASE_DIR: {BASE_DIR}")
+    print(f"[*] Checking models in: {MODEL_PATH}")
 
-    print("Models loaded successfully")
+    if not os.path.exists(MODEL_PATH):
+        print(f"[!] CRITICAL: Model file not found at {MODEL_PATH}")
+        # On Render, we might need a fallback or just log it
+        model = None
+        vectorizer = None
+        label_encoder = None
+    else:
+        model = joblib.load(MODEL_PATH)
+        vectorizer = joblib.load(VECTORIZER_PATH)
+        label_encoder = joblib.load(ENCODER_PATH)
+        print("[*] Models loaded successfully")
 
 except Exception as e:
-    print("Model loading failed:", e)
+    print(f"[!] Model loading failed: {e}")
     traceback.print_exc()
-    exit(1)
+    model = None
+    vectorizer = None
+    label_encoder = None
 
 # ================= HEURISTIC FACT CHECKER =================
 import tldextract
@@ -655,6 +666,9 @@ def predict():
         X = np.hstack([X_dense, np.array([[ext, vague]])])
 
         # ================= AI Decision Logic (Models + Patterns) =================
+        if model is None or vectorizer is None:
+            return jsonify({"error": "AI Models are not loaded on the server. Please check server logs."}), 500
+
         # 1. AI Model Score (Training Data)
         ai_score_val = model.decision_function(X)[0] if hasattr(model, "decision_function") else 0
         
@@ -1409,8 +1423,10 @@ def delete_log():
 
 # ================= RUN SERVER =================
 if __name__ == "__main__":
+    # Local development fallback
+    # When running on Render, Gunicorn handles the port via Procfile
     port = int(os.environ.get("PORT", 3402))
-    print(f"[*] Starting server on 0.0.0.0:{port}...")
+    print(f"[*] Local Dev: Starting server on 0.0.0.0:{port}...")
     try:
         app.run(host="0.0.0.0", port=port, debug=False)
     except Exception as e:
