@@ -155,20 +155,13 @@ def add_to_dataset(text, label, link="N/A", title="N/A", subject="General"):
         if not os.path.exists(os.path.dirname(dataset_path)):
             os.makedirs(os.path.dirname(dataset_path))
             
-        # ================= DUPLICATE CHECK =================
-        if os.path.exists(dataset_path):
-            try:
-                # Read specific columns for performance
-                df_temp = pd.read_csv(dataset_path, usecols=['Text'], encoding='utf-8-sig')
-                existing_texts = df_temp['Text'].dropna().astype(str).str.strip().str.lower().tolist()
-                
-                clean_text = str(text).strip().lower()
-                if clean_text in existing_texts:
-                    # Duplicate found
-                    return
-            except Exception as e:
-                # Fallback if CSV is malformed or column missing
-                print(f"[!] Warning duplicate check error: {e}")
+        # ================= PERFORMANCE NOTE =================
+        # We perform a simple append. Checking for duplicates by reading the whole CSV 
+        # on every single request is too expensive for Render/Production and causes hangs.
+        # Duplicates are better handled during the bulk retraining phase if needed.
+        clean_text = str(text).strip()
+        if len(clean_text) < 10: return
+
 
         # Create new record structure
         # Ensure values are not too long for the CSV preview
@@ -813,14 +806,14 @@ def fact_check():
         
         # Somali Labels
         rating_str = fact_result.get("rating", "unverified").lower()
-        somali_label = "unverified"
+        somali_label = "Lama xaqiijin"
         
         if "trusted" in rating_str: 
-            somali_label = "Trusted"
+            somali_label = "War Rasmi ah"
         elif "fake" in rating_str:
-            somali_label = "fake News"
+            somali_label = "War Been Abuur Ah"
         else:
-            somali_label = "unverified"
+            somali_label = "Lama xaqiijin"
 
         # ================= Save to History (Non-blocking) =================
         if not data.get("skip_history", False):
@@ -882,7 +875,7 @@ def unified_history_save():
         if ai_conf >= fc_conf and not ai_has_error:
             # Map AI Prediction to Somali Terminology
             ai_pred = ai_res.get("prediction", "N/A")
-            somali_label = "Real News" if "Real" in ai_pred else "Fake News"
+            somali_label = "War Rasmi ah" if "Real" in ai_pred else "War Been Abuur Ah"
             
             save_analysis_result(
                 original_input=raw_input,
@@ -902,11 +895,11 @@ def unified_history_save():
             
             # Map Expert Rating to Somali Terminology
             if "trusted" in rating_str:
-                somali_label = "Trusted"
+                somali_label = "War Rasmi ah"
             elif "fake" in rating_str or "been" in rating_str:
-                somali_label = "Fake"
+                somali_label = "War Been Abuur Ah"
             else:
-                somali_label = "unverified"
+                somali_label = "Lama xaqiijin"
 
             save_analysis_result(
                 original_input=raw_input,
@@ -959,7 +952,7 @@ def contact():
 # ================= ADMIN PANEL API =================
 ADMIN_CREDENTIALS = {
     "username": "admin",
-    "password": "123" # In production, use env variables and hashing
+    "password": "password123" # In production, use env variables and hashing
 }
 
 @app.route("/api/admin/debug/paths", methods=["GET"])
@@ -1163,16 +1156,17 @@ def retrain_model():
             f.write(str(time.time()))
             
         # Run Model_trains.py as a subprocess
-        # On Windows, we use shell=True sometimes but let's try direct first
         script_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "Model_trains.py")
         import sys
-        # Use a cross-platform command
-        rm_cmd = "del" if os.name == "nt" else "rm"
-        cmd = f'"{sys.executable}" "{script_path}" && {rm_cmd} "{flag_file}"'
         
-        subprocess.Popen(cmd, shell=True)
+        # Improvement: Use a safer way to clean up the flag even if the script fails.
+        # We pass the flag path to the script to handle its own cleanup.
+        cmd = [sys.executable, script_path, "--flag", flag_file]
+        
+        subprocess.Popen(cmd)
         
         return jsonify({"success": True, "message": "Tababarka model-ka waa la bilaabay, fadlan sug inta uu dhamaanayo."})
+
     except Exception as e:
         # Cleanup flag on failure to start
         flag_file = os.path.join(DATA_DIR, "training_in_progress.flag")
@@ -1554,4 +1548,3 @@ if __name__ == "__main__":
     except Exception as e:
         print(f"[!] Server failed to start: {e}")
         traceback.print_exc()
-
