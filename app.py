@@ -757,62 +757,34 @@ def predict():
         X_dense = X.toarray()
         X = np.hstack([X_dense, np.array([[ext, vague]])])
 
-        # ================= Hybrid Decision Logic =================
-        # 1. Base AI Score (LinearSVC decision function returns distance from hyperplane)
+        # ================= AI Decision Logic (Pure AI) =================
+        # rely only on the trained models as requested by the user
         score = model.decision_function(X)[0] if hasattr(model, "decision_function") else 0
+        trust_boost = 0.0 # Set to zero as AI and Fact-Check are now independent
         
-        # 2. Heuristic Check (Expert System Integration)
-        h_result = heuristic_fact_check(content, input_url)
-        h_score_raw = h_result.get("score", 0)
-        
-        # Proportional Trust Boost based on heuristic score (-100 to +150 range usually)
-        # We scale it to be comparable to the SVM score which is usually -3 to +3
-        trust_boost = h_score_raw / 40.0 # e.g. 80 score = +2 boost, -80 score = -2 boost
-        
-        # Domain Verification Extra Boost
-        if input_url:
-            is_verified_domain = any(t in input_url.lower() for t in TRUSTED_SOURCES)
-            if is_verified_domain:
-                trust_boost += 2.0
-            elif h_result["rating"] == "Suspicious":
-                trust_boost -= 1.0
-
-        # Final Combined Score (Hybrid Verdict)
-        # Weighting: AI (65%) + Heuristics (35%)
-        # If AI is extremely positive but Heuristics is negative, AI gets suppressed
-        if score > 1.0 and h_score_raw < -20:
-            final_score = (score * 0.8) + (trust_boost * 1.2)
-        else:
-            final_score = (score * 1.4) + (trust_boost * 0.6)
-        
-        print(f"[*] DEEP SCAN - AI: {score:.2f}, Heuristic Boost: {trust_boost:.2f}, Raw H-Score: {h_score_raw}, Final: {final_score:.2f}")
+        print(f"[*] AI SCAN - Model Score: {score:.2f}")
 
         # Sigmoid function for confidence
-        confidence_val = (1 / (1 + np.exp(-abs(final_score * 0.8)))) * 100
+        confidence_val = (1 / (1 + np.exp(-abs(score * 0.8)))) * 100
         confidence_val = min(98.5, max(75.0, confidence_val))
         
-        # VERDICT LOGIC (MUCH STRICKTER)
-        if final_score > 2.8: # Increased from 2.2
+        # VERDICT LOGIC (Stricter based only on AI Model)
+        if score > 1.2:
             result = "Trusted"
-        elif final_score < -0.5: # Lowered from -1.0 to catch more fake info
+        elif score < -1.0:
             result = "Fake Information"
+        elif score < 0.2:
+            result = "Suspicious"
         else:
-            # Neutral zone
-            if score < -0.1 or h_score_raw < 5:
-                result = "Fake Information"
-            elif final_score > 1.2:
-                result = "Suspicious" 
-            else:
-                # Default to suspicious if we aren't highly confident in "Trusted"
-                result = "Suspicious"
+            result = "Unverified"
 
-        # Override for high-certainty AI
+        # Final check for high-certainty model flags
         if score < -2.5:
              result = "Fake Information"
-             confidence_val = max(92, confidence_val)
-        elif score > 2.5 and h_score_raw > 20:
+             confidence_val = max(94, confidence_val)
+        elif score > 2.5:
              result = "Trusted"
-             confidence_val = max(92, confidence_val)
+             confidence_val = max(94, confidence_val)
 
         # ================= Save to History (Non-blocking) =================
         try:
