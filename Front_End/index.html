@@ -152,12 +152,18 @@
                     </div>
 
                     <!-- Action Buttons -->
-                    <div class="action-buttons">
-                        <button id="analyzeBtn" class="analyze-btn" style="flex: 3;">
-                            <i class="fas fa-search-plus"></i> DEEP ANALYSIS
-                        </button>
-                        <button id="refreshBtn" class="refresh-btn" style="flex: 1;">
-                            <i class="fas fa-sync-alt"></i> RESET
+                    <div class="action-buttons" style="display: flex; flex-direction: column; gap: 15px;">
+                        <div style="display: flex; gap: 10px; width: 100%;">
+                            <button id="aiAnalyzeBtn" class="analyze-btn"
+                                style="flex: 1; background: var(--accent-orange);">
+                                <i class="fas fa-microchip"></i> AI ANALYSIS (MODELS)
+                            </button>
+                            <button id="expertCheckBtn" class="analyze-btn" style="flex: 1; background: #3498db;">
+                                <i class="fas fa-globe"></i> EXPERT FACT-CHECK (WEB)
+                            </button>
+                        </div>
+                        <button id="refreshBtn" class="refresh-btn">
+                            <i class="fas fa-sync-alt"></i> RESET ALL
                         </button>
                     </div>
 
@@ -168,25 +174,13 @@
                     <div id="unifiedResultContainer" class="result-container"
                         style="display: none; flex-direction: column; gap: 30px; margin-top: 30px; border-top: 1px solid rgba(255,255,255,0.05); padding-top: 30px;">
 
-                        <!-- Unified Verdict (Winner Card) -->
-                        <div id="unifiedVerdictCard" class="unified-verdict-card hidden" style="margin-bottom: 10px;">
-                            <div class="verdict-banner">FINAL PERDICT</div>
-                            <div id="unifiedVerdict" class="prediction-main" style="font-size: 3.5rem; margin: 10px 0;">
-                                ⏳...</div>
-                            <div class="verdict-meta">
-                                <span id="unifiedConfidence" class="prediction-sub"
-                                    style="color: var(--accent-orange);">Confidence: --</span>
-                                <span class="divider">|</span>
-                                <span id="winnerSource" class="prediction-sub">Source: --</span>
-                            </div>
-                        </div>
-
-                        <div class="grid-12"
-                            style="margin-top: 30px; border-top: 1px solid rgba(255,255,255,0.05); padding-top: 30px;">
-
+                        <div class="grid-12">
                             <!-- AI Analysis Card -->
                             <div id="aiResultCard" class="result-card-premium col-6 hidden"
                                 style="border-right: 1px solid rgba(255,255,255,0.1); padding-right: 20px;">
+                                <div class="verdict-banner"
+                                    style="background: var(--accent-orange); font-size: 0.7rem; margin-bottom: 15px;">
+                                    TRAINED MODEL VERDICT</div>
                                 <h4
                                     style="color: var(--accent-orange); margin-bottom: 5px; font-size: 0.9rem; letter-spacing: 2px;">
                                     AI ANALYSIS</h4>
@@ -197,8 +191,11 @@
                                     style="font-weight: 600; color: var(--text-gray);"></div>
                             </div>
 
-                            <!-- Expert Fact-Check Card (Evidence Removed) -->
+                            <!-- Expert Fact-Check Card -->
                             <div id="fcResultCard" class="result-card-premium col-6 hidden">
+                                <div class="verdict-banner"
+                                    style="background: #3498db; font-size: 0.7rem; margin-bottom: 15px;">LIVE WEB
+                                    VERIFICATION</div>
                                 <h4 style="color: #3498db; margin-bottom: 5px; font-size: 0.9rem; letter-spacing: 2px;">
                                     EXPERT FACT-CHECK</h4>
                                 <div id="fcResult" class="prediction-main"
