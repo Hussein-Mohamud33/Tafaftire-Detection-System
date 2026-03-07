@@ -192,14 +192,10 @@ document.addEventListener('DOMContentLoaded', () => {
     const fcResult = document.getElementById("fcResult");
     const aiConfidence = document.getElementById("aiConfidence");
     const fcConfidence = document.getElementById("fcConfidence");
-    const factCheckBtn = document.getElementById("factCheckBtn");
 
-    // New Winner Elements
-    const unifiedVerdictCard = document.getElementById("unifiedVerdictCard");
-    const unifiedVerdict = document.getElementById("unifiedVerdict");
-    const unifiedConfidence = document.getElementById("unifiedConfidence");
-    const winnerSource = document.getElementById("winnerSource");
-
+    // Independent Buttons
+    const aiAnalyzeBtn = document.getElementById("aiAnalyzeBtn");
+    const expertCheckBtn = document.getElementById("expertCheckBtn");
 
     const textInput = document.getElementById("textInput");
     const urlInput = document.getElementById("urlInput");
@@ -212,46 +208,29 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     });
 
-    async function performDeepAnalysis(payload) {
+    async function runAIAnalysis(payload) {
         if (!payload) return;
-
-        console.log("[*] Performing Combined Analysis:", payload);
         window.isAnalyzing = true;
 
-        // UI Prep: Disable button and show container
-        if (analyzeBtn) {
-            analyzeBtn.disabled = true;
-            analyzeBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Analyzing...';
+        if (aiAnalyzeBtn) {
+            aiAnalyzeBtn.disabled = true;
+            aiAnalyzeBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> AI Processing...';
         }
 
-
         resultContainer.style.display = "flex";
-        [aiResultCard, fcResultCard, unifiedVerdictCard].forEach(card => card && card.classList.remove("hidden"));
-
-        [aiResult, fcResult, unifiedVerdict].forEach(el => el && (el.innerText = "⏳..."));
-        [aiConfidence, fcConfidence, unifiedConfidence].forEach(el => el && (el.innerText = "Loading..."));
-        if (winnerSource) winnerSource.innerText = "Processing...";
-
-        // Removed artificial UI delays for maximum speed.
+        aiResultCard.classList.remove("hidden");
+        aiResult.innerText = "⏳...";
+        aiConfidence.innerText = "Loading Model...";
 
         try {
-            const aiPromise = fetch(`${API_BASE_URL}/api/predict`, {
+            const res = await fetch(`${API_BASE_URL}/api/predict`, {
                 method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload)
             }).then(r => r.json());
 
-            const fcPromise = fetch(`${API_BASE_URL}/api/fact-check`, {
-                method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload)
-            }).then(r => r.json());
-
-            const [aiRes, fcRes] = await Promise.all([aiPromise, fcPromise]);
-
-            // 1. AI Result Process
-            const aiSuccess = !aiRes.error;
-            let aiConfVal = 0;
-            if (aiSuccess) {
-                const pred = aiRes.prediction;
+            if (!res.error) {
+                const pred = res.prediction;
                 if (pred.includes("Trusted")) {
-                    aiResult.innerText = "Real News";
+                    aiResult.innerText = "Trusted (Real)";
                     aiResult.style.color = "#2ecc71";
                 } else if (pred.includes("Suspicious") || pred.includes("Unverified")) {
                     aiResult.innerText = "Suspicious";
@@ -260,102 +239,64 @@ document.addEventListener('DOMContentLoaded', () => {
                     aiResult.innerText = "Fake News";
                     aiResult.style.color = "#ff4757";
                 }
-                aiConfidence.innerText = `Confidence: ${aiRes.confidence}`;
-                aiConfVal = parseFloat(aiRes.confidence.replace('%', '')) || 0;
+                aiConfidence.innerText = `Model Confidence: ${res.confidence}`;
             } else {
                 aiResult.innerText = "Error";
-                aiConfidence.innerText = aiRes.error || "Check Failed";
-                aiConfidence.style.color = "#ff4757";
+                aiConfidence.innerText = res.error;
             }
-
-            // 2. Expert Result Process (Evidence List Removed)
-            const fcSuccess = !fcRes.error;
-            let fcConfVal = 0;
-            if (fcSuccess) {
-                const fcRating = fcRes.rating.toLowerCase();
-                if (fcRating.includes("trusted")) {
-                    fcResult.innerText = "Trusted";
-                    fcResult.style.color = "#2ecc71";
-                } else if (fcRating.includes("suspicious")) {
-                    fcResult.innerText = "Suspicious";
-                    fcResult.style.color = "#f39c12";
-                } else {
-                    fcResult.innerText = "Fake";
-                    fcResult.style.color = "#ff4757";
-                }
-                fcConfidence.innerText = `Expert Score: ${fcRes.confidence}`;
-                fcConfVal = parseFloat(fcRes.confidence.replace('%', '')) || 0;
-            } else {
-                fcResult.innerText = "Error";
-                fcConfidence.innerText = "Search Failed";
-            }
-
-            // 3. WINNER / UNIFIED VERDICT LOGIC (Stricter & Safer Integration)
-            if (aiSuccess || fcSuccess) {
-                // Determine normalized ratings: 0 = Fake, 1 = Suspicious, 2 = Trusted
-                const aiRating = aiResult.innerText.toLowerCase().includes("real") ? 2 : (aiResult.innerText.toLowerCase().includes("fake") ? 0 : 1);
-                const fcRatingVal = fcResult.innerText.toLowerCase().includes("trusted") ? 2 : (fcResult.innerText.toLowerCase().includes("fake") ? 0 : 1);
-
-                // SAFETY RULE: If either source says it's Fake, the Unified Verdict MUST be Fake
-                if (aiRating === 0 || fcRatingVal === 0) {
-                    unifiedVerdict.innerText = "Fake News";
-                    unifiedVerdict.style.color = "#ff4757";
-                    unifiedConfidence.innerText = `Danger Detected`;
-                    winnerSource.innerText = "Source: Security Consensus";
-                }
-                // CONSERVATIVE RULE: Only show "Real News" if BOTH agree OR one is Trusted and other is not Fake
-                else if (aiRating === 2 && fcRatingVal === 2) {
-                    unifiedVerdict.innerText = "Real News";
-                    unifiedVerdict.style.color = "#2ecc71";
-                    unifiedConfidence.innerText = `High Confidence: ${Math.max(aiConfVal, fcConfVal)}%`;
-                    winnerSource.innerText = "Source: Verified Sources";
-                }
-                else {
-                    // Default to Suspicious if there is any doubt or disagreement
-                    unifiedVerdict.innerText = "Suspicious News";
-                    unifiedVerdict.style.color = "#f39c12";
-                    unifiedConfidence.innerText = (aiConfVal + fcConfVal) / 2 + "% (Unverified)";
-                    winnerSource.innerText = "Source: Mixed Evidence";
-                }
-            } else {
-                unifiedVerdict.innerText = "N/A";
-                winnerSource.innerText = "Analysis Failed";
-            }
-
-            // 4. Save history
-            const finalVerdict = aiConfVal >= fcConfVal ? (aiSuccess ? aiResult.innerText : "Error") : (fcSuccess ? fcResult.innerText : "Error");
-            const finalConfidence = aiConfVal >= fcConfVal ? (aiSuccess ? aiRes.confidence : "0%") : (fcSuccess ? fcRes.confidence : "0%");
-
-            fetch(`${API_BASE_URL}/api/admin/save_history`, {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({
-                    type: "Deep Analysis",
-                    original_input: payload.data,
-                    label: finalVerdict,
-                    confidence: finalConfidence,
-                    extracted_text: fcRes.raw_text || aiRes.raw_text || payload.data,
-                    ai_score: aiSuccess ? aiRes.confidence : null,
-                    expert_score: fcSuccess ? fcRes.confidence : null,
-                    title: fcRes.title || aiRes.title || "News Article",
-                    link: fcRes.link || aiRes.link || "N/A",
-                    subject: fcRes.subject || aiRes.subject || "General"
-                })
-            });
-
         } catch (err) {
-            console.error("Analysis Failure:", err);
-            showError("Server Connection Error!", "");
+            showError("AI Service Connection Failed", "newsText");
         } finally {
-
             window.isAnalyzing = false;
-            if (analyzeBtn) {
-                analyzeBtn.disabled = false;
-                analyzeBtn.innerHTML = '<i class="fas fa-search-plus"></i> DEEP ANALYSIS';
-            }
+            aiAnalyzeBtn.disabled = false;
+            aiAnalyzeBtn.innerHTML = '<i class="fas fa-microchip"></i> AI ANALYSIS (MODELS)';
         }
     }
 
+    async function runExpertFactCheck(payload) {
+        if (!payload) return;
+        window.isAnalyzing = true;
+
+        if (expertCheckBtn) {
+            expertCheckBtn.disabled = true;
+            expertCheckBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Web Checking...';
+        }
+
+        resultContainer.style.display = "flex";
+        fcResultCard.classList.remove("hidden");
+        fcResult.innerText = "⏳...";
+        fcConfidence.innerText = "Searching Web...";
+
+        try {
+            const res = await fetch(`${API_BASE_URL}/api/fact-check`, {
+                method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload)
+            }).then(r => r.json());
+
+            if (!res.error) {
+                const fcRating = res.rating.toLowerCase();
+                if (fcRating.includes("trusted")) {
+                    fcResult.innerText = "Verified Trusted";
+                    fcResult.style.color = "#2ecc71";
+                } else if (fcRating.includes("suspicious")) {
+                    fcResult.innerText = "Suspicious Source";
+                    fcResult.style.color = "#f39c12";
+                } else {
+                    fcResult.innerText = "Verified Fake";
+                    fcResult.style.color = "#ff4757";
+                }
+                fcConfidence.innerText = `Web Evidence Score: ${res.confidence}`;
+            } else {
+                fcResult.innerText = "Error";
+                fcConfidence.innerText = res.error;
+            }
+        } catch (err) {
+            showError("Web Service Connection Failed", "newsURL");
+        } finally {
+            window.isAnalyzing = false;
+            expertCheckBtn.disabled = false;
+            expertCheckBtn.innerHTML = '<i class="fas fa-globe"></i> EXPERT FACT-CHECK (WEB)';
+        }
+    }
 
     function getPayload() {
         const selected = document.querySelector('input[name="inputType"]:checked');
@@ -371,21 +312,25 @@ document.addEventListener('DOMContentLoaded', () => {
             data = newsURL.value.trim();
             if (!data) { showError("Please enter the news URL.", "newsURL"); return null; }
         }
-
         return { type: inputType, data: data };
-
     }
 
     // --- [ Event Listeners ] ---
-    [analyzeBtn, factCheckBtn].forEach(btn => {
-        if (btn) {
-            btn.addEventListener('click', (e) => {
-                e.preventDefault();
-                const payload = getPayload();
-                if (payload) performDeepAnalysis(payload);
-            });
-        }
-    });
+    if (aiAnalyzeBtn) {
+        aiAnalyzeBtn.addEventListener('click', (e) => {
+            e.preventDefault();
+            const payload = getPayload();
+            if (payload) runAIAnalysis(payload);
+        });
+    }
+
+    if (expertCheckBtn) {
+        expertCheckBtn.addEventListener('click', (e) => {
+            e.preventDefault();
+            const payload = getPayload();
+            if (payload) runExpertFactCheck(payload);
+        });
+    }
 
     if (refreshBtn) {
         refreshBtn.addEventListener('click', (e) => {
@@ -393,11 +338,8 @@ document.addEventListener('DOMContentLoaded', () => {
             if (newsText) newsText.value = "";
             if (newsURL) newsURL.value = "";
             resultContainer.style.display = "none";
-            [aiResultCard, fcResultCard, unifiedVerdictCard].forEach(card => card.classList.add("hidden"));
-            if (unifiedVerdict) unifiedVerdict.innerText = "";
-            if (fcReasons) fcReasons.innerHTML = "";
+            [aiResultCard, fcResultCard].forEach(card => card.classList.add("hidden"));
             clearError();
-
         });
     }
 
