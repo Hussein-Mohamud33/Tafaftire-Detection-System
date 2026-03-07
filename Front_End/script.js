@@ -193,9 +193,8 @@ document.addEventListener('DOMContentLoaded', () => {
     const aiConfidence = document.getElementById("aiConfidence");
     const fcConfidence = document.getElementById("fcConfidence");
 
-    // Independent Buttons
-    const aiAnalyzeBtn = document.getElementById("aiAnalyzeBtn");
-    const expertCheckBtn = document.getElementById("expertCheckBtn");
+    // Single Button
+    // analyzeBtn is already declared at the top, reusing it.
 
     const textInput = document.getElementById("textInput");
     const urlInput = document.getElementById("urlInput");
@@ -208,74 +207,57 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     });
 
-    async function runAIAnalysis(payload) {
+    async function performDeepAnalysis(payload) {
         if (!payload) return;
         window.isAnalyzing = true;
 
-        if (aiAnalyzeBtn) {
-            aiAnalyzeBtn.disabled = true;
-            aiAnalyzeBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> AI Processing...';
+        if (analyzeBtn) {
+            analyzeBtn.disabled = true;
+            analyzeBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Deep Scanning...';
         }
 
         resultContainer.style.display = "flex";
-        aiResultCard.classList.remove("hidden");
-        aiResult.innerText = "⏳...";
-        aiConfidence.innerText = "Loading Model...";
+        [aiResultCard, fcResultCard].forEach(card => card.classList.remove("hidden"));
 
+        [aiResult, fcResult].forEach(el => el.innerText = "⏳...");
+        [aiConfidence, fcConfidence].forEach(el => el.innerText = "Processing...");
+
+        // Trigger both in parallel but keep them independent
         try {
-            const res = await fetch(`${API_BASE_URL}/api/predict`, {
+            const aiPromise = fetch(`${API_BASE_URL}/api/predict`, {
                 method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload)
             }).then(r => r.json());
 
-            if (!res.error) {
-                const pred = res.prediction;
+            const fcPromise = fetch(`${API_BASE_URL}/api/fact-check`, {
+                method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload)
+            }).then(r => r.json());
+
+            const [aiRes, fcRes] = await Promise.all([aiPromise, fcPromise]);
+
+            // Handle AI Result
+            if (!aiRes.error) {
+                const pred = aiRes.prediction;
                 if (pred.includes("Trusted")) {
-                    aiResult.innerText = "Trusted (Real)";
+                    aiResult.innerText = "Trusted (Model)";
                     aiResult.style.color = "#2ecc71";
-                } else if (pred.includes("Suspicious") || pred.includes("Unverified")) {
+                } else if (pred.includes("Suspicious")) {
                     aiResult.innerText = "Suspicious";
                     aiResult.style.color = "#f39c12";
                 } else {
                     aiResult.innerText = "Fake News";
                     aiResult.style.color = "#ff4757";
                 }
-                aiConfidence.innerText = `Model Confidence: ${res.confidence}`;
+                aiConfidence.innerText = `Model Conf: ${aiRes.confidence}`;
             } else {
                 aiResult.innerText = "Error";
-                aiConfidence.innerText = res.error;
+                aiConfidence.innerText = aiRes.error;
             }
-        } catch (err) {
-            showError("AI Service Connection Failed", "newsText");
-        } finally {
-            window.isAnalyzing = false;
-            aiAnalyzeBtn.disabled = false;
-            aiAnalyzeBtn.innerHTML = '<i class="fas fa-microchip"></i> AI ANALYSIS (MODELS)';
-        }
-    }
 
-    async function runExpertFactCheck(payload) {
-        if (!payload) return;
-        window.isAnalyzing = true;
-
-        if (expertCheckBtn) {
-            expertCheckBtn.disabled = true;
-            expertCheckBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Web Checking...';
-        }
-
-        resultContainer.style.display = "flex";
-        fcResultCard.classList.remove("hidden");
-        fcResult.innerText = "⏳...";
-        fcConfidence.innerText = "Searching Web...";
-
-        try {
-            const res = await fetch(`${API_BASE_URL}/api/fact-check`, {
-                method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload)
-            }).then(r => r.json());
-
-            if (!res.error) {
-                const fcRating = res.rating.toLowerCase();
+            // Handle Expert Result
+            if (!fcRes.error) {
+                const fcRating = fcRes.rating.toLowerCase();
                 if (fcRating.includes("trusted")) {
-                    fcResult.innerText = "Verified Trusted";
+                    fcResult.innerText = "Verified Web";
                     fcResult.style.color = "#2ecc71";
                 } else if (fcRating.includes("suspicious")) {
                     fcResult.innerText = "Suspicious Source";
@@ -284,17 +266,21 @@ document.addEventListener('DOMContentLoaded', () => {
                     fcResult.innerText = "Verified Fake";
                     fcResult.style.color = "#ff4757";
                 }
-                fcConfidence.innerText = `Web Evidence Score: ${res.confidence}`;
+                fcConfidence.innerText = `Web Score: ${fcRes.confidence}`;
             } else {
                 fcResult.innerText = "Error";
-                fcConfidence.innerText = res.error;
+                fcConfidence.innerText = fcRes.error;
             }
+
         } catch (err) {
-            showError("Web Service Connection Failed", "newsURL");
+            console.error("Analysis Failed:", err);
+            showError("Connection Failed!", "newsText");
         } finally {
             window.isAnalyzing = false;
-            expertCheckBtn.disabled = false;
-            expertCheckBtn.innerHTML = '<i class="fas fa-globe"></i> EXPERT FACT-CHECK (WEB)';
+            if (analyzeBtn) {
+                analyzeBtn.disabled = false;
+                analyzeBtn.innerHTML = '<i class="fas fa-search-plus"></i> DEEP ANALYSIS';
+            }
         }
     }
 
@@ -316,19 +302,11 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // --- [ Event Listeners ] ---
-    if (aiAnalyzeBtn) {
-        aiAnalyzeBtn.addEventListener('click', (e) => {
+    if (analyzeBtn) {
+        analyzeBtn.addEventListener('click', (e) => {
             e.preventDefault();
             const payload = getPayload();
-            if (payload) runAIAnalysis(payload);
-        });
-    }
-
-    if (expertCheckBtn) {
-        expertCheckBtn.addEventListener('click', (e) => {
-            e.preventDefault();
-            const payload = getPayload();
-            if (payload) runExpertFactCheck(payload);
+            if (payload) performDeepAnalysis(payload);
         });
     }
 
