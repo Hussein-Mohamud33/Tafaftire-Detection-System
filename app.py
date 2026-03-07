@@ -497,6 +497,15 @@ def heuristic_fact_check(text, url=None):
     text_lower = text.lower()
     words = text.split()
     
+    # Pre-detect if source is trusted
+    is_trusted_domain = False
+    if url:
+        try:
+            extracted = tldextract.extract(url)
+            if f"{extracted.domain}.{extracted.suffix}".lower() in TRUSTED_SOURCES:
+                is_trusted_domain = True
+        except: pass
+    
     # 1. Source Reliability (URL / Domain Trust)
     if url:
         try:
@@ -576,14 +585,7 @@ def heuristic_fact_check(text, url=None):
                 score += 50
                 reasons.append("Cilad Baaris: Search fashilmay laakiin isha warka ayaa la xaqiijiyay.")
 
-    # Add source-based override to ensure trusted domains don't get 'Unverified' label easily
-    is_trusted_domain = False
-    if url:
-        try:
-            extracted = tldextract.extract(url)
-            if f"{extracted.domain}.{extracted.suffix}".lower() in TRUSTED_SOURCES:
-                is_trusted_domain = True
-        except: pass
+
 
     # Final Verdict for Expert Fact-Check
     confidence = 70 + (min(28, abs(score) * 0.15))
