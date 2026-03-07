@@ -475,200 +475,100 @@ UNTRUSTED_PATTERNS = [
 
 def heuristic_fact_check(text, url=None):
     """
-    Analyzes news credibility based on source reputation, content patterns, 
-    and live web results matching.
+    EXPERT FACT-CHECK: Strictly focuses on Source Reputation and Live Web Verification.
+    This does NOT analyze text patterns (which AI does), instead it looks for external truth.
     """
     score = 0
     reasons = []
+    text_lower = text.lower()
+    score = 0
+    reasons = []
+    text_lower = text.lower()
+    words = text.split()
     
-    # 1. Source Reliability (Max +60)
+    # 1. Source Reliability (URL / Domain Trust)
     if url:
         try:
             extracted = tldextract.extract(url)
-            # e.g. "bbc.com" or "voasomali.com"
             domain = f"{extracted.domain}.{extracted.suffix}".lower()
             
             if domain in TRUSTED_SOURCES:
-                score += 50 # Slightly reduced from 60
-                reasons.append(f"Qoraalkan wuxuu ka yimid ilo lagu kalsoon yahay ({domain}).")
+                score += 80 
+                reasons.append(f"Hubinta Isha: Qoraalkan wuxuu si toos ah uga yimid ilo lagu kalsoon yahay ({domain}).")
             else:
-                reasons.append(f"Domain-ka ({domain}) kuma jiro ilaha rasmiga ah ee la yaqaan.")
-                # Penalize suspicious extensions
                 if extracted.suffix in ["tk", "ga", "ml", "cf", "icu", "xyz", "online", "top", "pw", "bid"]:
-                    score -= 40
-                    reasons.append("Cidda iska leh URL-ka ayaa looga shakisan yahay inay faafiso dacaayad.")
-        except Exception:
-            reasons.append("URL-ka lala xiriiray falanqaynta ma aha mid caadi ah.")
+                    score -= 50
+                    reasons.append(f"Digniin Source: Domain-ka ({domain}) waxaa isticmaala ilo aan la aqoonsan oo badanaa faafiya been-abuur.")
+        except:
+            pass
 
-
-    # 2. Sensationalism & Recycled News (Max -50)
-    text_lower = text.lower()
+    # 2. Live Web Verification (Searching for Citations/Confirmations)
+    # Extract query words
+    stop_words_all = set(list(stop_words) + somali_stopwords)
+    query_words = [w for w in words if len(w) > 3 and w.lower() not in stop_words_all]
+    subjects = [w for w in words if len(w) > 3 and w[0].isupper()]
     
-    # Check for old years in supposedly new news (Updated for 2026)
-    old_years = ["2016", "2017", "2018", "2019", "2020", "2021", "2022", "2023", "2024", "2025"]
-    found_old_year = any(y in text for y in old_years)
-    if found_old_year:
-        score -= 30 
-        reasons.append("Warka waxaa ku jira taariikh hore (old years) oo looga shakiyo inuu yahay mid hore loo recycled gareeyay.")
-
-    # Check if the text is asking a question or asking to fact check
-    is_prompt = any(kw in text_lower for kw in ["fact-check", "is it true", "verify this", "runtii in", "ma dhabbaa", "xaqiiqo mise", "hubi", "waa maxay"])
-
-    # Specific danger keywords (Deep analysis)
-    danger_keywords = ["dhintey", "geeriyooday", "qarax", "shil", "dhaawacmay", "iscasilay", "xilka laga qaaday", "shut down", "banned", "killed", "attacked", "la dilay", "la xiray", "dhacdo naxdin leh"]
-    has_danger_keyword = any(kw in text_lower for kw in danger_keywords)
-
-    # Somali red flags (Increased sensitivity)
-    somali_red_flags = [
-        "war hadda soo dhacay", "naxdin", "deg deg", "ninkii", "naagtii", 
-        "mucjiso", "dawo", "lacag bilaash", "guji", "hadda daawo", 
-        "subxaanallaah", "cajiib", "yaab", "fadeexad", "sir culus", 
-        "cod qarsoodi ah", "daawo muuqaalka", "yaabka aduunka"
-    ]
-    found_red_flags = [p for p in somali_red_flags if p in text_lower]
+    danger_keywords = ["dhintey", "geeriyooday", "qarax", "shil", "dhaawacmay", "iscasilay", "xilka laga qaaday", "killed", "attacked"]
+    has_danger = any(kw in text_lower for kw in danger_keywords)
     
-    # Official / Professional keywords (Trust builders)
-    official_keywords = [
-        "wasaaradda", "afhayeenka", "golaha", "war-saxaafadeed", 
-        "shir jaraa'id", "maamulka", "booliska", "ayaa xaqiijiyay", 
-        "ayaa sheegay in", "munaasabadda", "xaafiiska", "warmurtiyeed"
-    ]
-    found_official = [p for p in official_keywords if p in text_lower]
-
-    if found_red_flags:
-        score -= 60 # Increased
-        reasons.append(f"Qoraalka waxaa ku jira erayo kicin ah ama clickbait ({', '.join(found_red_flags[:3])}).")
-    elif found_official:
-        score += 5 # Reduced from 15 (Don't reward tone too much)
-        reasons.append("Qoraalku wuxuu leeyahay qaab dhismeed rasmi ah oo muujinaya kalsooni.")
-    elif not has_danger_keyword:
-        score += 0 # Neutral tone no longer grants boost (just stays neutral)
-        reasons.append("Qoraalku waa mid dhex dhexaad ah oo aan kicin lahayn.")
-    else:
-        score -= 30 # Increased
-        reasons.append("Warkan wuxuu sheegayaa dhacdo xasaasi ah oo u baahan xaqiijin dheeraad ah.")
-
-
-    # 3. Punctuation Analysis (Sensationalism)
-    if "!!!" in text or "???" in text:
-        score -= 25
-        reasons.append("Calaamado qaylo iyo yaab ah (!!!/???) ayaa loo isticmaalay si weyn, taasoo muujinaysa kicin.")
-
-    
-    # 4. Capitalization Check (Shouting)
-    words = text.split()
-    if len(words) > 5:
-        caps_words = [w for w in words if w.isupper() and len(w) > 2]
-        if (len(caps_words) / len(words)) > 0.25:
-            score -= 20
-            reasons.append("Qoraalku wuxuu u qoran yahay far waaweyn oo dhan (Shouting), badanaa looma adeegsado wararka saxda ah.")
-
-
-    # 5. Length & Short Text Logic
-    is_short = len(words) < 25
-    if not is_short:
-        score += 5 # Reduced from 20 (don't reward just for length)
-    else:
-        score -= 15 # Increased from 10
-        reasons.append("Warku waa mid aad u gaaban, xog yar ayuuna xambaarsan yahay.")
-
-    # 6. LIVE WEB SEARCH VERIFICATION (DEEP ANALYSIS)
-    query_words = [w for w in words if len(w) > 3 and w.lower() not in somali_stopwords and w.lower() not in stop_words]
-    
-    # Extract Subjects (Capitalized words usually names/places in Somali/English)
-    subjects = [w for w in words if w[0].isupper() and len(w) > 3]
-    # Remove subjects from query words to find unique actions
-    action_words = [w for w in query_words if w.lower() not in [s.lower() for s in subjects]]
-    
-    # Priority Query: Subject + Danger Keyword
-    if subjects and has_danger_keyword:
+    if subjects and has_danger:
         query = f"{subjects[0]} {', '.join([kw for kw in danger_keywords if kw in text_lower])}"
     else:
-        query = " ".join(query_words[:10]) if query_words else text[:60]
-    
-    if not is_url(text) and len(query) > 8:
+        query = " ".join(query_words[:8]) if query_words else text[:60]
+
+    if len(query) > 10:
         live_results = search_duckduckgo_lite(query)
         if live_results:
             max_sim = 0
             found_debunk = False
             trusted_hits = []
-            trusted_links = []
-                
-            # Check for debunking globally
-            debunk_keywords = ["fake", "false", "misleading", "hoax", "fact check", "been abuur", "ma dhab baa", "been abuur ah", "been-abuur", "checked", "debunked"]
+            
+            debunk_words = ["fake", "false", "hoax", "fact check", "been abuur", "been-abuur", "checked", "debunked"]
             
             for res in live_results:
                 res_text = (res['title'] + " " + res['snippet']).lower()
-                
-                # 1. Per-Result Match Calculation
-                # How many of our query words appear in THIS specific result?
                 res_matches = sum(1 for w in query_words[:10] if w.lower() in res_text)
                 if res_matches > max_sim: max_sim = res_matches
                 
-                # 2. Trusted Source Check
+                # Check Domain of Result
                 try:
                     ext_res = tldextract.extract(res['link'])
                     res_domain = f"{ext_res.domain}.{ext_res.suffix}".lower()
                     if res_domain in TRUSTED_SOURCES and res_matches >= 6:
-                        if res_domain not in trusted_hits:
-                            trusted_hits.append(res_domain)
-                            trusted_links.append(res['link'])
+                        trusted_hits.append(res['link'])
                 except: pass
                 
-                # 3. Debunk Check in THIS result
-                res_is_debunk = any(dk in res_text for dk in debunk_keywords)
-                if res_is_debunk and res_matches >= 5:
-                     found_debunk = True
-            
+                if any(dk in res_text for dk in debunk_words) and res_matches >= 5:
+                    found_debunk = True
+
             if found_debunk:
-                score -= 150 # Absolute kill on credibility
-                reasons.append("Xog internet-ka laga helay ayaa sheegaysa in warkan hore loo beeniyay (Falsified/Debunked).")
+                score -= 150
+                reasons.append("Natiijooyinka Baaritaanka: Xog laga helay internet-ka ayaa sheegaysa in qoraalkan uu yahay been-abuur la xaqiijiyay.")
             elif trusted_hits:
-                score += 90 # High trust
-                valid_link = trusted_links[0]
-                source_name = trusted_hits[0].split('.')[0].upper()
-                link_html = f"<a href='{valid_link}' target='_blank' style='color:#3b82f6; font-weight:bold;'>{source_name}</a>"
-                reasons.append(f"Xaqiiqada warkan waxaa laga helay ilo caalami ah oo sugan: {link_html}.")
+                score += 100
+                source_link = trusted_hits[0]
+                reasons.append(f"Xog Run Ah: Warkan waxaa lagu tebiyay ilo caalami ah oo sugan. <a href='{source_link}' target='_blank'>Riix halkan si aad u eegto</a>.")
             elif max_sim >= 8:
-                score += 50
-                reasons.append("Internet-ka waxaa laga helay xog badan oo u dhiganta warka aad soo gudbisay.")
-            elif is_prompt:
+                score += 60
+                reasons.append("Baaris Web: Waxaa la helay xog badan oo u dhiganta warka aad soo gudbisay, taas oo kor u qaadaysa kalsoonida.")
+            elif has_danger and max_sim < 4:
                 score -= 120
-                reasons.append("Su'aashaas ama sheegashadaas lagama helin xog sugan oo caalami ah (UNVERIFIED).")
-            else:
-                if has_danger_keyword:
-                    score -= 150 # Even stricter for dangerous news
-                    reasons.append("Dhacdo xasaasi ah (Danger/Death) oo aan haba yaraatee lagu tebin ilaha rasmiga ah (VERY SUSPICIOUS).")
-                elif max_sim < 5:
-                    score -= 90
-                    reasons.append("Markii la baaray internet-ka, laguma helin xog ku filan oo xaqiijinaysa warkan (Xog La'aan).")
-                else:
-                    score -= 60
-                    reasons.append("Natiijooyinka la helay ma aha kuwo xooggan oo xaqiijin kara sheegashadaan.")
+                reasons.append("Digniin: Dhacdo xasaasi ah (Danger/Death) laguma tebin ilaha rasmiga ah ee internet-ka (None Found).")
+            elif max_sim < 4:
+                score -= 70
+                reasons.append("Xog La'aan: Markii la baaray internet-ka, laguma helin natiijooyin xaqiijinaya warkaan (No citations found).")
         else:
             score -= 100
-            reasons.append("Wax xog ah oo ku saabsan warkan lagama helin internet-ka (None Found).")
+            reasons.append("Cilad Baaris: Wax xog ah lagama helin internet-ka oo ku saabsan nuxurka qoraalkan.")
 
-    # Determine Rating & Confidence
-    confidence = 60 + (abs(score) * 0.45)
-    if confidence > 98: confidence = 98
-
-    # MUCH STRICTER THRESHOLDS
-    if score >= 85 and not is_prompt: # Increased from 60 to 85
+    # Final Verdict for Expert Fact-Check
+    confidence = 70 + (min(28, abs(score) * 0.15))
+    if score >= 60:
         rating = "Trusted"
-    elif score < -15 or (has_danger_keyword and score <= 10) or (is_prompt and score < 10): 
-        rating = "Fake Information" 
-        confidence = max(88, confidence)
-    elif score < 50: # Increased from 40
-        rating = "Suspicious" 
-        confidence = max(80, confidence)
+    elif score < -30:
+        rating = "Fake Information"
     else:
-        rating = "Unverified"
-        if is_short or "Live Search laguma helin" in str(reasons):
-             rating = "Suspicious" 
-             confidence = max(75, confidence)
-        else:
-             confidence = max(60, confidence - 5)
+        rating = "Suspicious"
 
     return {
         "rating": rating,
@@ -757,34 +657,44 @@ def predict():
         X_dense = X.toarray()
         X = np.hstack([X_dense, np.array([[ext, vague]])])
 
-        # ================= AI Decision Logic (Pure AI) =================
-        # rely only on the trained models as requested by the user
-        score = model.decision_function(X)[0] if hasattr(model, "decision_function") else 0
-        trust_boost = 0.0 # Set to zero as AI and Fact-Check are now independent
+        # ================= AI Decision Logic (Models + Patterns) =================
+        # 1. AI Model Score (Training Data)
+        ai_score_val = model.decision_function(X)[0] if hasattr(model, "decision_function") else 0
         
-        print(f"[*] AI SCAN - Model Score: {score:.2f}")
+        # 2. Text Pattern Heuristics (Hand-coded rules for AI side)
+        pattern_penalty = 0
+        text_lower = content.lower()
+        
+        # Sensationalism & Older news patterns
+        if any(y in content for y in ["2016", "2017", "2018", "2019", "2020", "2021", "2022"]):
+            pattern_penalty += 1.5
+        if "!!!" in content or "???" in content:
+            pattern_penalty += 1.0
+        
+        # Shouting (ALL CAPS)
+        words = content.split()
+        if len(words) > 5 and sum(1 for w in words if w.isupper() and len(w) > 2) / len(words) > 0.3:
+            pattern_penalty += 1.2
+            
+        final_ai_score = ai_score_val - pattern_penalty
+        
+        print(f"[*] AI SCAN - Model: {ai_score_val:.2f}, Patterns: -{pattern_penalty:.2f}, Final: {final_ai_score:.2f}")
 
         # Sigmoid function for confidence
-        confidence_val = (1 / (1 + np.exp(-abs(score * 0.8)))) * 100
+        confidence_val = (1 / (1 + np.exp(-abs(final_ai_score * 0.8)))) * 100
         confidence_val = min(98.5, max(75.0, confidence_val))
         
-        # VERDICT LOGIC (Stricter based only on AI Model)
-        if score > 1.2:
+        # AI Verdict
+        if final_ai_score > 1.2:
             result = "Trusted"
-        elif score < -1.0:
+        elif final_ai_score < -0.8:
             result = "Fake Information"
-        elif score < 0.2:
-            result = "Suspicious"
         else:
-            result = "Unverified"
+            result = "Suspicious"
 
-        # Final check for high-certainty model flags
-        if score < -2.5:
-             result = "Fake Information"
-             confidence_val = max(94, confidence_val)
-        elif score > 2.5:
-             result = "Trusted"
-             confidence_val = max(94, confidence_val)
+        # High-Certainty AI Overrides
+        if ai_score_val < -2.5: result = "Fake Information"
+        if ai_score_val > 2.5: result = "Trusted"
 
         # ================= Save to History (Non-blocking) =================
         try:
@@ -806,8 +716,8 @@ def predict():
         return jsonify({
             "prediction": result, 
             "confidence": f"{round(float(confidence_val), 2)}%",
-            "ai_score": float(round(float(score), 2)),
-            "expert_score": float(round(float(trust_boost), 2)),
+            "ai_score": float(round(float(ai_score_val), 2)),
+            "expert_score": 0.0,
             "raw_text": content,
             "title": page_title,
             "link": input_url if input_url else "N/A",
