@@ -272,7 +272,9 @@ somali_stopwords = [
     "ilaa", "wax", "kale", "mar", "markii", "la", "si", "aad", "eeg", "ayaa",
     "ayay", "kuwa", "kuwaas", "kuwan", "kaas", "kan", "kuwaa", "loo", "loona",
     "yahay", "yihiin", "ahayd", "ahaa", "noqday", "noqon", "leh", "leeyihiin",
-    "kala", "hore", "danbe", "dhammaan", "kasta", "badnaa", "yar", "weyn"
+    "kala", "hore", "danbe", "dhammaan", "kasta", "badnaa", "yar", "weyn",
+    "oo", "kale", "jira", "jiray", "ilaa", "halkan", "halkaas", "mid", "kaliya",
+    "isla", "markaana", "ahaana", "ahaanna", "hadda", "horey", "sheegay", "sheegtay"
 ]
 stop_words.update(somali_stopwords)
 lemmatizer = WordNetLemmatizer()
@@ -481,9 +483,6 @@ def heuristic_fact_check(text, url=None):
     score = 0
     reasons = []
     text_lower = text.lower()
-    score = 0
-    reasons = []
-    text_lower = text.lower()
     words = text.split()
     
     # 1. Source Reliability (URL / Domain Trust)
@@ -674,6 +673,9 @@ def predict():
         if len(words) > 5 and sum(1 for w in words if w.isupper() and len(w) > 2) / len(words) > 0.3:
             pattern_penalty += 1.2
             
+        if len(content.split()) < 10:
+             pattern_penalty += 3.0 # Strong penalty for very short "nuqul" text
+
         final_ai_score = ai_score_val - pattern_penalty
         
         print(f"[*] AI SCAN - Model: {ai_score_val:.2f}, Patterns: -{pattern_penalty:.2f}, Final: {final_ai_score:.2f}")
@@ -682,17 +684,14 @@ def predict():
         confidence_val = (1 / (1 + np.exp(-abs(final_ai_score * 0.8)))) * 100
         confidence_val = min(98.5, max(75.0, confidence_val))
         
-        # AI Verdict
-        if final_ai_score > 1.2:
+        # AI Verdict (Optimized for high-accuracy SVM decision boundary)
+        if final_ai_score > 0.4:
             result = "Real News"
-        elif final_ai_score < -0.8:
+        elif final_ai_score < -0.4:
             result = "Fake news"
         else:
-            result = "Fake news" # Mapping Suspicious to Fake as per user's strict list
-
-        # High-Certainty AI Overrides
-        if ai_score_val < -2.5: result = "Fake news"
-        if ai_score_val > 2.5: result = "Real News"
+            # Fallback for borderline cases - use model's raw sign for a "strong" decision
+            result = "Real News" if ai_score_val > 0 else "Fake news"
 
         # ================= Save to History (Non-blocking) =================
         try:
@@ -773,11 +772,14 @@ def fact_check():
         fact_result["subject"] = guess_subject(content)
         
         # Somali Labels
+        rating_str = fact_result.get("rating", "unverified").lower()
+        somali_label = "Lama xaqiijin"
+        
         if "trusted" in rating_str: 
             somali_label = "War Rasmi ah"
         elif "fake" in rating_str:
             somali_label = "War Been Abuur Ah"
-        elif "suspicious" in rating_str or "unverified" in rating_str: 
+        else:
             somali_label = "Lama xaqiijin"
 
         # ================= Save to History (Non-blocking) =================
