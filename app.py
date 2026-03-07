@@ -448,7 +448,9 @@ except Exception as e:
     exit(1)
 
 # ================= HEURISTIC FACT CHECKER =================
-TRUSTED_SOURCES = [
+import tldextract
+
+TRUSTED_SOURCES = {
     "bbc.com", "voasomali.com", "goobjoog.com", 
     "garoweonline.com", "somalistream.com", "somnn.com", 
     "somaliglobe.net", "sntv.so", "sonna.so", "hiiraan.com",
@@ -457,7 +459,7 @@ TRUSTED_SOURCES = [
     "daljir.com", "puntlandpost.net", "horseedmedia.net",
     "radioergo.org", "aljazeera.com", "reuters.com", "apnews.com",
     "nytimes.com", "cnn.com", "theguardian.com", "standardmedia.co.ke"
-]
+}
 
 UNTRUSTED_PATTERNS = [
     "shidan", "dawo mucjiso ah", "lacag bilaash ah", 
@@ -479,25 +481,22 @@ def heuristic_fact_check(text, url=None):
     
     # 1. Source Reliability (Max +60)
     if url:
-        url_lower = url.lower()
-        clean_url = re.sub(r'^https?://(www\.)?', '', url_lower)
-        
-        found_trusted = False
-        for trusted in TRUSTED_SOURCES:
-            if trusted in clean_url:
-                found_trusted = True
-                score += 60
-                reasons.append(f"The news source ({trusted}) is highly trusted.")
-                break
-
-        
-        if not found_trusted:
-            reasons.append("The news source (Domain) is not among known official sources.")
-
-            # Penalize slightly for suspicious domains (e.g., .tk, .ga, .icu)
-            if any(ext in clean_url for ext in [".tk", ".ga", ".ml", ".cf", ".icu", ".xyz"]):
-                score -= 30
-                reasons.append("The domain used for this news (xyz/tk/ml) is often used for fake news.")
+        try:
+            extracted = tldextract.extract(url)
+            # e.g. "bbc.com" or "voasomali.com"
+            domain = f"{extracted.domain}.{extracted.suffix}".lower()
+            
+            if domain in TRUSTED_SOURCES:
+                score += 50 # Slightly reduced from 60
+                reasons.append(f"Qoraalkan wuxuu ka yimid ilo lagu kalsoon yahay ({domain}).")
+            else:
+                reasons.append(f"Domain-ka ({domain}) kuma jiro ilaha rasmiga ah ee la yaqaan.")
+                # Penalize suspicious extensions
+                if extracted.suffix in ["tk", "ga", "ml", "cf", "icu", "xyz", "online", "top", "pw", "bid"]:
+                    score -= 40
+                    reasons.append("Cidda iska leh URL-ka ayaa looga shakisan yahay inay faafiso dacaayad.")
+        except Exception:
+            reasons.append("URL-ka lala xiriiray falanqaynta ma aha mid caadi ah.")
 
 
     # 2. Sensationalism & Recycled News (Max -50)
@@ -535,17 +534,17 @@ def heuristic_fact_check(text, url=None):
     found_official = [p for p in official_keywords if p in text_lower]
 
     if found_red_flags:
-        score -= 45
-        reasons.append(f"Qoraalka waxaa ku jira erayo kicin ah oo lagu yaqaano wararka been abuurka ah ({', '.join(found_red_flags[:3])}).")
+        score -= 60 # Increased
+        reasons.append(f"Qoraalka waxaa ku jira erayo kicin ah ama clickbait ({', '.join(found_red_flags[:3])}).")
     elif found_official:
-        score += 25
-        reasons.append("Qoraalku wuxuu u muuqdaa mid leh qaab dhismeed rasmi ah (Professional Tone).")
+        score += 5 # Reduced from 15 (Don't reward tone too much)
+        reasons.append("Qoraalku wuxuu leeyahay qaab dhismeed rasmi ah oo muujinaya kalsooni.")
     elif not has_danger_keyword:
-        score += 15
-        reasons.append("Qoraalku ma lahan erayo kicin ah ama dareen xambaarsan (Neutral Tone).")
+        score += 0 # Neutral tone no longer grants boost (just stays neutral)
+        reasons.append("Qoraalku waa mid dhex dhexaad ah oo aan kicin lahayn.")
     else:
-        score -= 15
-        reasons.append("Warkan wuxuu xambaarsan yahay xog xasaasi ah oo u baahan cadayn dheeraad ah.")
+        score -= 30 # Increased
+        reasons.append("Warkan wuxuu sheegayaa dhacdo xasaasi ah oo u baahan xaqiijin dheeraad ah.")
 
 
     # 3. Punctuation Analysis (Sensationalism)
@@ -564,12 +563,11 @@ def heuristic_fact_check(text, url=None):
 
 
     # 5. Length & Short Text Logic
-    is_short = len(words) < 30
+    is_short = len(words) < 25
     if not is_short:
-        score += 20
-        reasons.append("Warbixintu waa mid faahfaahsan oo u muuqata mid loo soo diyaariyay si wanaagsan.")
+        score += 5 # Reduced from 20 (don't reward just for length)
     else:
-        score -= 10
+        score -= 15 # Increased from 10
         reasons.append("Warku waa mid aad u gaaban, xog yar ayuuna xambaarsan yahay.")
 
     # 6. LIVE WEB SEARCH VERIFICATION (MOST IMPORTANT)
@@ -589,71 +587,69 @@ def heuristic_fact_check(text, url=None):
                 # Dynamic matching based on keywords
                 match_count = sum(1 for w in query_words[:12] if w.lower() in live_context_lower)
                 
-                # Check if trusted sources reported it
+                # Check if trusted sources reported it (Secure check)
                 trusted_hits = []
                 trusted_links = []
                 for res_item in live_results:
-                    res_snippet = res_item['snippet'].lower()
+                    res_snippet_low = res_item['snippet'].lower()
                     res_link = res_item['link'].lower()
                     
-                    for t in TRUSTED_SOURCES:
-                        t_domain = t.split('.')[0]
-                        if t in res_link or (t_domain in res_snippet and len(t_domain) > 3): 
-                             if t not in trusted_hits:
-                                  trusted_hits.append(t)
-                                  if res_item['link']:
-                                      trusted_links.append(res_item['link'])
+                    try:
+                        ext_res = tldextract.extract(res_link)
+                        res_domain = f"{ext_res.domain}.{ext_res.suffix}".lower()
+                        if res_domain in TRUSTED_SOURCES:
+                            if res_domain not in trusted_hits:
+                                trusted_hits.append(res_domain)
+                                trusted_links.append(res_item['link'])
+                    except:
+                        continue
                 
                 # Check for debunking keywords in search results
-                debunk_keywords = ["fake", "false", "misleading", "hoax", "fact check", "been abuur", "ma dhab baa", "been abuur ah", "been-abuur"]
+                debunk_keywords = ["fake", "false", "misleading", "hoax", "fact check", "been abuur", "ma dhab baa", "been abuur ah", "been-abuur", "checked", "debunked"]
                 found_debunk = any(dk in live_context_lower for dk in debunk_keywords)
                 
-                if trusted_hits:
-                    score += 85 # Increased boost
+                # Logic: If fact-checking/debunking is found, it's a huge RED FLAG
+                if found_debunk:
+                    score -= 100 # Heavy penalty regardless of trusted hits
+                    reasons.append("Internet-ka waxaa laga helay xog muujinaysa in warkan uu yahay mid la beeniyay ama laga shakisan yahay.")
+                
+                if trusted_hits and not found_debunk:
+                    score += 85 
                     valid_link = trusted_links[0] if trusted_links else "#"
                     source_name = trusted_hits[0].split('.')[0].upper()
                     link_html = f"<a href='{valid_link}' target='_blank' style='color:#3b82f6; text-decoration:underline;'>{source_name}</a>"
                     reasons.append(f"Xogtaan waxaa si rasmi ah u xaqiijiyay ilo lagu kalsoon yahay: {link_html}.")
-                    if found_debunk:
-                        score -= 20 # Deduct a bit if it's a fact-check article (it might be confirming it's fake)
-                        reasons.append("Fiiro gaar ah: Natiijooyinka waxaa ku jira qoraallo sheegaya baaritaan xaqiiqo (Fact Check).")
-                elif found_debunk:
-                    score -= 75
-                    reasons.append("Internet-ka waxaa laga helay xog muujinaysa in warkaan uu yahay been abuur (Debunked/Fake).")
-                elif match_count >= 8:
-                    score += 45
-                    reasons.append(f"Warkan waxaa si isku mid ah u tebiyay shabakado badan oo internet-ka ah.")
-                elif has_danger_keyword and match_count >= 5:
-                    score += 30
-                    reasons.append(f"Dhacdadaan xasaasiga ah waxaa jira xog dhinacyo kala duwan leh oo internet-ka laga helay.")
+                elif match_count >= 10: # Increased threshold
+                    score += 40
+                    reasons.append(f"Warkan waxaa si isku mid ah u tebiyay ilo badan, laakiin majiraan ilo caalami ah.")
                 elif is_prompt:
-                    score -= 90
-                    reasons.append("Xogta aad soo weydiisay lagama helin internet-ka (Waa macluumaad aan jirin ama laga shakisan yahay).")
+                    score -= 100
+                    reasons.append("Sheegashooyinkan laguma helin xog ku filan oo lagu aamino.")
                 else:
                     if has_danger_keyword:
-                        score -= 95
-                        reasons.append("Warka oo sheeganaya dhacdo weyn (Danger) LAMA HELIN gabi ahaanba internet-ka (Red Flag: False Claim).")
-                    elif match_count < 4:
-                        score -= 55
-                        reasons.append("Baaritaan toos ah (Live Search) laguma helin xog ku filan oo xaqiijinaysa sheegashadan.")
+                        score -= 120 # Increased
+                        reasons.append("Dhacdo xasaasi ah (Dangerous Event) oo aan internet-ka laga helayn waa Red Flag weyn.")
+                    elif match_count < 6: 
+                        score -= 75
+                        reasons.append("Baaritaan toos ah laguma helin xog dhab ah oo xaqiijinaysa warkan.")
                     else:
-                        score -= 30
-                        reasons.append("Natiijooyinka internet-ka ma aha kuwo xooggan oo lagu aamini karo xaqiiqada warkan.")
+                        score -= 50
+                        reasons.append("Xogta internet-ka laga helay kuma filna in lagu aamino xaqiiqada warkan.")
             else:
-                 score -= 20
-                 reasons.append("Natiijooyinka internet-ka kama jawaabayaan warkan (No data found).")
+                 score -= 80 # Increased penalty
+                 reasons.append("Internet-ka maba laga helin xog xitaa ka hadlaysa sheegashadan (Non-existent Claim).")
 
     # Determine Rating & Confidence
     confidence = 60 + (abs(score) * 0.45)
     if confidence > 98: confidence = 98
 
     # MUCH STRICTER THRESHOLDS
-    if score >= 60 and not is_prompt: # Increased from 55 to 60 for higher accuracy
+    if score >= 85 and not is_prompt: # Increased from 60 to 85
         rating = "Trusted"
-    elif score < -10 or (has_danger_keyword and score <= 20) or (is_prompt and score < 15): 
-        rating = "Fake Information" # Change "Suspicious" to "Fake Information" for very low scores
-        confidence = max(85, confidence)
-    elif score < 40:
+    elif score < -15 or (has_danger_keyword and score <= 10) or (is_prompt and score < 10): 
+        rating = "Fake Information" 
+        confidence = max(88, confidence)
+    elif score < 50: # Increased from 40
         rating = "Suspicious" 
         confidence = max(80, confidence)
     else:
@@ -772,28 +768,33 @@ def predict():
                 trust_boost -= 1.0
 
         # Final Combined Score (Hybrid Verdict)
-        # Weighted blend: AI (60%) + Heuristics (40%)
-        final_score = (score * 1.2) + (trust_boost * 0.8)
+        # Weighting: AI (65%) + Heuristics (35%)
+        # If AI is extremely positive but Heuristics is negative, AI gets suppressed
+        if score > 1.0 and h_score_raw < -20:
+            final_score = (score * 0.8) + (trust_boost * 1.2)
+        else:
+            final_score = (score * 1.4) + (trust_boost * 0.6)
         
         print(f"[*] DEEP SCAN - AI: {score:.2f}, Heuristic Boost: {trust_boost:.2f}, Raw H-Score: {h_score_raw}, Final: {final_score:.2f}")
 
         # Sigmoid function for confidence
-        # We use a slightly sharper sigmoid for better separation
         confidence_val = (1 / (1 + np.exp(-abs(final_score * 0.8)))) * 100
-        confidence_val = min(99.0, max(75.0, confidence_val))
+        confidence_val = min(98.5, max(75.0, confidence_val))
         
-        # VERDICT LOGIC
-        # Threshold: 1.0 is enough for Trusted if both agree, but usually needs a bit more
-        if final_score > 1.2:
+        # VERDICT LOGIC (MUCH STRICKTER)
+        if final_score > 2.8: # Increased from 2.2
             result = "Trusted"
-        elif final_score < -0.8:
+        elif final_score < -0.5: # Lowered from -1.0 to catch more fake info
             result = "Fake Information"
         else:
-            # Neutral zone - default to Fake if AI is suspicious, or Suspicious if slightly positive
-            if score < 0 or h_score_raw < 0:
+            # Neutral zone
+            if score < -0.1 or h_score_raw < 5:
                 result = "Fake Information"
+            elif final_score > 1.2:
+                result = "Suspicious" 
             else:
-                result = "Suspicious" # "Lama xaqiijin" style
+                # Default to suspicious if we aren't highly confident in "Trusted"
+                result = "Suspicious"
 
         # Override for high-certainty AI
         if score < -2.5:
