@@ -451,9 +451,12 @@ except Exception as e:
 TRUSTED_SOURCES = [
     "bbc.com", "voasomali.com", "goobjoog.com", 
     "garoweonline.com", "somalistream.com", "somnn.com", 
-    "somaliglobe.net", "sntv.so", "sonna.so",
+    "somaliglobe.net", "sntv.so", "sonna.so", "hiiraan.com",
+    "caasimada.net", "jowhar.com", "warsheekh.com",
+    "puntlandtimes.ca", "radiomuqdisho.net",
     "daljir.com", "puntlandpost.net", "horseedmedia.net",
-    "radioergo.org", "aljazeera.com", "reuters.com", "apnews.com"
+    "radioergo.org", "aljazeera.com", "reuters.com", "apnews.com",
+    "nytimes.com", "cnn.com", "theguardian.com", "standardmedia.co.ke"
 ]
 
 UNTRUSTED_PATTERNS = [
@@ -461,7 +464,9 @@ UNTRUSTED_PATTERNS = [
     "guji halkan", "win iphone", "naxdin", "nin yaaban",
     "naag yaaban", "subxaanallaah", "yaabka aduunka", "arrin lala yaabo",
     "qarax cusub", "war hadda soo dhacay", "daawasho naxdin leh",
-    "daawo video-ga", "mucjisooyin", "yaab", "cajiib"
+    "daawo video-ga", "mucjisooyin", "yaab", "cajiib",
+    "cod qarsoodi ah", "sir culus", "fadeexad", "looma quudho",
+    "dawo kasta", "lacag fudud", "halkan ka gal", "share dheh"
 ]
 
 def heuristic_fact_check(text, url=None):
@@ -498,12 +503,12 @@ def heuristic_fact_check(text, url=None):
     # 2. Sensationalism & Recycled News (Max -50)
     text_lower = text.lower()
     
-    # Check for old years in supposedly new news
-    old_years = ["2016", "2017", "2018", "2019", "2020", "2021", "2022"]
+    # Check for old years in supposedly new news (Updated for 2026)
+    old_years = ["2016", "2017", "2018", "2019", "2020", "2021", "2022", "2023", "2024", "2025"]
     found_old_year = any(y in text for y in old_years)
     if found_old_year:
-        score -= 25
-        reasons.append("Warka waxaa ku jira taariikh hore oo looga shakiyo inuu yahay mid hore loo recycled gareeyay.")
+        score -= 30 
+        reasons.append("Warka waxaa ku jira taariikh hore (old years) oo looga shakiyo inuu yahay mid hore loo recycled gareeyay.")
 
     # Check if the text is asking a question or asking to fact check
     is_prompt = any(kw in text_lower for kw in ["fact-check", "is it true", "verify this", "runtii in", "ma dhabbaa", "xaqiiqo mise", "hubi", "waa maxay"])
@@ -513,11 +518,20 @@ def heuristic_fact_check(text, url=None):
     has_danger_keyword = any(kw in text_lower for kw in danger_keywords)
 
     # Somali red flags (Increased sensitivity)
-    somali_red_flags = ["war hadda soo dhacay", "naxdin", "deg deg", "ninkii", "naagtii", "mucjiso", "dawo", "lacag bilaash", "guji", "hadda daawo", "subxaanallaah", "cajiib", "yaab"]
+    somali_red_flags = [
+        "war hadda soo dhacay", "naxdin", "deg deg", "ninkii", "naagtii", 
+        "mucjiso", "dawo", "lacag bilaash", "guji", "hadda daawo", 
+        "subxaanallaah", "cajiib", "yaab", "fadeexad", "sir culus", 
+        "cod qarsoodi ah", "daawo muuqaalka", "yaabka aduunka"
+    ]
     found_red_flags = [p for p in somali_red_flags if p in text_lower]
     
     # Official / Professional keywords (Trust builders)
-    official_keywords = ["wasaaradda", "afhayeenka", "golaha", "war-saxaafadeed", "shir jaraa'id", "maamulka", "booliska", "ayaa xaqiijiyay", "ayaa sheegay in", "munaasabadda"]
+    official_keywords = [
+        "wasaaradda", "afhayeenka", "golaha", "war-saxaafadeed", 
+        "shir jaraa'id", "maamulka", "booliska", "ayaa xaqiijiyay", 
+        "ayaa sheegay in", "munaasabadda", "xaafiiska", "warmurtiyeed"
+    ]
     found_official = [p for p in official_keywords if p in text_lower]
 
     if found_red_flags:
@@ -590,12 +604,22 @@ def heuristic_fact_check(text, url=None):
                                   if res_item['link']:
                                       trusted_links.append(res_item['link'])
                 
+                # Check for debunking keywords in search results
+                debunk_keywords = ["fake", "false", "misleading", "hoax", "fact check", "been abuur", "ma dhab baa", "been abuur ah", "been-abuur"]
+                found_debunk = any(dk in live_context_lower for dk in debunk_keywords)
+                
                 if trusted_hits:
-                    score += 80 # Massive boost
+                    score += 85 # Increased boost
                     valid_link = trusted_links[0] if trusted_links else "#"
                     source_name = trusted_hits[0].split('.')[0].upper()
                     link_html = f"<a href='{valid_link}' target='_blank' style='color:#3b82f6; text-decoration:underline;'>{source_name}</a>"
                     reasons.append(f"Xogtaan waxaa si rasmi ah u xaqiijiyay ilo lagu kalsoon yahay: {link_html}.")
+                    if found_debunk:
+                        score -= 20 # Deduct a bit if it's a fact-check article (it might be confirming it's fake)
+                        reasons.append("Fiiro gaar ah: Natiijooyinka waxaa ku jira qoraallo sheegaya baaritaan xaqiiqo (Fact Check).")
+                elif found_debunk:
+                    score -= 75
+                    reasons.append("Internet-ka waxaa laga helay xog muujinaysa in warkaan uu yahay been abuur (Debunked/Fake).")
                 elif match_count >= 8:
                     score += 45
                     reasons.append(f"Warkan waxaa si isku mid ah u tebiyay shabakado badan oo internet-ka ah.")
@@ -603,17 +627,17 @@ def heuristic_fact_check(text, url=None):
                     score += 30
                     reasons.append(f"Dhacdadaan xasaasiga ah waxaa jira xog dhinacyo kala duwan leh oo internet-ka laga helay.")
                 elif is_prompt:
-                    score -= 85
-                    reasons.append("Xogta aad soo weydiisay lagama helin internet-ka (Waa macluumaad aan jirin).")
+                    score -= 90
+                    reasons.append("Xogta aad soo weydiisay lagama helin internet-ka (Waa macluumaad aan jirin ama laga shakisan yahay).")
                 else:
                     if has_danger_keyword:
-                        score -= 90
-                        reasons.append("Warka oo sheeganaya dhacdo weyn LAMA HELIN gabi ahaanba internet-ka (Red Flag: False Claim).")
+                        score -= 95
+                        reasons.append("Warka oo sheeganaya dhacdo weyn (Danger) LAMA HELIN gabi ahaanba internet-ka (Red Flag: False Claim).")
                     elif match_count < 4:
-                        score -= 50
+                        score -= 55
                         reasons.append("Baaritaan toos ah (Live Search) laguma helin xog ku filan oo xaqiijinaysa sheegashadan.")
                     else:
-                        score -= 25
+                        score -= 30
                         reasons.append("Natiijooyinka internet-ka ma aha kuwo xooggan oo lagu aamini karo xaqiiqada warkan.")
             else:
                  score -= 20
@@ -624,16 +648,19 @@ def heuristic_fact_check(text, url=None):
     if confidence > 98: confidence = 98
 
     # MUCH STRICTER THRESHOLDS
-    if score >= 55 and not is_prompt: # Increased from 35 to 55
+    if score >= 60 and not is_prompt: # Increased from 55 to 60 for higher accuracy
         rating = "Trusted"
-    elif score < 0 or (has_danger_keyword and score <= 30) or (is_prompt and score < 20): 
+    elif score < -10 or (has_danger_keyword and score <= 20) or (is_prompt and score < 15): 
+        rating = "Fake Information" # Change "Suspicious" to "Fake Information" for very low scores
+        confidence = max(85, confidence)
+    elif score < 40:
         rating = "Suspicious" 
-        confidence = max(88, confidence) # Higher conviction
+        confidence = max(80, confidence)
     else:
         rating = "Unverified"
         if is_short or "Live Search laguma helin" in str(reasons):
              rating = "Suspicious" 
-             confidence = max(80, confidence)
+             confidence = max(75, confidence)
         else:
              confidence = max(60, confidence - 5)
 
@@ -857,8 +884,12 @@ def fact_check():
         # Somali Labels
         rating_str = fact_result["rating"].lower()
         somali_label = "Lama xaqiijin"
-        if "trusted" in rating_str: somali_label = "War Rasmi ah"
-        elif "suspicious" in rating_str: somali_label = "Shaki Baa Ku Jira"
+        if "trusted" in rating_str: 
+            somali_label = "War Rasmi ah"
+        elif "fake" in rating_str:
+            somali_label = "War Been Abuur Ah"
+        elif "suspicious" in rating_str: 
+            somali_label = "Shaki Baa Ku Jira"
 
         # ================= Save to History (Non-blocking) =================
         try:
