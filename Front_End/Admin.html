@@ -896,8 +896,8 @@
                 const nameSnippet = originalInput.length > 50 ? originalInput.substring(0, 50) + "..." : (originalInput || "Unknown");
 
                 const labelStr = (item.label || "").toUpperCase();
-                const isReal = labelStr.includes('TRUSTED') || labelStr.includes('RASMI') || labelStr.includes('REAL');
-                const isFake = labelStr.includes('FAKE') || labelStr.includes('BEEN') || labelStr.includes('UNVERIFIED');
+                const isReal = labelStr.includes('TRUSTED') || labelStr.includes('RASMI') || labelStr.includes('REAL') || labelStr.includes('SAX');
+                const isFake = labelStr.includes('FAKE') || labelStr.includes('BEEN') || labelStr.includes('ABUUR') || labelStr.includes('UNVERIFIED');
 
                 const badgeColor = isReal ? '#10b981' : (isFake ? '#ef4444' : '#f59e0b');
                 const badgeBg = isReal ? 'rgba(16,185,129,0.1)' : (isFake ? 'rgba(239,68,68,0.1)' : 'rgba(245,158,11,0.1)');
