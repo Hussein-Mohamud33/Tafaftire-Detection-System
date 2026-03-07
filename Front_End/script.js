@@ -1,5 +1,4 @@
-const API_BASE_URL = window.location.origin;
-
+const API_BASE_URL = 'https://tafaftire-detection-system.onrender.com';
 window.isAnalyzing = false;
 
 window.addEventListener('beforeunload', (e) => {
@@ -920,4 +919,5 @@ document.addEventListener('DOMContentLoaded', () => {
     window.addEventListener('hashchange', handleRouting);
     handleRouting();
 });
+
 
