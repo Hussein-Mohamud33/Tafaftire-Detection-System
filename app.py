@@ -60,7 +60,48 @@ for legacy_file in ["stats.json", "analysis_history.txt", "contacts.txt"]:
         except:
             pass
 
+# ================= HISTORY & DATASET =================
 def save_analysis_result(original_input, confidence, label, extracted_text=None, data_type="AI Analysis", ai_score=None, expert_score=None, title="N/A", link="N/A", subject="General"):
+    """
+    Saves the analyzed result to the analysis_history.json file.
+    Only saves ONE result (the best one) to the history based on the new request.
+    """
+    try:
+        new_entry = {
+            "id": int(time.time() * 1000),
+            "date": time.strftime("%Y-%m-%d %H:%M:%S"),
+            "original_input": original_input,
+            "extracted_text": extracted_text[:2000] if extracted_text else "N/A",
+            "label": label,
+            "confidence": confidence,
+            "data_type": data_type,
+            "ai_score": ai_score,
+            "expert_score": expert_score,
+            "title": title,
+            "link": link,
+            "subject": subject
+        }
+
+        # Keep only the last 500 records to save space
+        history = []
+        if os.path.exists(ANALYSIS_HISTORY_FILE):
+            try:
+                with open(ANALYSIS_HISTORY_FILE, "r", encoding="utf-8") as f:
+                    content = f.read()
+                    if content:
+                        history = json.loads(content)
+            except:
+                history = []
+        
+        history.insert(0, new_entry)
+        history = history[:500]
+        
+        with open(ANALYSIS_HISTORY_FILE, "w", encoding="utf-8") as f:
+            json.dump(history, f, indent=4)
+        
+        print(f"[✅] History Saved: {label} ({confidence})")
+    except Exception as e:
+        print(f"[!] Warning: History saving failed: {e}")
     try:
         # 1. Normalize input
         clean_input = str(original_input).strip() if original_input else ""
@@ -639,7 +680,8 @@ def predict():
 
 
         content = str(content).strip()
-
+        raw_user_input = content # Save exactly what was entered
+        
         input_type = data.get("type", "text")
         input_url = None
         
@@ -737,21 +779,22 @@ def predict():
             result = "Real News" if final_ai_score > 0 else "Fake news"
 
         # ================= Save to History (Non-blocking) =================
-        try:
-            save_analysis_result(
-                original_input=content,
-                confidence=f"{round(float(confidence_val), 2)}%",
-                label=result,
-                extracted_text=content,
-                data_type="AI Analysis",
-                ai_score=f"{round(float(confidence_val), 2)}%",
-                expert_score="N/A",
-                title=page_title,
-                link=input_url if input_url else "N/A",
-                subject=news_subject
-            )
-        except Exception as e:
-            print(f"[!] Warning: History saving failed: {e}")
+        if not data.get("skip_history", False):
+            try:
+                save_analysis_result(
+                    original_input=raw_user_input, # Save raw URL/Text
+                    confidence=f"{round(float(confidence_val), 2)}%",
+                    label=result,
+                    extracted_text=content,
+                    data_type="AI Analysis",
+                    ai_score=f"{round(float(confidence_val), 2)}%",
+                    expert_score="N/A",
+                    title=page_title,
+                    link=input_url if input_url else "N/A",
+                    subject=news_subject
+                )
+            except Exception as e:
+                print(f"[!] Warning: History saving failed: {e}")
 
         return jsonify({
             "prediction": result, 
@@ -785,6 +828,7 @@ def fact_check():
 
 
         input_url = None
+        raw_user_input = content.strip() # Save raw input
         input_type = data.get("type", "text")
         page_title = "News Article"
         if input_type == "url" or is_url(content):
@@ -826,26 +870,83 @@ def fact_check():
             somali_label = "Lama xaqiijin"
 
         # ================= Save to History (Non-blocking) =================
-        try:
-            save_analysis_result(
-                original_input=content if not input_url else input_url,
-                confidence=fact_result["confidence"],
-                label=somali_label,
-                extracted_text=content,
-                data_type="Expert Fact-Check",
-                ai_score="N/A",
-                expert_score=fact_result["confidence"],
-                title=page_title,
-                link=input_url if input_url else "N/A",
-                subject=fact_result["subject"]
-            )
-        except Exception as e:
-            print(f"[!] Warning: History saving failed: {e}")
+        if not data.get("skip_history", False):
+            try:
+                save_analysis_result(
+                    original_input=raw_user_input, # Save raw URL/Text
+                    confidence=fact_result["confidence"],
+                    label=somali_label,
+                    extracted_text=content,
+                    data_type="Expert Fact-Check",
+                    ai_score="N/A",
+                    expert_score=fact_result["confidence"],
+                    title=page_title,
+                    link=input_url if input_url else "N/A",
+                    subject=fact_result["subject"]
+                )
+            except Exception as e:
+                print(f"[!] Warning: History saving failed: {e}")
 
         return jsonify(fact_result)
 
     except Exception as e:
         print("Error during fact-check:", traceback.format_exc())
+        return jsonify({"error": str(e)}), 500
+
+@app.route("/api/unified-history-save", methods=["POST"])
+def unified_history_save():
+    """
+    Saves only the most confident result to logic.
+    Called by front-end after performing both AI and Expert checks.
+    """
+    try:
+        data = request.get_json(silent=True)
+        if not data: return jsonify({"error": "No data"}), 400
+        
+        raw_input = data.get("raw_input")
+        ai_res = data.get("ai_res")
+        fc_res = data.get("fc_res")
+        
+        if not ai_res or not fc_res:
+            return jsonify({"error": "Missing results"}), 400
+            
+        ai_conf = float(ai_res.get("confidence", "0").replace("%", ""))
+        fc_conf = float(fc_res.get("confidence", "0").replace("%", ""))
+        
+        # Determine the winner
+        if ai_conf >= fc_conf:
+            save_analysis_result(
+                original_input=raw_input,
+                confidence=ai_res["confidence"],
+                label=ai_res["prediction"],
+                extracted_text=ai_res["raw_text"],
+                data_type="AI Analysis",
+                ai_score=ai_res["confidence"],
+                expert_score="N/A",
+                title=ai_res["title"],
+                link=ai_res["link"],
+                subject=ai_res["subject"]
+            )
+        else:
+            # Fact check rating to somali label
+            rating_str = fc_res.get("rating", "unverified").lower()
+            somali_label = "War Rasmi ah" if "trusted" in rating_str else ("War Been Abuur Ah" if "fake" in rating_str else "Lama xaqiijin")
+
+            save_analysis_result(
+                original_input=raw_input,
+                confidence=fc_res["confidence"],
+                label=somali_label,
+                extracted_text=fc_res["raw_text"],
+                data_type="Expert Fact-Check",
+                ai_score="N/A",
+                expert_score=fc_res["confidence"],
+                title=fc_res["title"],
+                link=fc_res["link"],
+                subject=fc_res["subject"]
+            )
+            
+        return jsonify({"success": True, "message": "History saved for highest confidence."})
+    except Exception as e:
         return jsonify({"error": str(e)}), 500
 
 @app.route("/contact", methods=["POST"])
