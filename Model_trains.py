@@ -47,7 +47,9 @@ somali_stopwords = [
     "ilaa", "wax", "kale", "mar", "markii", "la", "si", "aad", "eeg", "ayaa",
     "ayay", "kuwa", "kuwaas", "kuwan", "kaas", "kan", "kuwaa", "loo", "loona",
     "yahay", "yihiin", "ahayd", "ahaa", "noqday", "noqon", "leh", "leeyihiin",
-    "kala", "hore", "danbe", "dhammaan", "kasta", "badnaa", "yar", "weyn"
+    "kala", "hore", "danbe", "dhammaan", "kasta", "badnaa", "yar", "weyn",
+    "oo", "kale", "jira", "jiray", "ilaa", "halkan", "halkaas", "mid", "kaliya",
+    "isla", "markaana", "ahaana", "ahaanna", "hadda", "horey", "sheegay", "sheegtay"
 ]
 stop_words.update(somali_stopwords)
 
@@ -134,7 +136,7 @@ X_train, X_test, y_train, y_test, ext_train, ext_test, vague_train, vague_test =
 # ======================================
 print("Vectorizing...")
 # Improvment: Use n-gram range (1, 3) and slightly better min_df to reduce noise
-tfidf = TfidfVectorizer(max_features=12000, ngram_range=(1, 3), min_df=2, use_idf=True)
+tfidf = TfidfVectorizer(max_features=15000, ngram_range=(1, 3), min_df=3, use_idf=True, sublinear_tf=True)
 X_train_tfidf = tfidf.fit_transform(X_train)
 X_test_tfidf = tfidf.transform(X_test)
 
