@@ -235,6 +235,17 @@ vectorizer = None
 label_encoder = None
 lemmatizer = None
 stop_words = set()
+somali_stopwords = [
+    "waa", "iyo", "in", "uu", "ay", "ayuu", "ayey", "ka", "u", "ee", "oo", "ah", 
+    "sidii", "waxaan", "waxaad", "wuxuu", "waxay", "iska", "ahaa", "lagu", "loogu",
+    "isagoo", "iyadoo", "ku", "soo", "isaga", "iyada", "labada", "kala", "inta",
+    "ilaa", "wax", "kale", "mar", "markii", "la", "si", "aad", "eeg", "ayaa",
+    "ayay", "kuwa", "kuwaas", "kuwan", "kaas", "kan", "kuwaa", "loo", "loona",
+    "yahay", "yihiin", "ahayd", "ahaa", "noqday", "noqon", "leh", "leeyihiin",
+    "kala", "hore", "danbe", "dhammaan", "kasta", "badnaa", "yar", "weyn",
+    "oo", "kale", "jira", "jiray", "ilaa", "halkan", "halkaas", "mid", "kaliya",
+    "isla", "markaana", "ahaana", "ahaanna", "hadda", "horey", "sheegay", "sheegtay"
+]
 
 def load_resources():
     """Lazy loader for NLTK and AI models to keep startup fast."""
@@ -268,17 +279,6 @@ def load_resources():
 
     lemmatizer = WordNetLemmatizer()
     stop_words = set(stopwords.words("english"))
-    somali_stopwords = [
-        "waa", "iyo", "in", "uu", "ay", "ayuu", "ayey", "ka", "u", "ee", "oo", "ah", 
-        "sidii", "waxaan", "waxaad", "wuxuu", "waxay", "iska", "ahaa", "lagu", "loogu",
-        "isagoo", "iyadoo", "ku", "soo", "isaga", "iyada", "labada", "kala", "inta",
-        "ilaa", "wax", "kale", "mar", "markii", "la", "si", "aad", "eeg", "ayaa",
-        "ayay", "kuwa", "kuwaas", "kuwan", "kaas", "kan", "kuwaa", "loo", "loona",
-        "yahay", "yihiin", "ahayd", "ahaa", "noqday", "noqon", "leh", "leeyihiin",
-        "kala", "hore", "danbe", "dhammaan", "kasta", "badnaa", "yar", "weyn",
-        "oo", "kale", "jira", "jiray", "ilaa", "halkan", "halkaas", "mid", "kaliya",
-        "isla", "markaana", "ahaana", "ahaanna", "hadda", "horey", "sheegay", "sheegtay"
-    ]
     stop_words.update(somali_stopwords)
 
     # 3. Model Loading
@@ -530,8 +530,9 @@ def heuristic_fact_check(text, url=None):
 
     # 2. Live Web Verification (Searching for Citations/Confirmations)
     # Extract query words
-    stop_words_all = set(list(stop_words) + somali_stopwords)
-    query_words = [w for w in words if len(w) > 3 and w.lower() not in stop_words_all]
+    # Ensure resources are loaded to have stop_words
+    load_resources()
+    query_words = [w for w in words if len(w) > 3 and w.lower() not in stop_words]
     subjects = [w for w in words if len(w) > 3 and w[0].isupper()]
     
     danger_keywords = ["dhintey", "geeriyooday", "qarax", "shil", "dhaawacmay", "iscasilay", "xilka laga qaaday", "killed", "attacked"]
