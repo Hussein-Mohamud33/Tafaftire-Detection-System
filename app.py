@@ -746,36 +746,25 @@ def predict():
 
         final_ai_score = ai_score_val - pattern_penalty + source_boost
         
-        print(f"[*] AI SCAN - Model: {ai_score_val:.2f}, Patterns: -{pattern_penalty:.2f}, Boost: +{source_boost:.2f}, Final: {final_ai_score:.2f}")
-
         # Simple AI Confidence
         ai_conf = (1 / (1 + np.exp(-abs(final_ai_score * 0.8)))) * 100
-        ai_conf = f"{min(98.5, max(75.0, ai_conf)):.2f}%"
+        ai_conf_str = f"{min(98.5, max(75.0, ai_conf)):.2f}%"
         
         # STRICT VERDICT: Must be > 1.25 to be Real
         ai_pred = "Real News" if final_ai_score > 1.25 else "Fake news"
-
-        # ================= AI Decision Logic (Stricter Verdict) =================
-        # Increase threshold to 1.5 - AI MUST BE VERY SURE to say Real.
-        if final_ai_score > 1.5:
-            result = "Real News"
-        elif final_ai_score < 0.2:
-            result = "Fake news"
-        else:
-            # Borderline case: DEFAULT TO FAKE
-            result = "Fake news"
-            print(f"[*] AI SCAN: Borderline case ({final_ai_score:.2f}) - Defaulting to Fake.")
+        
+        print(f"[*] AI SCAN - Model: {ai_score_val:.2f}, Patterns: -{pattern_penalty:.2f}, Boost: +{source_boost:.2f}, Final: {final_ai_score:.2f}")
 
         # ================= Save to History (Non-blocking) =================
         if not data.get("skip_history", False):
             try:
                 save_analysis_result(
                     original_input=raw_user_input, # Save raw URL/Text
-                    confidence=f"{round(float(confidence_val), 2)}%",
-                    label=result,
+                    confidence=ai_conf_str,
+                    label=ai_pred,
                     extracted_text=content,
                     data_type="AI Analysis",
-                    ai_score=f"{round(float(confidence_val), 2)}%",
+                    ai_score=ai_conf_str,
                     expert_score="N/A",
                     title=page_title,
                     link=input_url if input_url else "N/A",
@@ -785,8 +774,8 @@ def predict():
                 print(f"[!] Warning: History saving failed: {e}")
 
         return jsonify({
-            "prediction": result, 
-            "confidence": f"{round(float(confidence_val), 2)}%",
+            "prediction": ai_pred, 
+            "confidence": ai_conf_str,
             "ai_score": float(round(float(ai_score_val), 2)),
             "expert_score": 0.0,
             "raw_text": content,
