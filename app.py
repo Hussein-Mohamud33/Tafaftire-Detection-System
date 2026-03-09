@@ -685,16 +685,26 @@ def predict():
         # Sensationalism & Older news patterns
         if any(y in content for y in ["2016", "2017", "2018", "2019", "2020", "2021", "2022"]):
             pattern_penalty += 1.5
-        if "!!!" in content or "???" in content:
-            pattern_penalty += 1.0
+        if "!!!" in content or "???" in content or "!!!" in page_title:
+            pattern_penalty += 1.5
         
+        # Sensationalist/Fake-prone Keywords (Somali)
+        sensational_keywords = [
+            "mucjiso", "runtii", "deg deg", "dhacdo naxdin leh", "lacag bilaash", 
+            "hal mar eeg", "ha moogaan", "sir culus", "faah faahin", "yaab", 
+            "wax aan la rumaysan karin", "muuqaal qarsoodi ah", "subxaanallaah"
+        ]
+        if any(kw in text_lower for kw in sensational_keywords):
+            pattern_penalty += 2.0
+            print(f"[*] AI SCAN: Sensational keyword detected. Penalty applied.")
+
         # Shouting (ALL CAPS)
         words = content.split()
         if len(words) > 5 and sum(1 for w in words if w.isupper() and len(w) > 2) / len(words) > 0.3:
             pattern_penalty += 1.2
             
-        if len(content.split()) < 10:
-             pattern_penalty += 3.0 # Strong penalty for very short "nuqul" text
+        if len(content.split()) < 15:
+             pattern_penalty += 3.5 # Stronger penalty for very short text 
 
         # 2. Source-Based Validation (Highly Trusted Sources Boost)
         source_boost = 0
@@ -715,14 +725,16 @@ def predict():
         confidence_val = (1 / (1 + np.exp(-abs(final_ai_score * 0.8)))) * 100
         confidence_val = min(98.5, max(75.0, confidence_val))
         
-        # AI Verdict (Optimized for high-accuracy SVM decision boundary)
-        if final_ai_score > 0.4:
+        # ================= AI Decision Logic (Stricter Verdict) =================
+        # Increase threshold to 1.0 to make it much harder to get a "Real News" verdict
+        if final_ai_score > 1.0:
             result = "Real News"
-        elif final_ai_score < -0.4:
+        elif final_ai_score < -0.2:
             result = "Fake news"
         else:
-            # Fallback for borderline cases - use model's raw sign for a "strong" decision
-            result = "Real News" if final_ai_score > 0 else "Fake news"
+            # Borderline case: DEFAULT TO FAKE (User wants it to be stricter/less vulnerable to 'Runta')
+            result = "Fake news"
+            print(f"[*] AI SCAN: Borderline case ({final_ai_score:.2f}) - Defaulting to Fake.")
 
         # ================= Save to History (Non-blocking) =================
         if not data.get("skip_history", False):
@@ -793,10 +805,20 @@ def analyze_deep():
         
         ai_score_val = model.decision_function(X)[0] if hasattr(model, "decision_function") else 0
         
+        # Apply strict penalties also in deep analysis
+        text_lower = content.lower()
+        deep_penalty = 0
+        if any(kw in text_lower for kw in ["mucjiso", "lacag bilaash", "deg deg", "yaab"]): deep_penalty += 2.0
+        if len(content.split()) < 15: deep_penalty += 3.0
+        
+        final_ai_score = ai_score_val - deep_penalty
+        
         # Simple AI Confidence
-        ai_conf = (1 / (1 + np.exp(-abs(ai_score_val * 0.8)))) * 100
+        ai_conf = (1 / (1 + np.exp(-abs(final_ai_score * 0.8)))) * 100
         ai_conf = f"{min(98.5, max(75.0, ai_conf)):.2f}%"
-        ai_pred = "Real News" if ai_score_val > 0 else "Fake news"
+        
+        # STRICT VERDICT: Must be > 1.0 to be Real
+        ai_pred = "Real News" if final_ai_score > 1.0 else "Fake news"
 
         # Expert Fact-Check
         fc_res = heuristic_fact_check(content, input_url)
