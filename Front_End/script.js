@@ -34,7 +34,7 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         })
         .catch(err => {
-            console.warn("⚠️ Tafaftire Detection server is offline.");
+            console.warn("⚠️ Fake News Detection server is offline.");
         });
 
 
@@ -218,7 +218,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         if (analyzeBtn) {
             analyzeBtn.disabled = true;
-            analyzeBtn.innerHTML = '<i class="fas fa-bolt fa-beat"></i> Analysing...';
+            analyzeBtn.innerHTML = '<i class="fas fa-bolt fa-beat"></i> FAST SCANNING...';
         }
 
         resultContainer.style.display = "flex";
@@ -226,7 +226,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         [finalVerdict, aiResult, fcResult].forEach(el => el.innerText = "⏳...");
         [aiConfidence, fcConfidence].forEach(el => el.innerText = "Processing...");
-        finalConfidence.innerText = "Processing...";
+        finalConfidence.innerText = "System validation in progress...";
 
         try {
             const controller = new AbortController();
@@ -250,46 +250,53 @@ document.addEventListener('DOMContentLoaded', () => {
             // Handle AI Result
             let aiText = "UNKNOWN";
             if (aiRes.prediction.includes("Real News")) {
-                aiText = "Real News";
-                aiResult.innerText = "Real News";
+                aiText = "War Rasmi ah";
+                aiResult.innerText = "War Rasmi ah";
                 aiResult.style.color = "#2ecc71";
             } else {
-                aiText = "Fake News";
-                aiResult.innerText = "Fake News";
+                aiText = "War Been Abuur Ah";
+                aiResult.innerText = "War Been Abuur Ah";
                 aiResult.style.color = "#ff4757";
             }
             aiConfidence.innerText = `AI Score: ${aiRes.confidence}`;
 
             // Handle Expert Result
-            let fcText = "Unverified";
+            let fcText = "Lama xaqiijin";
             if (fcRes.rating.toLowerCase().includes("trusted")) {
-                fcText = "Trusted";
-                fcResult.innerText = "Trusted";
+                fcText = "War Rasmi ah";
+                fcResult.innerText = "War Rasmi ah";
                 fcResult.style.color = "#2ecc71";
                 fcConfidence.innerText = `✅ SOURCE VALIDATED (${fcRes.confidence})`;
             } else if (fcRes.rating.toLowerCase().includes("fake")) {
-                fcText = "Fake News";
-                fcResult.innerText = "Fake News";
+                fcText = "War Been Abuur Ah";
+                fcResult.innerText = "War Been Abuur Ah";
                 fcResult.style.color = "#ff4757";
                 fcConfidence.innerText = `Expert Score: ${fcRes.confidence}`;
             } else {
-                fcResult.innerText = "Unverified";
+                fcResult.innerText = "Lama xaqiijin";
                 fcResult.style.color = "#f39c12";
                 fcConfidence.innerText = `Expert Score: ${fcRes.confidence}`;
             }
 
-            // Final Unified Verdict
+            // Final Unified Verdict (Calculated by Server for maximum strictness)
+            const finalVerdictLabel = data.final_verdict || "Lama xaqiijin";
+            finalVerdict.innerText = finalVerdictLabel;
+
+            if (finalVerdictLabel === "War Rasmi ah") {
+                finalVerdict.style.color = "#2ecc71";
+            } else if (finalVerdictLabel === "War Been Abuur Ah" || finalVerdictLabel.includes("Fake")) {
+                finalVerdict.style.color = "#ff4757";
+            } else {
+                finalVerdict.style.color = "#f39c12"; // Yellow for Unverified/Lama xaqiijin
+            }
+
+            // Still show confidence for the strongest engine
             const aiConfNum = parseFloat(aiRes.confidence);
             const fcConfNum = parseFloat(fcRes.confidence);
-
-            if (fcConfNum > aiConfNum || fcText === "Trusted") {
-                finalVerdict.innerText = fcText;
-                finalVerdict.style.color = fcText === "Trusted" ? "#2ecc71" : (fcText === "Unverified" ? "#f39c12" : "#ff4757");
+            if (fcConfNum > aiConfNum) {
                 finalConfidence.innerText = `Confidence: ${fcRes.confidence}`;
                 finalSource.innerText = "Source: Live Web Verification";
             } else {
-                finalVerdict.innerText = aiText;
-                finalVerdict.style.color = aiText === "Real News" ? "#2ecc71" : "#ff4757";
                 finalConfidence.innerText = `Confidence: ${aiRes.confidence}`;
                 finalSource.innerText = "Source: AI Model Analysis";
             }
@@ -878,5 +885,4 @@ document.addEventListener('DOMContentLoaded', () => {
     window.addEventListener('hashchange', handleRouting);
     handleRouting();
 });
-
 
