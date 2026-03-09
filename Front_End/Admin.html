@@ -786,7 +786,7 @@
                 if (sh) sh.innerText = data.history_count || 0;
                 const sr = document.getElementById('stat-requests');
                 if (sr) sr.innerText = data.requests_handled;
-                initCharts(data.fake_news_count, data.real_news_count);
+                initCharts(data.fake_news_count, data.real_news_count, data.weekly_activity);
             } catch (err) { console.error(err); }
         }
 
@@ -1168,7 +1168,7 @@
             }
         }
 
-        function initCharts(fake, real) {
+        function initCharts(fake, real, weeklyActivity) {
             if (window.distChart) window.distChart.destroy();
             window.distChart = new Chart(document.getElementById('distributionChart'), {
                 type: 'doughnut',
@@ -1184,7 +1184,12 @@
                 type: 'bar',
                 data: {
                     labels: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'],
-                    datasets: [{ label: 'Requests', data: [120, 190, 30, 50, 20, 30, 100], backgroundColor: '#3b82f6', borderRadius: 5 }]
+                    datasets: [{
+                        label: 'Requests',
+                        data: weeklyActivity || [12, 19, 3, 5, 2, 3, 10],
+                        backgroundColor: '#3b82f6',
+                        borderRadius: 5
+                    }]
                 },
                 options: {
                     plugins: { legend: { display: false } },
