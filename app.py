@@ -1155,26 +1155,31 @@ def admin_stats():
         # Fast history/messages count
         messages_count = 0
         history_count = 0
-        weekly_activity = [12, 19, 3, 5, 2, 3, 10] # Baseline default
+        weekly_activity = [0, 0, 0, 0, 0, 0, 0] # Real activity from last 7 days starting with zero
 
         if os.path.exists(ANALYSIS_HISTORY_FILE):
             try:
+                import datetime
                 with open(ANALYSIS_HISTORY_FILE, "r", encoding="utf-8") as f:
                     history_data = json.load(f)
                     history_count = len(history_data)
-                    # Only process last 100 entries for weekly activity to save time
-                    relevant_history = history_data[-100:]
-                    import datetime
+                    
+                    # Last 7 Days Analytics logic
+                    now = datetime.datetime.now()
+                    seven_days_ago = now - datetime.timedelta(days=7)
                     calc_activity = [0] * 7
-                    for entry in relevant_history:
+                    
+                    for entry in history_data:
                         date_str = entry.get("date", "")
                         if date_str:
                             try:
                                 dt = datetime.datetime.strptime(date_str, "%Y-%m-%d %H:%M:%S")
-                                calc_activity[dt.weekday()] += 1
+                                # Show activity distribution by day of week for verified records
+                                if dt >= seven_days_ago:
+                                    calc_activity[dt.weekday()] += 1
                             except: pass
-                    if sum(calc_activity) > 0:
-                        weekly_activity = calc_activity
+                    
+                    weekly_activity = calc_activity
             except: pass
 
         if os.path.exists(CONTACTS_FILE):
@@ -1183,8 +1188,8 @@ def admin_stats():
 
         stats = {
             "total_datasets": full_entries_count,
-            "fake_news_count": max(fake_news_count, 1),
-            "real_news_count": max(real_news_count, 1),
+            "fake_news_count": fake_news_count,
+            "real_news_count": real_news_count,
             "requests_handled": latest_stats.get("requests_handled", 0),
             "messages_count": messages_count,
             "history_count": history_count,
