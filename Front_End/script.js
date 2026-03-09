@@ -34,7 +34,7 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         })
         .catch(err => {
-            console.warn("⚠️ Tafaftire Detection server is offline.");
+            console.warn("⚠️ Fake News Detection server is offline.");
         });
 
 
@@ -218,134 +218,92 @@ document.addEventListener('DOMContentLoaded', () => {
 
         if (analyzeBtn) {
             analyzeBtn.disabled = true;
-            analyzeBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Deep Scanning...';
+            analyzeBtn.innerHTML = '<i class="fas fa-bolt fa-beat"></i> FAST SCANNING...';
         }
 
         resultContainer.style.display = "flex";
         [finalVerdictCard, aiResultCard, fcResultCard].forEach(card => card.classList.remove("hidden"));
 
         [finalVerdict, aiResult, fcResult].forEach(el => el.innerText = "⏳...");
-        [aiConfidence, fcConfidence].forEach(el => el.innerText = "Loading...");
-        finalConfidence.innerText = "in progress...";
+        [aiConfidence, fcConfidence].forEach(el => el.innerText = "Processing...");
+        finalConfidence.innerText = "System validation in progress...";
 
-        // Trigger both in parallel but keep them independent
         try {
             const controller = new AbortController();
-            const timeoutId = setTimeout(() => controller.abort(), 60000); // 60s timeout
+            const timeoutId = setTimeout(() => controller.abort(), 90000); // 90s for Render
 
-            const aiPromise = fetch(`${API_BASE_URL}/api/predict`, {
+            const response = await fetch(`${API_BASE_URL}/api/analyze_deep`, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ ...payload, skip_history: true }),
+                body: JSON.stringify(payload),
                 signal: controller.signal
-            }).then(r => r.json());
+            });
 
-            const fcPromise = fetch(`${API_BASE_URL}/api/fact-check`, {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ ...payload, skip_history: true }),
-                signal: controller.signal
-            }).then(r => r.json());
-
-            const [aiRes, fcRes] = await Promise.all([aiPromise, fcPromise]);
+            const data = await response.json();
             clearTimeout(timeoutId);
 
-            // 1. Save only the highest confidence result to history
-            const rawInputField = document.querySelector('input[name="inputType"]:checked').value === "text" ? newsText : newsURL;
-            const rawInputVal = rawInputField ? rawInputField.value.trim() : "";
+            if (data.error) throw new Error(data.error);
 
-            fetch(`${API_BASE_URL}/api/unified-history-save`, {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({
-                    raw_input: rawInputVal,
-                    ai_res: aiRes,
-                    fc_res: fcRes
-                })
-            }).catch(err => console.warn("History save background error:", err));
+            const aiRes = data.ai_res;
+            const fcRes = data.fc_res;
 
             // Handle AI Result
             let aiText = "UNKNOWN";
-            if (!aiRes.error) {
-                const pred = aiRes.prediction;
-                if (pred.includes("Real News")) {
-                    aiText = "Real News";
-                    aiResult.innerText = "Real News";
-                    aiResult.style.color = "#2ecc71";
-                    aiResult.style.textShadow = "0 0 10px rgba(46, 204, 113, 0.4)";
-                } else {
-                    aiText = "Fake News";
-                    aiResult.innerText = "Fake News";
-                    aiResult.style.color = "#ff4757";
-                    aiResult.style.textShadow = "0 0 10px rgba(255, 71, 87, 0.4)";
-                }
-                aiConfidence.innerText = `Confidence: ${aiRes.confidence}`;
+            if (aiRes.prediction.includes("Real News")) {
+                aiText = "War Rasmi ah";
+                aiResult.innerText = "War Rasmi ah";
+                aiResult.style.color = "#2ecc71";
             } else {
-                aiResult.innerText = "Error";
-                aiConfidence.innerText = aiRes.error;
+                aiText = "War Been Abuur Ah";
+                aiResult.innerText = "War Been Abuur Ah";
+                aiResult.style.color = "#ff4757";
             }
+            aiConfidence.innerText = `AI Score: ${aiRes.confidence}`;
 
             // Handle Expert Result
-            let fcText = "Unverified";
-            let isTrustedSource = false;
-
-            if (!fcRes.error) {
-                const fcRating = fcRes.rating.toLowerCase();
-                const reasons = fcRes.reasons ? fcRes.reasons.join(" ") : "";
-                if (fcRating.includes("trusted") || reasons.includes("Hubinta Isha")) {
-                    isTrustedSource = true;
-                    fcText = "Trusted";
-                    fcResult.innerText = "Trusted";
-                    fcResult.style.color = "#2ecc71";
-                    fcResult.style.textShadow = "0 0 10px rgba(46, 204, 113, 0.4)";
-                    fcConfidence.innerText = `Confidence: (${fcRes.confidence})`;
-                } else {
-                    fcText = "Unverfied";
-                    fcResult.innerText = "Unverified";
-                    fcResult.style.color = "#f39c12";
-                    fcResult.style.textShadow = "0 0 10px rgba(243, 156, 18, 0.4)";
-                    fcConfidence.innerText = `Confidence: ${fcRes.confidence}`;
-                }
+            let fcText = "Lama xaqiijin";
+            if (fcRes.rating.toLowerCase().includes("trusted")) {
+                fcText = "War Rasmi ah";
+                fcResult.innerText = "War Rasmi ah";
+                fcResult.style.color = "#2ecc71";
+                fcConfidence.innerText = `✅ SOURCE VALIDATED (${fcRes.confidence})`;
+            } else if (fcRes.rating.toLowerCase().includes("fake")) {
+                fcText = "War Been Abuur Ah";
+                fcResult.innerText = "War Been Abuur Ah";
+                fcResult.style.color = "#ff4757";
+                fcConfidence.innerText = `Expert Score: ${fcRes.confidence}`;
             } else {
-                fcResult.innerText = "Error";
-                fcConfidence.innerText = fcRes.error;
+                fcResult.innerText = "Lama xaqiijin";
+                fcResult.style.color = "#f39c12";
+                fcConfidence.innerText = `Expert Score: ${fcRes.confidence}`;
             }
 
-            // Final Unified Verdict Selection (Highest Confidence)
-            const aiConfNum = parseFloat(aiRes.confidence || "0");
-            const fcConfNum = parseFloat(fcRes.confidence || "0");
+            // Final Unified Verdict
+            const aiConfNum = parseFloat(aiRes.confidence);
+            const fcConfNum = parseFloat(fcRes.confidence);
 
-            if (!aiRes.error && (fcRes.error || aiConfNum >= fcConfNum)) {
-                // AI is higher or Expert failed
-                finalVerdict.innerText = aiText;
-                finalVerdict.style.color = (aiText === "Real News") ? "#2ecc71" : "#ff4757";
-                finalVerdict.style.textShadow = (aiText === "Real News")
-                    ? "0 0 10px rgba(46, 204, 113, 0.6)"
-                    : "0 0 10px rgba(255, 71, 87, 0.6)";
-                finalConfidence.innerText = `Confidence: ${aiRes.confidence}`;
-                finalSource.innerText = "Source: AI Model";
-            } else if (!fcRes.error) {
-                // Expert is higher
+            if (fcConfNum > aiConfNum || fcText === "War Rasmi ah") {
                 finalVerdict.innerText = fcText;
-                finalVerdict.style.color = (fcText === "Trusted") ? "#2ecc71" : (fcText === "Unverified" ? "#f39c12" : "#ff4757");
-                finalVerdict.style.textShadow = (fcText === "Trusted")
-                    ? "0 0 10px rgba(46, 204, 113, 0.6)"
-                    : (fcText === "Unverified" ? "0 0 10px rgba(243, 156, 18, 0.6)" : "0 0 15px rgba(255, 71, 87, 0.6)");
+                finalVerdict.style.color = fcText === "War Rasmi ah" ? "#2ecc71" : (fcText === "Lama xaqiijin" ? "#f39c12" : "#ff4757");
                 finalConfidence.innerText = `Confidence: ${fcRes.confidence}`;
-                finalSource.innerText = "Source: Fact-check";
+                finalSource.innerText = "Source: Live Web Verification";
             } else {
-                finalVerdict.innerText = "ERROR";
-                finalConfidence.innerText = "Verification Failed";
+                finalVerdict.innerText = aiText;
+                finalVerdict.style.color = aiText === "War Rasmi ah" ? "#2ecc71" : "#ff4757";
+                finalConfidence.innerText = `Confidence: ${aiRes.confidence}`;
+                finalSource.innerText = "Source: AI Model Analysis";
             }
 
         } catch (err) {
             console.error("Analysis Failed:", err);
-            showError("Connection Failed!", "newsText");
+            showError("Verification request timed out or failed. Please try again.", "newsText");
+            [finalVerdict, aiResult, fcResult].forEach(el => el.innerText = "FAILED");
+            [aiConfidence, fcConfidence].forEach(el => el.innerText = "Error during scan");
         } finally {
             window.isAnalyzing = false;
             if (analyzeBtn) {
                 analyzeBtn.disabled = false;
-                analyzeBtn.innerHTML = '<i class="fas fa-search-plus"></i> DEEP ANALYSIS';
+                analyzeBtn.innerHTML = '<i class="fas fa-bolt"></i> FASTEST ANALYSIS';
             }
         }
     }
@@ -920,8 +878,4 @@ document.addEventListener('DOMContentLoaded', () => {
     window.addEventListener('hashchange', handleRouting);
     handleRouting();
 });
-
-
-
-
 
