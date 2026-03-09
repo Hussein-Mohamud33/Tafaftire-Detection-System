@@ -580,26 +580,29 @@ def heuristic_fact_check(text, url=None):
 
 
     # 3. Text Pattern Check (Untrusted Patterns)
+    # Adding more common Somali fake news tropes
+    SOMALI_BAIT_PATTERNS = ["share dheh", "nasiibkaaga", "guulayso", "waalli", "mucjiso", "wax la qariyay", "nin naxay"]
     pattern_matches = 0
-    for pattern in UNTRUSTED_PATTERNS:
+    for pattern in UNTRUSTED_PATTERNS + SOMALI_BAIT_PATTERNS:
         if pattern in text_lower:
             pattern_matches += 1
-            score -= 40
+            score -= 60 # Increased penalty per pattern
             reasons.append(f"Digniin: Waxaa la helay qoraal u eg clickbait ama been-abuur ({pattern}).")
-            if pattern_matches >= 2: break # Max 2 reasons to avoid clutter
+            if pattern_matches >= 3: break 
 
     # Final Verdict for Expert Fact-Check
-    confidence = 70 + (min(28, abs(score) * 0.15))
+    confidence_base = 70 + (min(28, abs(score) * 0.15))
     
-    # Verdict Logic
-    if score >= 60 or is_trusted_domain:
+    # Verdict Logic (STRICTER)
+    if score >= 100 or is_trusted_domain: # Must be higher than 60 now
         rating = "Trusted"
-        if is_trusted_domain:
-            confidence = max(94, confidence) # Boost confidence for trusted domains
-    elif score <= -100:
-        rating = "Fake" # Explicitly mark as Fake if score is very low
+        confidence = max(95, confidence_base) if is_trusted_domain else confidence_base
+    elif score <= -50: # Much lower threshold to trigger 'Fake'
+        rating = "Fake"
+        confidence = max(85, confidence_base)
     else:
-        rating = "Unverified" # Simplified to Trusted/Unverified/Fake
+        rating = "Unverified"
+        confidence = 60 # Lower confidence for unverified
 
     return {
         "rating": rating,
@@ -701,30 +704,33 @@ def predict():
         
         # Sensationalism & Older news patterns
         if any(y in content for y in ["2016", "2017", "2018", "2019", "2020", "2021", "2022"]):
-            pattern_penalty += 1.5
+            pattern_penalty += 2.0
         if "!!!" in content or "???" in content or "!!!" in page_title:
-            pattern_penalty += 1.5
+            pattern_penalty += 2.0
         
-        # Sensationalist/Fake-prone Keywords (Somali)
+        # Expanded Sensationalist/Fake-prone Keywords
         sensational_keywords = [
             "mucjiso", "runtii", "deg deg", "dhacdo naxdin leh", "lacag bilaash", 
             "hal mar eeg", "ha moogaan", "sir culus", "faah faahin", "yaab", 
             "wax aan la rumaysan karin", "muuqaal qarsoodi ah", "subxaanallaah",
             "shidan", "yaabka aduunka", "arrin lala yaabo", "qarax cusub",
             "war hadda soo dhacay", "daawasho naxdin leh", "daawo video-ga",
-            "isbaaro", "si degdeg ah", "lacag badan", "nasiib", "daawo hadda"
+            "isbaaro", "si degdeg ah", "lacag badan", "nasiib", "daawo hadda",
+            "shaki", "hubaal ma leh", "waalli", "cajalad qarsoodi ah", "nin ka naxay",
+            "wax la qariyay", "dawladdu way qarisay", "si qarsoodi ah", "ha ka habsaamin",
+            "fursad qaali ah", "nasiibkaaga tijaabi", "lacag ku guulayso"
         ]
         if any(kw in text_lower for kw in sensational_keywords):
-            pattern_penalty += 2.0
+            pattern_penalty += 3.0
             print(f"[*] AI SCAN: Sensational keyword detected. Penalty applied.")
 
         # Shouting (ALL CAPS)
         words = content.split()
         if len(words) > 5 and sum(1 for w in words if w.isupper() and len(w) > 2) / len(words) > 0.3:
-            pattern_penalty += 1.2
+            pattern_penalty += 2.0
             
         if len(content.split()) < 15:
-             pattern_penalty += 3.5 # Stronger penalty for very short text 
+             pattern_penalty += 4.5 # Stronger penalty for very short text 
 
         # 2. Source-Based Validation (Highly Trusted Sources Boost)
         source_boost = 0
@@ -746,13 +752,13 @@ def predict():
         confidence_val = min(98.5, max(75.0, confidence_val))
         
         # ================= AI Decision Logic (Stricter Verdict) =================
-        # Increase threshold to 1.0 to make it much harder to get a "Real News" verdict
-        if final_ai_score > 1.0:
+        # Increase threshold to 1.5 - AI MUST BE VERY SURE to say Real.
+        if final_ai_score > 1.5:
             result = "Real News"
-        elif final_ai_score < -0.2:
+        elif final_ai_score < 0.2:
             result = "Fake news"
         else:
-            # Borderline case: DEFAULT TO FAKE (User wants it to be stricter/less vulnerable to 'Runta')
+            # Borderline case: DEFAULT TO FAKE
             result = "Fake news"
             print(f"[*] AI SCAN: Borderline case ({final_ai_score:.2f}) - Defaulting to Fake.")
 
@@ -829,8 +835,11 @@ def analyze_deep():
         # Apply strict penalties also in deep analysis
         text_lower = content.lower()
         deep_penalty = 0
-        if any(kw in text_lower for kw in ["mucjiso", "lacag bilaash", "deg deg", "yaab"]): deep_penalty += 2.0
-        if len(content.split()) < 15: deep_penalty += 3.0
+        sensational_list = ["mucjiso", "lacag bilaash", "deg deg", "yaab", "shaki", "hubaal ma leh", "qarax cusub", "sir culus"]
+        if any(kw in text_lower for kw in sensational_list): 
+            deep_penalty += 3.5
+        if len(content.split()) < 20: 
+            deep_penalty += 4.0
         
         final_ai_score = ai_score_val - deep_penalty
         
@@ -838,27 +847,29 @@ def analyze_deep():
         ai_conf = (1 / (1 + np.exp(-abs(final_ai_score * 0.8)))) * 100
         ai_conf = f"{min(98.5, max(75.0, ai_conf)):.2f}%"
         
-        # STRICT VERDICT: Must be > 1.0 to be Real
-        ai_pred = "Real News" if final_ai_score > 1.0 else "Fake news"
+        # STRICT VERDICT: Must be > 1.5 to be Real
+        ai_pred = "Real News" if final_ai_score > 1.5 else "Fake news"
 
         # Expert Fact-Check
         fc_res = heuristic_fact_check(content, input_url)
         
-        # 3. Unified Decision (Strict Logic)
-        # We only mark as 'War Rasmi ah' if BOTH agree it's real, OR if Fact-Checker is very confident in trust.
-        is_ai_real = (ai_pred == "Real News")
-        is_fc_trusted = ("trusted" in fc_res.get("rating", "").lower())
-        is_fc_fake = ("fake" in fc_res.get("rating", "").lower())
+        # 3. Unified Decision (Extreme Strict Logic)
+        # We ONLY mark as 'War Rasmi ah' if BOTH AI and Expert are POSITIVE.
+        is_ai_real = (ai_pred == "Real News" and final_ai_score > 1.8) # AI must be very sure
+        is_fc_trusted = (fc_res.get("rating") == "Trusted" and float(fc_res.get("confidence", "0").replace("%", "")) > 90)
         
-        # Stricter label logic: Disagreement defaults to Fake/Suspicious
+        is_fc_fake = (fc_res.get("rating") == "Fake")
+        is_ai_fake = (ai_pred == "Fake news" or final_ai_score < 0.5)
+
+        # 1. Agreement on Trusted/Real
         if is_fc_trusted and is_ai_real:
             final_label = "War Rasmi ah"
-        elif is_fc_trusted and final_ai_score > 0.3: # AI is slightly unsure but positive, and FC is sure
-            final_label = "War Rasmi ah"
-        elif is_fc_fake:
+        # 2. Strong disagreement or either flags as Fake -> Final is Fake
+        elif is_fc_fake or (is_ai_fake and final_ai_score < -1.0):
             final_label = "War Been Abuur Ah"
+        # 3. Any uncertainty -> Unverified
         else:
-            final_label = "Lama xaqiijin" # Default to Unverified (instead of Fake) to be safer but skeptical
+            final_label = "Lama xaqiijin"
 
         news_subject = guess_subject(content)
         save_analysis_result(
