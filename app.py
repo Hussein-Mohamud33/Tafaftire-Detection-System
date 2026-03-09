@@ -4,30 +4,21 @@ import joblib
 import traceback
 import numpy as np
 import requests
-from flask import Flask, request, jsonify
+import subprocess
+import json
+import time
+import csv
+import smtplib
+import imaplib
+import email
+import tldextract
+import nltk
+from flask import Flask, request, jsonify, make_response
 from flask_cors import CORS
-import subprocess
-import json
-import time
-import csv
-import smtplib
-import imaplib
-import email
-import tldextract
-import nltk # Base import only
-import subprocess
-import json
-import time
-import csv
-import smtplib
-import imaplib
-import email
-import tldextract
 from email.header import decode_header
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 from bs4 import BeautifulSoup
-import pandas as pd
 from functools import lru_cache
 
 # ================= FLASK INIT =================
@@ -168,21 +159,20 @@ def add_to_dataset(text, label, link="N/A", title="N/A", subject="General"):
 
 
         # Create new record structure matching CSV: Source/URL,Title,Text,Category,Label
-        new_data = {
-            "Source/URL": str(link)[:500],
-            "Title": str(title)[:200],
-            "Text": str(text),
-            "Category": str(subject)[:100],
-            "Label": numerical_label
-        }
+        import csv
+        file_exists = os.path.exists(dataset_path)
         
-        df_new = pd.DataFrame([new_data])
-        
-        # Append to CSV
-        if os.path.exists(dataset_path):
-            df_new.to_csv(dataset_path, mode='a', header=False, index=False, encoding='utf-8-sig')
-        else:
-            df_new.to_csv(dataset_path, index=False, encoding='utf-8-sig')
+        with open(dataset_path, "a", encoding="utf-8-sig", newline="") as f:
+            writer = csv.DictWriter(f, fieldnames=["Source/URL", "Title", "Text", "Category", "Label"])
+            if not file_exists:
+                writer.writeheader()
+            writer.writerow({
+                "Source/URL": str(link)[:500],
+                "Title": str(title)[:200],
+                "Text": str(text),
+                "Category": str(subject)[:100],
+                "Label": numerical_label
+            })
             
         print(f"[📈] DATASET UPDATED: Added new entry to {dataset_name} | Title: {title[:30]}...")
         
@@ -297,13 +287,8 @@ def load_resources():
 
     nltk_initialized = True
 
-# ================= EAGER LOAD (Wait for models at startup) =================
-print("[*] System Boot: Loading all resources before starting server...")
-try:
-    load_resources()
-    print("[*] System Boot: All models and NLTK data are READY.")
-except Exception as e:
-    print(f"[!] System Boot Warning: Resource loading issue: {e}")
+# ================= EAGER LOAD (Disabled for Render Startup) =================
+# We now use lazy loading inside routes to prevent Gunicorn timeout.
 
 # ================= PRE-COMPILED REGEX FOR SPEED =================
 URL_PATTERN = re.compile(r'^(https?://|www\.)[a-z0-9-]+(\.[a-z0-9-]+)+([/?#].*)?$', re.IGNORECASE)
