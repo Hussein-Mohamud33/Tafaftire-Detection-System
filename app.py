@@ -490,7 +490,9 @@ UNTRUSTED_PATTERNS = [
     "qarax cusub", "war hadda soo dhacay", "daawasho naxdin leh",
     "daawo video-ga", "mucjisooyin", "yaab", "cajiib",
     "cod qarsoodi ah", "sir culus", "fadeexad", "looma quudho",
-    "dawo kasta", "lacag fudud", "halkan ka gal", "share dheh"
+    "dawo kasta", "lacag fudud", "halkan ka gal", "share dheh",
+    "isbaaro", "si degdeg ah", "ha ka habsaamin", "lacag badan", "nasiib",
+    "daawo hadda", "yaab badan", "been maaha", "runti", "dhugo", "war naxdin leh"
 ]
 
 def heuristic_fact_check(text, url=None):
@@ -594,14 +596,27 @@ def heuristic_fact_check(text, url=None):
 
 
 
+    # 3. Text Pattern Check (Untrusted Patterns)
+    pattern_matches = 0
+    for pattern in UNTRUSTED_PATTERNS:
+        if pattern in text_lower:
+            pattern_matches += 1
+            score -= 40
+            reasons.append(f"Digniin: Waxaa la helay qoraal u eg clickbait ama been-abuur ({pattern}).")
+            if pattern_matches >= 2: break # Max 2 reasons to avoid clutter
+
     # Final Verdict for Expert Fact-Check
     confidence = 70 + (min(28, abs(score) * 0.15))
+    
+    # Verdict Logic
     if score >= 60 or is_trusted_domain:
         rating = "Trusted"
         if is_trusted_domain:
             confidence = max(94, confidence) # Boost confidence for trusted domains
+    elif score <= -100:
+        rating = "Fake" # Explicitly mark as Fake if score is very low
     else:
-        rating = "Unverified" # Simplified to Trusted/Unverified per user request
+        rating = "Unverified" # Simplified to Trusted/Unverified/Fake
 
     return {
         "rating": rating,
@@ -711,7 +726,10 @@ def predict():
         sensational_keywords = [
             "mucjiso", "runtii", "deg deg", "dhacdo naxdin leh", "lacag bilaash", 
             "hal mar eeg", "ha moogaan", "sir culus", "faah faahin", "yaab", 
-            "wax aan la rumaysan karin", "muuqaal qarsoodi ah", "subxaanallaah"
+            "wax aan la rumaysan karin", "muuqaal qarsoodi ah", "subxaanallaah",
+            "shidan", "yaabka aduunka", "arrin lala yaabo", "qarax cusub",
+            "war hadda soo dhacay", "daawasho naxdin leh", "daawo video-ga",
+            "isbaaro", "si degdeg ah", "lacag badan", "nasiib", "daawo hadda"
         ]
         if any(kw in text_lower for kw in sensational_keywords):
             pattern_penalty += 2.0
@@ -843,12 +861,27 @@ def analyze_deep():
         # Expert Fact-Check
         fc_res = heuristic_fact_check(content, input_url)
         
-        # 3. Save History (Only once!)
+        # 3. Unified Decision (Strict Logic)
+        # We only mark as 'War Rasmi ah' if BOTH agree it's real, OR if Fact-Checker is very confident in trust.
+        is_ai_real = (ai_pred == "Real News")
+        is_fc_trusted = ("trusted" in fc_res.get("rating", "").lower())
+        is_fc_fake = ("fake" in fc_res.get("rating", "").lower())
+        
+        # Stricter label logic: Disagreement defaults to Fake/Suspicious
+        if is_fc_trusted and is_ai_real:
+            final_label = "War Rasmi ah"
+        elif is_fc_trusted and final_ai_score > 0.3: # AI is slightly unsure but positive, and FC is sure
+            final_label = "War Rasmi ah"
+        elif is_fc_fake:
+            final_label = "War Been Abuur Ah"
+        else:
+            final_label = "Lama xaqiijin" # Default to Unverified (instead of Fake) to be safer but skeptical
+
         news_subject = guess_subject(content)
         save_analysis_result(
             original_input=data.get("data") or data.get("text"),
             confidence=fc_res.get("confidence") if float(fc_res.get("confidence", "0").replace("%", "")) > float(ai_conf.replace("%", "")) else ai_conf,
-            label="War Rasmi ah" if (ai_pred == "Real News" or "trusted" in fc_res.get("rating", "").lower()) else "Fake news",
+            label=final_label,
             extracted_text=content,
             data_type="Unified Deep Analysis",
             ai_score=ai_conf,
@@ -859,6 +892,7 @@ def analyze_deep():
         )
 
         return jsonify({
+            "final_verdict": final_label,
             "ai_res": {
                 "prediction": ai_pred,
                 "confidence": ai_conf
