@@ -6,10 +6,15 @@ import numpy as np
 import requests
 from flask import Flask, request, jsonify
 from flask_cors import CORS
-import nltk
-from nltk.corpus import stopwords
-from nltk.tokenize import word_tokenize
-from nltk.stem import WordNetLemmatizer
+import subprocess
+import json
+import time
+import csv
+import smtplib
+import imaplib
+import email
+import tldextract
+import nltk # Base import only
 import subprocess
 import json
 import time
@@ -223,53 +228,84 @@ def not_found(e):
     # Otherwise return index.html for SPA routing
     return app.send_static_file('index.html')
 
-# ================= NLTK SETUP =================
-# We try to use data if it's there; build.sh should have downloaded it.
-def init_nltk_path():
+# ================= NLTK & MODEL STATE =================
+nltk_initialized = False
+model = None
+vectorizer = None
+label_encoder = None
+lemmatizer = None
+stop_words = set()
+
+def load_resources():
+    """Lazy loader for NLTK and AI models to keep startup fast."""
+    global model, vectorizer, label_encoder, lemmatizer, stop_words, nltk_initialized
+    
+    if nltk_initialized:
+        return
+
+    print("[*] Loading AI models and NLTK data...")
+    
+    # 1. NLTK Path Setup
     data_dir = os.path.join(BASE_DIR, "nltk_data")
     if not os.path.exists(data_dir):
         os.makedirs(data_dir, exist_ok=True)
     if data_dir not in nltk.data.path:
         nltk.data.path.insert(0, data_dir)
-    return data_dir
 
-nltk_data_dir = init_nltk_path()
-
-def load_nltk_packages():
-    """Attempt a quiet download if missing, but don't hang startup."""
+    # 2. Delayed Imports
+    from nltk.corpus import stopwords
+    from nltk.stem import WordNetLemmatizer
+    
+    # Check for packages
     for pkg in ["punkt", "punkt_tab", "stopwords", "wordnet"]:
         try:
             if pkg == "punkt": nltk.data.find("tokenizers/punkt")
             elif pkg == "punkt_tab": nltk.data.find("tokenizers/punkt_tab")
             else: nltk.data.find(f"corpora/{pkg}")
         except:
-            print(f"[*] NLTK: Package {pkg} not found, downloading...")
-            try:
-                nltk.download(pkg, download_dir=nltk_data_dir, quiet=True)
-            except: pass
+            print(f"[*] NLTK: Downloading {pkg} on-demand...")
+            nltk.download(pkg, download_dir=data_dir, quiet=True)
 
-# Call it but wrap it so it's not fatal
+    lemmatizer = WordNetLemmatizer()
+    stop_words = set(stopwords.words("english"))
+    somali_stopwords = [
+        "waa", "iyo", "in", "uu", "ay", "ayuu", "ayey", "ka", "u", "ee", "oo", "ah", 
+        "sidii", "waxaan", "waxaad", "wuxuu", "waxay", "iska", "ahaa", "lagu", "loogu",
+        "isagoo", "iyadoo", "ku", "soo", "isaga", "iyada", "labada", "kala", "inta",
+        "ilaa", "wax", "kale", "mar", "markii", "la", "si", "aad", "eeg", "ayaa",
+        "ayay", "kuwa", "kuwaas", "kuwan", "kaas", "kan", "kuwaa", "loo", "loona",
+        "yahay", "yihiin", "ahayd", "ahaa", "noqday", "noqon", "leh", "leeyihiin",
+        "kala", "hore", "danbe", "dhammaan", "kasta", "badnaa", "yar", "weyn",
+        "oo", "kale", "jira", "jiray", "ilaa", "halkan", "halkaas", "mid", "kaliya",
+        "isla", "markaana", "ahaana", "ahaanna", "hadda", "horey", "sheegay", "sheegtay"
+    ]
+    stop_words.update(somali_stopwords)
+
+    # 3. Model Loading
+    try:
+        MODEL_PATH = os.path.join(BASE_DIR, "saved_model", "svm_high_confidence.pkl")
+        VECTORIZER_PATH = os.path.join(BASE_DIR, "saved_model", "fake_real_TF_IDF_vectorizer.pkl")
+        ENCODER_PATH = os.path.join(BASE_DIR, "saved_model", "fake_real_label_encoder.pkl")
+
+        if os.path.exists(MODEL_PATH):
+            model = joblib.load(MODEL_PATH)
+            vectorizer = joblib.load(VECTORIZER_PATH)
+            label_encoder = joblib.load(ENCODER_PATH)
+            print("[*] Models loaded.")
+        else:
+            print("[!] Warning: Model files missing in saved_model/")
+    except Exception as e:
+        print(f"[!] Model load failure: {e}")
+
+    nltk_initialized = True
+
+# ================= EAGER LOAD (Wait for models at startup) =================
+print("[*] System Boot: Loading all resources before starting server...")
 try:
-    load_nltk_packages()
-except: 
-    print("[!] NLTK setup encountered a non-fatal issue.")
-
-from nltk.stem import WordNetLemmatizer
-lemmatizer = WordNetLemmatizer()
-stop_words = set(stopwords.words("english"))
-somali_stopwords = [
-    "waa", "iyo", "in", "uu", "ay", "ayuu", "ayey", "ka", "u", "ee", "oo", "ah", 
-    "sidii", "waxaan", "waxaad", "wuxuu", "waxay", "iska", "ahaa", "lagu", "loogu",
-    "isagoo", "iyadoo", "ku", "soo", "isaga", "iyada", "labada", "kala", "inta",
-    "ilaa", "wax", "kale", "mar", "markii", "la", "si", "aad", "eeg", "ayaa",
-    "ayay", "kuwa", "kuwaas", "kuwan", "kaas", "kan", "kuwaa", "loo", "loona",
-    "yahay", "yihiin", "ahayd", "ahaa", "noqday", "noqon", "leh", "leeyihiin",
-    "kala", "hore", "danbe", "dhammaan", "kasta", "badnaa", "yar", "weyn",
-    "oo", "kale", "jira", "jiray", "ilaa", "halkan", "halkaas", "mid", "kaliya",
-    "isla", "markaana", "ahaana", "ahaanna", "hadda", "horey", "sheegay", "sheegtay"
-]
-stop_words.update(somali_stopwords)
-lemmatizer = WordNetLemmatizer()
+    load_resources()
+    print("[*] System Boot: All models and NLTK data are READY.")
+except Exception as e:
+    print(f"[!] System Boot Warning: Resource loading issue: {e}")
 
 # ================= PRE-COMPILED REGEX FOR SPEED =================
 URL_PATTERN = re.compile(r'^(https?://|www\.)[a-z0-9-]+(\.[a-z0-9-]+)+([/?#].*)?$', re.IGNORECASE)
@@ -288,7 +324,9 @@ def sanitize_text(text):
 
 def preprocess_text(text):
     """High-accuracy preprocessing using NLTK word_tokenize & lemmatization"""
+    load_resources() # Ensure loaded
     if not text: return ""
+    from nltk.tokenize import word_tokenize
     text = sanitize_text(text).lower()
     text = CLEAN_TEXT_PATTERN.sub(" ", text)
     tokens = word_tokenize(text)
@@ -428,35 +466,7 @@ def is_vague_source(text):
     vague_words = ["khubaro ayaa sheegay", "daraasad cusub ayaa sheegtay", "ilo wareedyo", "warar la helayo"]
     return int(any(word in text.lower() for word in vague_words))
 
-# ================= LOAD MODELS =================
-try:
-    BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-    MODEL_PATH = os.path.join(BASE_DIR, "saved_model", "svm_high_confidence.pkl")
-    VECTORIZER_PATH = os.path.join(BASE_DIR, "saved_model", "fake_real_TF_IDF_vectorizer.pkl")
-    ENCODER_PATH = os.path.join(BASE_DIR, "saved_model", "fake_real_label_encoder.pkl")
-
-    print(f"[*] Booting: {time.ctime()}")
-    print(f"[*] BASE_DIR: {BASE_DIR}")
-    print(f"[*] Checking models in: {MODEL_PATH}")
-
-    if not os.path.exists(MODEL_PATH):
-        print(f"[!] CRITICAL: Model file not found at {MODEL_PATH}")
-        # On Render, we might need a fallback or just log it
-        model = None
-        vectorizer = None
-        label_encoder = None
-    else:
-        model = joblib.load(MODEL_PATH)
-        vectorizer = joblib.load(VECTORIZER_PATH)
-        label_encoder = joblib.load(ENCODER_PATH)
-        print("[*] Models loaded successfully")
-
-except Exception as e:
-    print(f"[!] Model loading failed: {e}")
-    traceback.print_exc()
-    model = None
-    vectorizer = None
-    label_encoder = None
+# Resource loading moved to lazy pattern above
 
 # ================= HEURISTIC FACT CHECKER =================
 import tldextract
@@ -622,6 +632,7 @@ def dashboard_page():
 @app.route("/api/predict", methods=["POST"])
 def predict():
     try:
+        load_resources() # Ensure loaded
         # Check models first
         if model is None or vectorizer is None:
             return jsonify({"error": "AI Models are not loaded on the server. Please check server logs."}), 500
@@ -781,6 +792,7 @@ def predict():
 def analyze_deep():
     """Fastest unified analysis for Render. Prevents duplicate work."""
     try:
+        load_resources() # Ensure loaded
         data = request.get_json(silent=True)
         if not data: return jsonify({"error": "No data"}), 400
         
