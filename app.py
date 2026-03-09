@@ -224,29 +224,35 @@ def not_found(e):
     return app.send_static_file('index.html')
 
 # ================= NLTK SETUP =================
-nltk_data_dir = os.path.join(BASE_DIR, "nltk_data")
-if not os.path.exists(nltk_data_dir):
-    os.makedirs(nltk_data_dir, exist_ok=True)
+# We try to use data if it's there; build.sh should have downloaded it.
+def init_nltk_path():
+    data_dir = os.path.join(BASE_DIR, "nltk_data")
+    if not os.path.exists(data_dir):
+        os.makedirs(data_dir, exist_ok=True)
+    if data_dir not in nltk.data.path:
+        nltk.data.path.insert(0, data_dir)
+    return data_dir
 
-if nltk_data_dir not in nltk.data.path:
-    nltk.data.path.append(nltk_data_dir)
+nltk_data_dir = init_nltk_path()
 
-def init_nltk():
-    print("[*] NLTK: Initializing packages...")
+def load_nltk_packages():
+    """Attempt a quiet download if missing, but don't hang startup."""
     for pkg in ["punkt", "punkt_tab", "stopwords", "wordnet"]:
         try:
             if pkg == "punkt": nltk.data.find("tokenizers/punkt")
             elif pkg == "punkt_tab": nltk.data.find("tokenizers/punkt_tab")
             else: nltk.data.find(f"corpora/{pkg}")
         except:
+            print(f"[*] NLTK: Package {pkg} not found, downloading...")
             try:
-                print(f"[*] NLTK: Downloading {pkg} to {nltk_data_dir}...")
                 nltk.download(pkg, download_dir=nltk_data_dir, quiet=True)
-            except Exception as e:
-                print(f"[!] NLTK Download Error ({pkg}): {e}")
+            except: pass
 
-# Call init_nltk early
-init_nltk()
+# Call it but wrap it so it's not fatal
+try:
+    load_nltk_packages()
+except: 
+    print("[!] NLTK setup encountered a non-fatal issue.")
 
 from nltk.stem import WordNetLemmatizer
 lemmatizer = WordNetLemmatizer()
@@ -1652,12 +1658,8 @@ def upload_dataset():
 
 # ================= RUN SERVER =================
 if __name__ == "__main__":
-    # Local development fallback
-    # When running on Render, Gunicorn handles the port via Procfile
-    port = int(os.environ.get("PORT", 3402))
-    print(f"[*] Local Dev: Starting server on 0.0.0.0:{port}...")
-    try:
-        app.run(host="0.0.0.0", port=port, debug=False)
-    except Exception as e:
-        print(f"[!] Server failed to start: {e}")
-        traceback.print_exc()
+    # Local development: python app.py 
+    # Production: gunicorn app:app 
+    app_port = int(os.environ.get("PORT", 3402))
+    print(f"[*] Starting server on port {app_port}...")
+    app.run(host="0.0.0.0", port=app_port, debug=False)
