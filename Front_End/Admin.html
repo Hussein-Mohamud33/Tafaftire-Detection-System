@@ -412,19 +412,20 @@
                     <i class="fas fa-tachometer-alt"></i> Dashboard
                 </div>
                 <div class="nav-item" onclick="showSection('datasets')">
-                    <i class="fas fa-database"></i> Manage Datasets
+                    <i class="fas fa-database"></i> Maamulka Xogta
                 </div>
                 <div class="nav-item" onclick="showSection('retrain')">
-                    <i class="fas fa-microchip"></i> Retrain Model
+                    <i class="fas fa-microchip"></i> Tababarka AI-ga
                 </div>
                 <div class="nav-item" onclick="showSection('logs')">
-                    <i class="fas fa-file-alt"></i> System Logs
+                    <i class="fas fa-file-alt"></i> Farriimaha Dadka
                 </div>
                 <div class="nav-item" onclick="showSection('history')">
-                    <i class="fas fa-server"></i> Analysis History
+                    <i class="fas fa-server"></i> Taariikhda Baaritaanka
                 </div>
-                <div class="nav-item" onclick="logout()">
-                    <i class="fas fa-sign-out-alt"></i> Logout
+                <div class="nav-item" onclick="logout()"
+                    style="margin-top: auto; border-top: 1px solid rgba(255,255,255,0.05);">
+                    <i class="fas fa-sign-out-alt"></i> Ka Bax (Logout)
                 </div>
             </div>
         </div>
@@ -473,41 +474,42 @@
                 <div id="dashboardSection">
                     <div class="stats-grid" style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 20px;">
                         <div class="stat-card blue" style="cursor: pointer;" onclick="showSection('datasets')">
-                            <span class="stat-label">Total Datasets</span>
+                            <span class="stat-label">Dhamaan Xogta</span>
                             <div class="stat-value" id="stat-datasets">0</div>
-                            <div class="stat-trend trend-up"><i class="fas fa-plus"></i> Active files</div>
+                            <div class="stat-trend trend-up"><i class="fas fa-plus"></i> Faylasha shaqaynaya</div>
                         </div>
                         <div class="stat-card green" style="cursor: pointer;" onclick="showSection('retrain')">
-                            <span class="stat-label">Model Accuracy</span>
+                            <span class="stat-label">Saxnaanta AI-ga</span>
                             <div class="stat-value" id="stat-accuracy">0%</div>
-                            <div class="stat-trend trend-up"><i class="fas fa-arrow-up"></i> Stable</div>
+                            <div class="stat-trend trend-up"><i class="fas fa-arrow-up"></i> Waa dagan tahay</div>
                         </div>
                         <div class="stat-card red" style="cursor: pointer;" onclick="showSection('logs')">
-                            <span class="stat-label">Contact Messages</span>
+                            <span class="stat-label">Farriimaha Dadka</span>
                             <div class="stat-value" id="stat-messages">0</div>
-                            <div class="stat-trend trend-up"><i class="fas fa-envelope"></i> Total messages</div>
+                            <div class="stat-trend trend-up"><i class="fas fa-envelope"></i> Farriimo cusub</div>
                         </div>
                         <div class="stat-card orange"
                             style="cursor: pointer; background: linear-gradient(135deg, #ff9f1c, #ff6b35);"
                             onclick="showSection('history')">
-                            <span class="stat-label">Database</span>
-                            <div class="stat-value" id="stat-history-count">100+</div>
-                            <div class="stat-trend trend-up" style="color: #fff;"><i class="fas fa-hdd"></i> Evaluated
-                                History</div>
+                            <span class="stat-label">Kaydka Baaritaanka</span>
+                            <div class="stat-value" id="stat-history-count">0</div>
+                            <div class="stat-trend trend-up" style="color: #fff;"><i class="fas fa-hdd"></i> Xogta la
+                                xaqiijiyay</div>
                         </div>
                     </div>
 
                     <div class="charts-row">
                         <div class="chart-card">
                             <div class="chart-header">
-                                <h3>Weekly Verification Activity</h3>
+                                <h3>Dhaqdhaqaaqa Baaritaanka Toddobaadlaha</h3>
                                 <i class="fas fa-chart-bar" style="color: var(--accent-blue); font-size: 0.8rem;"></i>
                             </div>
                             <canvas id="weeklyBarChart" height="120"></canvas>
                         </div>
                         <div class="chart-card">
                             <div class="chart-header">
-                                <h3>Model Status</h3>
+                                <h3>Xaaladda Xogta (Been vs Run)</h3>
+                                <i class="fas fa-chart-pie" style="color: var(--accent-orange); font-size: 0.8rem;"></i>
                             </div>
                             <canvas id="distributionChart" height="120"></canvas>
                         </div>
@@ -1169,26 +1171,68 @@
         }
 
         function initCharts(fake, real, weeklyActivity) {
+            const ctx1 = document.getElementById('distributionChart').getContext('2d');
+            const ctx2 = document.getElementById('weeklyBarChart').getContext('2d');
+
+            // 1. Doughnut Chart (Model Status/Distribution)
             if (window.distChart) window.distChart.destroy();
-            window.distChart = new Chart(document.getElementById('distributionChart'), {
+            window.distChart = new Chart(ctx1, {
                 type: 'doughnut',
                 data: {
-                    labels: ['Fake', 'Real'],
-                    datasets: [{ data: [fake, real], backgroundColor: ['#ef4444', '#10b981'], borderWidth: 0 }]
+                    labels: ['Been-abuur', 'War Rasmi ah'],
+                    datasets: [{
+                        data: [fake || 0, real || 0],
+                        backgroundColor: ['#ff4757', '#2ecc71'],
+                        hoverBackgroundColor: ['#ff6b81', '#7bed9f'],
+                        borderWidth: 0,
+                        hoverOffset: 10
+                    }]
                 },
-                options: { cutout: '70%', plugins: { legend: { position: 'bottom', labels: { color: '#fff' } } } }
+                options: {
+                    cutout: '75%',
+                    plugins: {
+                        legend: {
+                            position: 'bottom',
+                            labels: {
+                                color: '#9ca3af',
+                                padding: 20,
+                                font: { size: 11, family: 'Inter' },
+                                usePointStyle: true
+                            }
+                        },
+                        tooltip: {
+                            backgroundColor: '#2d3436',
+                            titleColor: '#fff',
+                            bodyColor: '#eee',
+                            cornerRadius: 8,
+                            padding: 12
+                        }
+                    },
+                    animation: { animateScale: true, animateRotate: true }
+                }
             });
 
+            // 2. Bar Chart (Weekly Activity)
             if (window.barChart) window.barChart.destroy();
-            window.barChart = new Chart(document.getElementById('weeklyBarChart'), {
+
+            // Create Gradient
+            const gradient = ctx2.createLinearGradient(0, 0, 0, 150);
+            gradient.addColorStop(0, '#3b82f6');
+            gradient.addColorStop(1, 'rgba(59, 130, 246, 0.1)');
+
+            window.barChart = new Chart(ctx2, {
                 type: 'bar',
                 data: {
-                    labels: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'],
+                    labels: ['Isniin', 'Talaado', 'Arbaco', 'Khamiis', 'Jimce', 'Sabti', 'Axad'],
                     datasets: [{
-                        label: 'Requests',
-                        data: weeklyActivity || [12, 19, 3, 5, 2, 3, 10],
-                        backgroundColor: '#3b82f6',
-                        borderRadius: 5
+                        label: 'Baaritaanada',
+                        data: weeklyActivity && weeklyActivity.length === 7 ? weeklyActivity : [12, 19, 3, 5, 2, 3, 10],
+                        backgroundColor: gradient,
+                        borderColor: '#3b82f6',
+                        borderWidth: 1,
+                        borderRadius: 8,
+                        hoverBackgroundColor: '#60a5fa',
+                        barThickness: 25
                     }]
                 },
                 options: {
