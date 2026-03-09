@@ -594,15 +594,16 @@ def heuristic_fact_check(text, url=None):
     confidence_base = 70 + (min(28, abs(score) * 0.15))
     
     # Verdict Logic (STRICTER)
-    if score >= 100 or is_trusted_domain: # Must be higher than 60 now
+    if score >= 100 or is_trusted_domain: 
         rating = "Trusted"
-        confidence = max(95, confidence_base) if is_trusted_domain else confidence_base
-    elif score <= -50: # Much lower threshold to trigger 'Fake'
+        # Ensure trusted domains reach > 90% even without search hits
+        confidence = max(96, confidence_base) if is_trusted_domain else confidence_base
+    elif score <= -50: 
         rating = "Fake"
         confidence = max(85, confidence_base)
     else:
         rating = "Unverified"
-        confidence = 60 # Lower confidence for unverified
+        confidence = 60 
 
     return {
         "rating": rating,
@@ -747,10 +748,13 @@ def predict():
         
         print(f"[*] AI SCAN - Model: {ai_score_val:.2f}, Patterns: -{pattern_penalty:.2f}, Boost: +{source_boost:.2f}, Final: {final_ai_score:.2f}")
 
-        # Sigmoid function for confidence
-        confidence_val = (1 / (1 + np.exp(-abs(final_ai_score * 0.8)))) * 100
-        confidence_val = min(98.5, max(75.0, confidence_val))
+        # Simple AI Confidence
+        ai_conf = (1 / (1 + np.exp(-abs(final_ai_score * 0.8)))) * 100
+        ai_conf = f"{min(98.5, max(75.0, ai_conf)):.2f}%"
         
+        # STRICT VERDICT: Must be > 1.25 to be Real
+        ai_pred = "Real News" if final_ai_score > 1.25 else "Fake news"
+
         # ================= AI Decision Logic (Stricter Verdict) =================
         # Increase threshold to 1.5 - AI MUST BE VERY SURE to say Real.
         if final_ai_score > 1.5:
@@ -841,31 +845,42 @@ def analyze_deep():
         if len(content.split()) < 20: 
             deep_penalty += 4.0
         
-        final_ai_score = ai_score_val - deep_penalty
+        # 2.2 Source-Based Validation (Mirror predict logic)
+        source_boost = 0
+        if input_url:
+            try:
+                extracted_tld = tldextract.extract(input_url)
+                temp_domain = f"{extracted_tld.domain}.{extracted_tld.suffix}".lower()
+                if temp_domain in TRUSTED_SOURCES:
+                    source_boost = 6.0 # Stronger boost for trusted sources
+                    print(f"[*] DEEP SCAN: Trusted source ({temp_domain}) detected.")
+            except: pass
+
+        final_ai_score = ai_score_val - deep_penalty + source_boost
         
         # Simple AI Confidence
         ai_conf = (1 / (1 + np.exp(-abs(final_ai_score * 0.8)))) * 100
         ai_conf = f"{min(98.5, max(75.0, ai_conf)):.2f}%"
         
-        # STRICT VERDICT: Must be > 1.5 to be Real
-        ai_pred = "Real News" if final_ai_score > 1.5 else "Fake news"
+        # STRICT VERDICT: Must be > 1.25 to be Real
+        ai_pred = "Real News" if final_ai_score > 1.25 else "Fake news"
 
         # Expert Fact-Check
         fc_res = heuristic_fact_check(content, input_url)
         
         # 3. Unified Decision (Extreme Strict Logic)
         # We ONLY mark as 'War Rasmi ah' if BOTH AI and Expert are POSITIVE.
-        is_ai_real = (ai_pred == "Real News" and final_ai_score > 1.8) # AI must be very sure
-        is_fc_trusted = (fc_res.get("rating") == "Trusted" and float(fc_res.get("confidence", "0").replace("%", "")) > 90)
+        is_ai_real = (ai_pred == "Real News" and final_ai_score > 1.25)
+        is_fc_trusted = (fc_res.get("rating") == "Trusted" and float(fc_res.get("confidence", "0").replace("%", "")) >= 95)
         
         is_fc_fake = (fc_res.get("rating") == "Fake")
-        is_ai_fake = (ai_pred == "Fake news" or final_ai_score < 0.5)
+        is_ai_fake = (ai_pred == "Fake news" or final_ai_score < 0.3)
 
         # 1. Agreement on Trusted/Real
         if is_fc_trusted and is_ai_real:
             final_label = "War Rasmi ah"
         # 2. Strong disagreement or either flags as Fake -> Final is Fake
-        elif is_fc_fake or (is_ai_fake and final_ai_score < -1.0):
+        elif is_fc_fake or (is_ai_fake and final_ai_score < -0.5):
             final_label = "War Been Abuur Ah"
         # 3. Any uncertainty -> Unverified
         else:
