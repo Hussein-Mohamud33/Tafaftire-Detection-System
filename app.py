@@ -143,17 +143,16 @@ def add_to_dataset(text, label, link="N/A", title="N/A", subject="General"):
         dataset_name = ""
         numerical_label = 1
         
-        # Map labels to dataset types (as requested: Fake/Unverified = Fake, Real/Trusted = Real)
-        # We also include Somali translations to be thorough
         if any(keyword in label_str for keyword in ["REAL", "TRUSTED", "RASMI", "WAR RASMI AH", "RUN"]):
             dataset_name = "Real-news.csv"
             numerical_label = 1
         elif any(keyword in label_str for keyword in ["FAKE", "BEEN", "UNVERIFIED", "LAMA XAQIIJIN", "SUSPICIOUS", "SHAKI"]):
-            dataset_name = "fake-news.csv"
+            dataset_name = "Fake-news.csv"
             numerical_label = 0
         else:
-            # Don't add ambiguous data
-            return
+            # Case for Borderline/Unverified
+            dataset_name = "Fake-news.csv"
+            numerical_label = 0
 
         dataset_path = os.path.join(os.path.dirname(__file__), "Dataset", dataset_name)
         
@@ -168,14 +167,13 @@ def add_to_dataset(text, label, link="N/A", title="N/A", subject="General"):
         if len(clean_text) < 10: return
 
 
-        # Create new record structure
-        # Ensure values are not too long for the CSV preview
+        # Create new record structure matching CSV: Source/URL,Title,Text,Category,Label
         new_data = {
-            "link": str(link)[:500],
-            "title": str(title)[:200],
+            "Source/URL": str(link)[:500],
+            "Title": str(title)[:200],
             "Text": str(text),
-            "Subject": str(subject)[:100],
-            "label": numerical_label
+            "Category": str(subject)[:100],
+            "Label": numerical_label
         }
         
         df_new = pd.DataFrame([new_data])
@@ -339,17 +337,17 @@ def is_url(text):
     return bool(URL_PATTERN.match(text.strip()))
 
 def guess_subject(text):
-    """Guess the news subject based on keywords."""
+    """Guess the news subject based on keywords (Somali)."""
     text_lower = text.lower()
-    if any(w in text_lower for w in ["siyaasad", "baarlaman", "doorasho", "government", "policy", "politics", "maamulka"]):
-        return "Politics"
-    if any(w in text_lower for w in ["qarax", "amaanka", "ciidanka", "police", "security", "terrorism", "war", "asluubta"]):
-        return "Security"
+    if any(w in text_lower for w in ["siyaasad", "baarlaman", "doorasho", "government", "policy", "maamulka", "xilka"]):
+        return "Siyaasadda"
+    if any(w in text_lower for w in ["qarax", "amaanka", "ciidanka", "police", "security", "dagaal", "killed", "shil"]):
+        return "Amniga"
     if any(w in text_lower for w in ["caafimaadka", "isbitaal", "health", "doctor", "virus", "fayras", "dawo"]):
-        return "Health"
+        return "Caafimaadka"
     if any(w in text_lower for w in ["lacag", "dhaqaale", "bank", "finance", "economy", "ganacsi", "cashuur", "deynta"]):
-        return "Finance"
-    return "General"
+        return "Dhaqaalaha"
+    return "Guud"
 
 @lru_cache(maxsize=300)
 def extract_text_from_url(url):
@@ -1138,14 +1136,18 @@ def admin_stats():
         fake_news_count = 0
         real_news_count = 0
         
-        # Super fast estimation by file size (Kaggle datasets are roughly 1.5KB per entry)
+        full_entries_count = 0
         for f in dataset_files:
             if not f.endswith(".csv"): continue
             try:
-                size = os.path.getsize(os.path.join(dataset_dir, f))
-                estimated = size // 1500 # Fast approximation
-                if "fake" in f.lower(): fake_news_count += estimated
-                elif "real" in f.lower(): real_news_count += estimated
+                path = os.path.join(dataset_dir, f)
+                # Actual line count for accuracy
+                with open(path, "rb") as csv_f:
+                    lines = sum(1 for _ in csv_f) - 1 # Exclude header
+                
+                full_entries_count += lines
+                if "fake" in f.lower(): fake_news_count += lines
+                elif "real" in f.lower(): real_news_count += lines
             except: pass
 
         latest_stats = load_stats()
@@ -1180,7 +1182,7 @@ def admin_stats():
              except: pass
 
         stats = {
-            "total_datasets": len(dataset_files),
+            "total_datasets": full_entries_count,
             "fake_news_count": max(fake_news_count, 1),
             "real_news_count": max(real_news_count, 1),
             "requests_handled": latest_stats.get("requests_handled", 0),
