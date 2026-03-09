@@ -18,11 +18,12 @@ from sklearn.linear_model import LogisticRegression
 from sklearn.metrics import accuracy_score, classification_report
 from sklearn.preprocessing import LabelEncoder
 
-# Define DATA_DIR outside the workspace to prevent Live Server reloads
-HOME_DIR = os.path.expanduser("~")
-DATA_DIR = os.path.join(HOME_DIR, ".tafaftire_system_data")
+# Data storage synced with app.py
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+DATA_DIR = os.path.join(BASE_DIR, "system_data")
 if not os.path.exists(DATA_DIR):
-    os.makedirs(DATA_DIR)
+    os.makedirs(DATA_DIR, exist_ok=True)
+
 
 # ======================================
 # NLTK SETUP
@@ -109,10 +110,15 @@ fake_df["Text"] = fake_df["Text"].astype(str)
 real_df["Text"] = real_df["Text"].astype(str)
 
 # ======================================
-# PREPARE DATA
+# DATA DE-DUPLICATION (Improvement)
 # ======================================
+print("Removing duplicates before training...")
+fake_df = fake_df.drop_duplicates(subset=['Text']).fillna("")
+real_df = real_df.drop_duplicates(subset=['Text']).fillna("")
+
 texts = pd.concat([fake_df["Text"], real_df["Text"]])
 labels = [0] * len(fake_df) + [1] * len(real_df)
+
 
 print("Preprocessing text...")
 processed_texts = [preprocess_text(t) for t in texts]
@@ -149,13 +155,12 @@ X_test_tfidf = hstack([X_test_tfidf, np.array([ext_test, vague_test]).T])
 # MODELS
 # ======================================
 # Using class_weight='balanced' to handle the heavy imbalance in the dataset
-from sklearn.linear_model import PassiveAggressiveClassifier
+# Using class_weight='balanced' to handle the heavy imbalance in the dataset
 
 models = {
     "Naive_Bayes": MultinomialNB(alpha=0.01), # Lower alpha for more sensitivity
     "SVM": LinearSVC(max_iter=15000, C=1.0, dual=True, class_weight='balanced'),
-    "Logistic_Regression": LogisticRegression(max_iter=4000, solver='lbfgs', class_weight='balanced'),
-    "Passive_Aggressive": PassiveAggressiveClassifier(max_iter=2000, random_state=42)
+    "Logistic_Regression": LogisticRegression(max_iter=4000, solver='lbfgs', class_weight='balanced')
 }
 
 results = {}
@@ -258,4 +263,17 @@ plt.close()
 
 print("Accuracy table saved: saved_model/model_accuracy_table.png")
 print("\nDHAMAAN HAWLII WAA LA DHAMEEYSTIRAY")
+
+# Automatic Cleanup of training flag
+import argparse
+parser = argparse.ArgumentParser()
+parser.add_argument("--flag", help="Path to the training flag file")
+args, unknown = parser.parse_known_args()
+
+if args.flag and os.path.exists(args.flag):
+    try:
+        os.remove(args.flag)
+        print(f"[*] Training flag removed: {args.flag}")
+    except Exception as e:
+        print(f"[!] Error removing flag: {e}")
 
