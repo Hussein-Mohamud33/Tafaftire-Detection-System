@@ -1174,7 +1174,7 @@ def admin_stats():
                         if date_str:
                             try:
                                 dt = datetime.datetime.strptime(date_str, "%Y-%m-%d %H:%M:%S")
-                                # Show activity distribution by day of week for verified records
+                                # Current Day (0=Mon, 6=Sun) - Somali Charts start with Isniin (Mon)
                                 if dt >= seven_days_ago:
                                     calc_activity[dt.weekday()] += 1
                             except: pass
@@ -1187,7 +1187,7 @@ def admin_stats():
              except: pass
 
         stats = {
-            "total_datasets": full_entries_count,
+            "total_datasets": len([f for f in dataset_files if f.endswith(".csv")]),
             "fake_news_count": fake_news_count,
             "real_news_count": real_news_count,
             "requests_handled": latest_stats.get("requests_handled", 0),
