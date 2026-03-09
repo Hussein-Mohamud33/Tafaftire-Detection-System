@@ -224,28 +224,29 @@ def not_found(e):
     return app.send_static_file('index.html')
 
 # ================= NLTK SETUP =================
-# Use local folder within project for NLTK packages
 nltk_data_dir = os.path.join(BASE_DIR, "nltk_data")
 if not os.path.exists(nltk_data_dir):
     os.makedirs(nltk_data_dir, exist_ok=True)
-nltk.data.path.append(nltk_data_dir)
 
-print("[*] NLTK: Initializing packages...")
-for pkg in ["punkt", "punkt_tab", "stopwords", "wordnet"]:
-    try:
-        # Check if already downloaded
-        if pkg == "punkt":
-            nltk.data.find("tokenizers/punkt")
-        elif pkg == "punkt_tab":
-            nltk.data.find("tokenizers/punkt_tab")
-        else:
-            nltk.data.find(f"corpora/{pkg}")
-    except (LookupError, Exception):
+if nltk_data_dir not in nltk.data.path:
+    nltk.data.path.append(nltk_data_dir)
+
+def init_nltk():
+    print("[*] NLTK: Initializing packages...")
+    for pkg in ["punkt", "punkt_tab", "stopwords", "wordnet"]:
         try:
-            print(f"[*] NLTK: Downloading {pkg}...")
-            nltk.download(pkg, download_dir=nltk_data_dir, quiet=True)
-        except Exception as e:
-            print(f"[!] NLTK: Failed to download {pkg}: {e}")
+            if pkg == "punkt": nltk.data.find("tokenizers/punkt")
+            elif pkg == "punkt_tab": nltk.data.find("tokenizers/punkt_tab")
+            else: nltk.data.find(f"corpora/{pkg}")
+        except:
+            try:
+                print(f"[*] NLTK: Downloading {pkg} to {nltk_data_dir}...")
+                nltk.download(pkg, download_dir=nltk_data_dir, quiet=True)
+            except Exception as e:
+                print(f"[!] NLTK Download Error ({pkg}): {e}")
+
+# Call init_nltk early
+init_nltk()
 
 from nltk.stem import WordNetLemmatizer
 lemmatizer = WordNetLemmatizer()
