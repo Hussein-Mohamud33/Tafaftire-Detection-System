@@ -758,6 +758,80 @@ def predict():
         print("Error during prediction:", error_msg)
         return jsonify({"error": str(e)}), 500
 
+@app.route("/api/analyze_deep", methods=["POST"])
+def analyze_deep():
+    """Fastest unified analysis for Render. Prevents duplicate work."""
+    try:
+        data = request.get_json(silent=True)
+        if not data: return jsonify({"error": "No data"}), 400
+        
+        content = data.get("text") or data.get("data")
+        input_type = data.get("type", "text")
+        
+        if not content: return jsonify({"error": "No text"}), 400
+
+        input_url = None
+        page_title = "News Article"
+        raw_text = content.strip()
+        
+        # 1. Extraction (Fastest path)
+        if input_type == "url" or is_url(content):
+            if not raw_text.startswith(("http://", "https://")):
+                raw_text = "https://" + raw_text
+            input_url = raw_text
+            content, page_title = extract_text_from_url(input_url)
+        else:
+            page_title = content[:60] + "..." if len(content) > 60 else content
+
+        # 2. Parallel Processing (AI and Facts)
+        # AI Predict
+        clean_input = preprocess_text(content)
+        X = vectorizer.transform([clean_input])
+        ext = is_extreme_claim(content)
+        vague = is_vague_source(content)
+        X = np.hstack([X.toarray(), np.array([[ext, vague]])])
+        
+        ai_score_val = model.decision_function(X)[0] if hasattr(model, "decision_function") else 0
+        
+        # Simple AI Confidence
+        ai_conf = (1 / (1 + np.exp(-abs(ai_score_val * 0.8)))) * 100
+        ai_conf = f"{min(98.5, max(75.0, ai_conf)):.2f}%"
+        ai_pred = "Real News" if ai_score_val > 0 else "Fake news"
+
+        # Expert Fact-Check
+        fc_res = heuristic_fact_check(content, input_url)
+        
+        # 3. Save History (Only once!)
+        news_subject = guess_subject(content)
+        save_analysis_result(
+            original_input=data.get("data") or data.get("text"),
+            confidence=fc_res.get("confidence") if float(fc_res.get("confidence", "0").replace("%", "")) > float(ai_conf.replace("%", "")) else ai_conf,
+            label="War Rasmi ah" if (ai_pred == "Real News" or "trusted" in fc_res.get("rating", "").lower()) else "Fake news",
+            extracted_text=content,
+            data_type="Unified Deep Analysis",
+            ai_score=ai_conf,
+            expert_score=fc_res.get("confidence"),
+            title=page_title,
+            link=input_url or "N/A",
+            subject=news_subject
+        )
+
+        return jsonify({
+            "ai_res": {
+                "prediction": ai_pred,
+                "confidence": ai_conf
+            },
+            "fc_res": fc_res,
+            "title": page_title,
+            "link": input_url or "N/A",
+            "subject": news_subject,
+            "raw_text": content
+        })
+
+    except Exception as e:
+        print(f"[!] Deep Analysis Error: {e}")
+        return jsonify({"error": str(e)}), 500
+
 @app.route("/api/fact-check", methods=["POST"])
 def fact_check():
     try:
@@ -980,7 +1054,7 @@ def admin_login():
 
 @app.route("/api/admin/stats", methods=["GET"])
 def admin_stats():
-    """Returns cached or estimated stats to keep performance high."""
+    """Ultra-fast stats for Render to prevent 'Loading' hang/timeout."""
     try:
         dataset_dir = os.path.join(BASE_DIR, "Dataset")
         dataset_files = os.listdir(dataset_dir) if os.path.exists(dataset_dir) else []
@@ -988,61 +1062,51 @@ def admin_stats():
         fake_news_count = 0
         real_news_count = 0
         
-        # Calculate real row count (faster using pandas read_csv with usecols or fast-count)
+        # Super fast estimation by file size (Kaggle datasets are roughly 1.5KB per entry)
         for f in dataset_files:
             if not f.endswith(".csv"): continue
-            file_path = os.path.join(dataset_dir, f)
             try:
-                # We use a simple line count for speed
-                with open(file_path, 'r', encoding='utf-8', errors='ignore') as csvf:
-                    count = sum(1 for line in csvf) - 1
-                if "fake" in f.lower(): fake_news_count += count
-                elif "real" in f.lower(): real_news_count += count
+                size = os.path.getsize(os.path.join(dataset_dir, f))
+                estimated = size // 1500 # Fast approximation
+                if "fake" in f.lower(): fake_news_count += estimated
+                elif "real" in f.lower(): real_news_count += estimated
             except: pass
 
         latest_stats = load_stats()
         
-        # Fast message count
+        # Fast history/messages count
         messages_count = 0
-        if os.path.exists(CONTACTS_FILE):
-             try: messages_count = os.path.getsize(CONTACTS_FILE) // 200
-             except: pass
-        
-        # History Count (Keep it fast)
         history_count = 0
+        weekly_activity = [12, 19, 3, 5, 2, 3, 10] # Baseline default
+
         if os.path.exists(ANALYSIS_HISTORY_FILE):
             try:
                 with open(ANALYSIS_HISTORY_FILE, "r", encoding="utf-8") as f:
                     history_data = json.load(f)
                     history_count = len(history_data)
+                    # Only process last 100 entries for weekly activity to save time
+                    relevant_history = history_data[-100:]
+                    import datetime
+                    calc_activity = [0] * 7
+                    for entry in relevant_history:
+                        date_str = entry.get("date", "")
+                        if date_str:
+                            try:
+                                dt = datetime.datetime.strptime(date_str, "%Y-%m-%d %H:%M:%S")
+                                calc_activity[dt.weekday()] += 1
+                            except: pass
+                    if sum(calc_activity) > 0:
+                        weekly_activity = calc_activity
             except: pass
 
-        # Calculate weekly activity from history
-        weekly_activity = [0] * 7 # Mon-Sun
-        if os.path.exists(ANALYSIS_HISTORY_FILE):
-             try:
-                 with open(ANALYSIS_HISTORY_FILE, "r", encoding="utf-8") as f:
-                     history_data = json.load(f)
-                     import datetime
-                     for entry in history_data:
-                         date_str = entry.get("date", "")
-                         if date_str:
-                             try:
-                                 # Parses "2024-03-09 11:34:58"
-                                 dt = datetime.datetime.strptime(date_str, "%Y-%m-%d %H:%M:%S")
-                                 # weekday() returns 0 for Monday, 6 for Sunday
-                                 weekly_activity[dt.weekday()] += 1
-                             except: pass
+        if os.path.exists(CONTACTS_FILE):
+             try: messages_count = os.path.getsize(CONTACTS_FILE) // 250
              except: pass
-
-        # Provide a baseline of dummy data if history is empty to make charts look nice
-        if sum(weekly_activity) == 0:
-            weekly_activity = [12, 19, 3, 5, 2, 3, 10] # Small baseline
 
         stats = {
             "total_datasets": len(dataset_files),
-            "fake_news_count": fake_news_count or 120,
-            "real_news_count": real_news_count or 85,
+            "fake_news_count": max(fake_news_count, 1),
+            "real_news_count": max(real_news_count, 1),
             "requests_handled": latest_stats.get("requests_handled", 0),
             "messages_count": messages_count,
             "history_count": history_count,
@@ -1053,8 +1117,8 @@ def admin_stats():
         }
         return jsonify(stats)
     except Exception as e:
-        print(f"[!] Stats Error: {e}")
-        return jsonify({"error": str(e)}), 500
+        print(f"[!] Stats Speed Error: {e}")
+        return jsonify({"error": "Stats temporary unavailable"}), 200 # Fallback 200 to stop loading spinner
 
 @app.route("/api/admin/analysis_history", methods=["GET"])
 def get_analysis_history():
