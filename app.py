@@ -556,28 +556,25 @@ def heuristic_fact_check(text, url=None):
                     found_debunk = True
 
             if found_debunk:
-                score -= 150
+                score -= 200 # Confirmed Fake
                 reasons.append("Natiijooyinka Baaritaanka: Xog laga helay internet-ka ayaa sheegaysa in qoraalkan uu yahay been-abuur la xaqiijiyay.")
             elif trusted_hits:
-                score += 100
+                score += 120
                 source_link = trusted_hits[0]
                 reasons.append(f"Xog Run Ah: Warkan waxaa lagu tebiyay ilo caalami ah oo sugan. <a href='{source_link}' target='_blank'>Riix halkan si aad u eegto</a>.")
-            elif max_sim >= 8:
+            elif max_sim >= 7:
                 score += 60
-                reasons.append("Baaris Web: Waxaa la helay xog badan oo u dhiganta warka aad soo gudbisay, taas oo kor u qaadaysa kalsoonida.")
-            elif has_danger and max_sim < 4:
-                score -= 120
-                reasons.append("Digniin: Dhacdo xasaasi ah (Danger/Death) laguma tebin ilaha rasmiga ah ee internet-ka (None Found).")
-            elif max_sim < 4:
-                score -= 70
-                reasons.append("Xog La'aan: Markii la baaray internet-ka, laguma helin natiijooyin xaqiijinaya warkaan (No citations found).")
-        else:
-            if not is_trusted_domain:
-                score -= 150
-                reasons.append("Cilad Baaris: Xog la xaqiijin karo lagama helin internet-ka oo ku saabsan qoraalkan.")
+                reasons.append("Baaris Web: Waxaa la helay xog u dhiganta warka aad soo gudbisay, taas oo kor u qaadaysa kalsoonida.")
+            elif has_danger and max_sim < 3:
+                score -= 100
+                reasons.append("Digniin: Dhacdo xasaasi ah (Danger/Death) laguma tebin ilaha rasmiga ah ee internet-ka.")
             else:
-                score += 50
-                reasons.append("Cilad Baaris: Search fashilmay laakiin isha warka ayaa la xaqiijiyay.")
+                score -= 20 # Mild suspicion for lack of citations
+                reasons.append("Xog La'aan: Markii la baaray internet-ka, laguma helin xaqiijin ku filan (No citations found).")
+        else:
+            # Search failed or no results
+            score -= 10
+            reasons.append("Baaris Fashilantay: Ma jirto xog internet-ka laga helay oo xaqiijinaysa nuxurka qoraalkan.")
 
 
 
@@ -592,12 +589,16 @@ def heuristic_fact_check(text, url=None):
             reasons.append(f"Digniin: Waxaa la helay qoraal u eg clickbait ama been-abuur ({pattern}).")
             if pattern_matches >= 3: break 
 
+    # Final Verdict Calculation
+    confidence_base = 65 + (min(33, abs(score) * 0.2))
+    
     # Verdict Logic (BALANCED STRICTNESS)
-    if score >= 90 or is_trusted_domain: 
+    if score >= 70 or is_trusted_domain: 
         rating = "Trusted"
-    elif score <= -40: 
+        confidence = max(94, confidence_base) if is_trusted_domain else confidence_base
+    elif score <= -60: 
         rating = "Fake"
-        confidence = max(85, confidence_base)
+        confidence = max(88, confidence_base)
     else:
         rating = "Unverified"
         confidence = 65 
@@ -837,11 +838,11 @@ def analyze_deep():
         deep_penalty = 0
         sensational_list = ["mucjiso", "lacag bilaash", "deg deg", "yaab", "shaki", "hubaal ma leh", "qarax cusub", "sir culus"]
         if any(kw in text_lower for kw in sensational_list): 
-            deep_penalty += 3.5
+            deep_penalty += 2.5 # Reduced from 3.5
         if len(content.split()) < 25: 
-            deep_penalty += 6.0
+            deep_penalty += 4.5 # Reduced from 6.0
         if not input_url:
-            deep_penalty += 2.5 # Text-only deep scan penalty
+            deep_penalty += 1.5 # Text-only deep scan penalty (Reduced from 2.5)
         
         # 2.2 Source-Based Validation (Mirror predict logic)
         source_boost = 0
@@ -879,19 +880,31 @@ def analyze_deep():
              elif "FAKE" in rating: final_label = "FAKE INFO"
              else: final_label = "UNVERIFIED"
 
-        news_subject = guess_subject(content)
-        save_analysis_result(
-            original_input=data.get("data") or data.get("text"),
-            confidence=fc_res.get("confidence") if float(fc_res.get("confidence", "0").replace("%", "")) > float(ai_conf.replace("%", "")) else ai_conf,
-            label=final_label,
-            extracted_text=content,
-            data_type="Unified Deep Analysis",
-            ai_score=ai_conf,
-            expert_score=fc_res.get("confidence"),
-            title=page_title,
-            link=input_url or "N/A",
-            subject=news_subject
-        )
+        # 4. Final Metadata Preparation
+        try:
+            ai_score_num = float(str(ai_conf).replace("%", ""))
+            fc_score_num = float(str(fc_res.get("confidence", "0")).replace("%", ""))
+            winning_confidence = fc_res.get("confidence") if fc_score_num > ai_score_num else ai_conf
+        except:
+            winning_confidence = ai_conf
+
+        # ================= Save to History (Safe Block) =================
+        try:
+            news_subject = guess_subject(content)
+            save_analysis_result(
+                original_input=data.get("data") or data.get("text"),
+                confidence=winning_confidence,
+                label=final_label,
+                extracted_text=content,
+                data_type="Unified Deep Analysis",
+                ai_score=ai_conf,
+                expert_score=fc_res.get("confidence"),
+                title=page_title,
+                link=input_url or "N/A",
+                subject=news_subject
+            )
+        except Exception as save_err:
+            print(f"[!] History Log Failed: {save_err}")
 
         return jsonify({
             "final_verdict": final_label,
