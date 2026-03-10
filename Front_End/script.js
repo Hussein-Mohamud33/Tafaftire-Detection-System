@@ -34,7 +34,7 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         })
         .catch(err => {
-            console.warn("⚠️ Fake News Detection server is offline.");
+            console.warn("⚠️ Tafaftire Detection server is offline.");
         });
 
 
@@ -226,7 +226,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         [finalVerdict, aiResult, fcResult].forEach(el => el.innerText = "⏳...");
         [aiConfidence, fcConfidence].forEach(el => el.innerText = "Processing...");
-        finalConfidence.innerText = "System validation in progress...";
+        finalConfidence.innerText = "Processing...";
 
         try {
             const controller = new AbortController();
@@ -250,41 +250,41 @@ document.addEventListener('DOMContentLoaded', () => {
             // Handle AI Result
             let aiText = "UNKNOWN";
             if (aiRes.prediction.includes("Real News")) {
-                aiText = "War Rasmi ah";
-                aiResult.innerText = "War Rasmi ah";
+                aiText = "Real News";
+                aiResult.innerText = "Real News";
                 aiResult.style.color = "#2ecc71";
             } else {
-                aiText = "War Been Abuur Ah";
-                aiResult.innerText = "War Been Abuur Ah";
+                aiText = "Fake News";
+                aiResult.innerText = "Fake News";
                 aiResult.style.color = "#ff4757";
             }
             aiConfidence.innerText = `AI Score: ${aiRes.confidence}`;
 
             // Handle Expert Result
-            let fcText = "Lama xaqiijin";
+            let fcText = "Unverified";
             if (fcRes.rating.toLowerCase().includes("trusted")) {
-                fcText = "War Rasmi ah";
-                fcResult.innerText = "War Rasmi ah";
+                fcText = "Trusted";
+                fcResult.innerText = "Trusted";
                 fcResult.style.color = "#2ecc71";
                 fcConfidence.innerText = `✅ SOURCE VALIDATED (${fcRes.confidence})`;
             } else if (fcRes.rating.toLowerCase().includes("fake")) {
-                fcText = "War Been Abuur Ah";
-                fcResult.innerText = "War Been Abuur Ah";
+                fcText = "Fake News";
+                fcResult.innerText = "Fake news";
                 fcResult.style.color = "#ff4757";
                 fcConfidence.innerText = `Expert Score: ${fcRes.confidence}`;
             } else {
-                fcResult.innerText = "Lama xaqiijin";
+                fcResult.innerText = "Unverified";
                 fcResult.style.color = "#f39c12";
                 fcConfidence.innerText = `Expert Score: ${fcRes.confidence}`;
             }
 
             // Final Unified Verdict (Calculated by Server for maximum strictness)
-            const finalVerdictLabel = data.final_verdict || "Lama xaqiijin";
+            const finalVerdictLabel = data.final_verdict || "Unverified";
             finalVerdict.innerText = finalVerdictLabel;
 
-            if (finalVerdictLabel === "War Rasmi ah") {
+            if (finalVerdictLabel === "Trusted") {
                 finalVerdict.style.color = "#2ecc71";
-            } else if (finalVerdictLabel === "War Been Abuur Ah" || finalVerdictLabel.includes("Fake")) {
+            } else if (finalVerdictLabel === "Fake News" || finalVerdictLabel.includes("Fake")) {
                 finalVerdict.style.color = "#ff4757";
             } else {
                 finalVerdict.style.color = "#f39c12"; // Yellow for Unverified/Lama xaqiijin
@@ -310,7 +310,7 @@ document.addEventListener('DOMContentLoaded', () => {
             window.isAnalyzing = false;
             if (analyzeBtn) {
                 analyzeBtn.disabled = false;
-                analyzeBtn.innerHTML = '<i class="fas fa-bolt"></i> FASTEST ANALYSIS';
+                analyzeBtn.innerHTML = '<i class="fas fa-bolt"></i> Deep ANALYSIS';
             }
         }
     }
@@ -885,4 +885,5 @@ document.addEventListener('DOMContentLoaded', () => {
     window.addEventListener('hashchange', handleRouting);
     handleRouting();
 });
+
 
