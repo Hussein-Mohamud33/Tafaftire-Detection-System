@@ -719,39 +719,35 @@ def predict():
         pattern_penalty = 0
         text_lower = content.lower()
         
-        # Sensationalism & Older news patterns
-        if any(y in content for y in ["2016", "2017", "2018", "2019", "2020", "2021", "2022"]):
-            pattern_penalty += 2.0
+        # Sensationalism & Older news patterns — old dates are NOT a sign of fake news
         if "!!!" in content or "???" in content or "!!!" in page_title:
-            pattern_penalty += 2.0
+            pattern_penalty += 1.0
         
-        # Expanded Sensationalist/Fake-prone Keywords
+        # Sensationalist/Fake-prone Keywords (reduced list, reduced penalty)
         sensational_keywords = [
-            "mucjiso", "runtii", "deg deg", "dhacdo naxdin leh", "lacag bilaash", 
-            "hal mar eeg", "ha moogaan", "sir culus", "faah faahin", "yaab", 
-            "wax aan la rumaysan karin", "muuqaal qarsoodi ah", "subxaanallaah",
-            "shidan", "yaabka aduunka", "arrin lala yaabo", "qarax cusub",
-            "war hadda soo dhacay", "daawasho naxdin leh", "daawo video-ga",
-            "isbaaro", "si degdeg ah", "lacag badan", "nasiib", "daawo hadda",
-            "shaki", "hubaal ma leh", "waalli", "cajalad qarsoodi ah", "nin ka naxay",
+            "mucjiso", "lacag bilaash", "hal mar eeg", "ha moogaan", 
+            "wax aan la rumaysan karin", "muuqaal qarsoodi ah",
+            "shidan", "daawasho naxdin leh", "daawo video-ga",
+            "si degdeg ah", "nasiib", "daawo hadda",
+            "waalli", "cajalad qarsoodi ah",
             "wax la qariyay", "dawladdu way qarisay", "si qarsoodi ah", "ha ka habsaamin",
-            "fursad qaali ah", "nasiibkaaga tijaabi", "lacag ku guulayso", "fadeexad", 
-            "fadeexo", "ceeb", "nin weyn", "naag weyn", "subxanalaah", "yaabka aduunka"
+            "fursad qaali ah", "nasiibkaaga tijaabi", "lacag ku guulayso",
+            "nin weyn oo naxay", "naag weyn oo naxay"
         ]
         if any(kw in text_lower for kw in sensational_keywords):
-            pattern_penalty += 2.5 # Balanced penalty
+            pattern_penalty += 1.5  # Reduced penalty
             print(f"[*] AI SCAN: Sensational keyword detected. Penalty applied.")
 
-        # Shouting (ALL CAPS)
+        # Shouting (ALL CAPS) — only penalize if very extreme
         words = content.split()
-        if len(words) > 5 and sum(1 for w in words if w.isupper() and len(w) > 2) / len(words) > 0.3:
-            pattern_penalty += 2.0
+        if len(words) > 5 and sum(1 for w in words if w.isupper() and len(w) > 2) / len(words) > 0.5:
+            pattern_penalty += 1.0
             
         if len(content.split()) < 20:
-             pattern_penalty += 1.0 # Significant reduction
+             pattern_penalty += 0.5  # Reduced
              
         if not input_url:
-             pattern_penalty += 0.5 # Minimal penalty
+             pattern_penalty += 0.5  # Minimal penalty
              print("[*] AI SCAN: No source URL provided.")
 
         # 2. Source-Based Validation (Highly Trusted Sources Boost)
@@ -761,17 +757,23 @@ def predict():
                 extracted_tld = tldextract.extract(input_url)
                 temp_domain = f"{extracted_tld.domain}.{extracted_tld.suffix}".lower()
                 if temp_domain in TRUSTED_SOURCES:
-                    source_boost = 5.0 # Very heavy boost for BBC, etc.
+                    source_boost = 8.0  # Strong enough to override all penalties
                     print(f"[*] VALIDATION: Trusted source detected ({temp_domain}). Boosting AI Score.")
             except: pass
 
         final_ai_score = ai_score_val - pattern_penalty + source_boost
         
+        # Safety cap: if the raw model says Real (>0), don't let light penalties flip to Fake
+        # Only allow flip if penalty is substantial (>3.0) or model itself was borderline
+        if ai_score_val > 0 and final_ai_score < 0 and pattern_penalty < 3.0:
+            final_ai_score = 0.01  # Keep it Real (just barely)
+            print(f"[*] AI SCAN: Safety cap applied - model said Real, minor penalties prevented verdict flip.")
+        
         # Simple AI Confidence
         ai_conf = (1 / (1 + np.exp(-abs(final_ai_score * 0.8)))) * 100
         ai_conf_str = f"{min(98.5, max(75.0, ai_conf)):.2f}%"
         
-        # BALANCED VERDICT: > 0.0 is Real
+        # BALANCED VERDICT: >= 0.0 is Real
         if final_ai_score >= 0.0:
             ai_pred = "Real News"
         else:
@@ -849,14 +851,14 @@ def analyze_deep():
         
         ai_score_val = model.decision_function(X)[0] if hasattr(model, "decision_function") else 0
         
-        # Apply strict penalties also in deep analysis
+        # Apply penalties in deep analysis (lighter, balanced)
         text_lower = content.lower()
         deep_penalty = 0
-        sensational_list = ["mucjiso", "lacag bilaash", "deg deg", "yaab", "shaki", "hubaal ma leh", "qarax cusub", "sir culus"]
+        sensational_list = ["mucjiso", "lacag bilaash", "wax aan la rumaysan karin", "daawasho naxdin leh", "daawo hadda", "cajalad qarsoodi ah"]
         if any(kw in text_lower for kw in sensational_list): 
-            deep_penalty += 1.5 
+            deep_penalty += 1.0  # Reduced from 1.5
         if len(content.split()) < 25: 
-            deep_penalty += 1.5 
+            deep_penalty += 1.0  # Reduced from 1.5
         if not input_url:
             deep_penalty += 0.5 
         
@@ -867,17 +869,22 @@ def analyze_deep():
                 extracted_tld = tldextract.extract(input_url)
                 temp_domain = f"{extracted_tld.domain}.{extracted_tld.suffix}".lower()
                 if temp_domain in TRUSTED_SOURCES:
-                    source_boost = 6.0 # Stronger boost for trusted sources
+                    source_boost = 8.0  # Strong boost — overrides all penalties
                     print(f"[*] DEEP SCAN: Trusted source ({temp_domain}) detected.")
             except: pass
 
         final_ai_score = ai_score_val - deep_penalty + source_boost
         
+        # Safety cap: if the raw model says Real (>0), light penalties can't flip verdict
+        if ai_score_val > 0 and final_ai_score < 0 and deep_penalty < 3.0:
+            final_ai_score = 0.01
+            print(f"[*] DEEP SCAN: Safety cap applied.")
+        
         # Simple AI Confidence
         ai_conf = (1 / (1 + np.exp(-abs(final_ai_score * 0.8)))) * 100
         ai_conf = f"{min(98.5, max(75.0, ai_conf)):.2f}%"
         
-        # BALANCED VERDICT: > 0.0 is Real
+        # BALANCED VERDICT: >= 0.0 is Real
         ai_pred = "Real News" if final_ai_score >= 0.0 else "Fake news"
 
         # Expert Fact-Check
@@ -893,10 +900,11 @@ def analyze_deep():
             final_label = "TRUSTED"
         elif fc_rating == "Fake":
             final_label = "FAKE INFO"
-        elif ai_conf_num >= fc_conf_num:
-            # Fallback to AI if expert is unverified or AI has higher confidence
-            final_label = "REAL NEWS" if ai_pred == "Real News" else "FAKE NEWS"
+        elif ai_pred == "Real News":
+            # AI says Real News and Expert is Unverified — trust AI
+            final_label = "REAL NEWS"
         else:
+            # Both AI and Expert uncertain/fake
             final_label = "UNVERIFIED"
 
         # 4. Final Metadata Preparation
