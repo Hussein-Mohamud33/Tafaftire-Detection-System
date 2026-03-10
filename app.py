@@ -867,13 +867,13 @@ def analyze_deep():
 
         # 1. Agreement on Trusted/Real
         if is_fc_trusted and is_ai_real:
-            final_label = "War Rasmi ah"
+            final_label = "Trusted"
         # 2. Strong disagreement or either flags as Fake -> Final is Fake
         elif is_fc_fake or (is_ai_fake and final_ai_score < -0.5):
-            final_label = "War Been Abuur Ah"
+            final_label = "Fake News"
         # 3. Any uncertainty -> Unverified
         else:
-            final_label = "Lama xaqiijin"
+            final_label = "Unverified"
 
         news_subject = guess_subject(content)
         save_analysis_result(
@@ -957,11 +957,11 @@ def fact_check():
         somali_label = "Lama xaqiijin"
         
         if "trusted" in rating_str: 
-            somali_label = "War Rasmi ah"
+            somali_label = "Trusted"
         elif "fake" in rating_str:
-            somali_label = "War Been Abuur Ah"
+            somali_label = "Fake News"
         else:
-            somali_label = "Lama xaqiijin"
+            somali_label = "Unverified"
 
         # ================= Save to History (Non-blocking) =================
         if not data.get("skip_history", False):
@@ -1023,7 +1023,7 @@ def unified_history_save():
         if ai_conf >= fc_conf and not ai_has_error:
             # Map AI Prediction to Somali Terminology
             ai_pred = ai_res.get("prediction", "N/A")
-            somali_label = "War Rasmi ah" if "Real" in ai_pred else "War Been Abuur Ah"
+            somali_label = "Real News" if "Real" in ai_pred else "Fake News"
             
             save_analysis_result(
                 original_input=raw_input,
@@ -1043,11 +1043,11 @@ def unified_history_save():
             
             # Map Expert Rating to Somali Terminology
             if "trusted" in rating_str:
-                somali_label = "War Rasmi ah"
+                somali_label = "Trusted"
             elif "fake" in rating_str or "been" in rating_str:
-                somali_label = "War Been Abuur Ah"
+                somali_label = "Fake News"
             else:
-                somali_label = "Lama xaqiijin"
+                somali_label = "Unverified"
 
             save_analysis_result(
                 original_input=raw_input,
@@ -1338,7 +1338,7 @@ def retrain_model():
         
         subprocess.Popen(cmd)
         
-        return jsonify({"success": True, "message": "Tababarka model-ka waa la bilaabay, fadlan sug inta uu dhamaanayo."})
+        return jsonify({"success": True, "message": "Tababarka model-ka waa la bilaabay, fadlan sug inta uu ka dhamaanayo."})
 
     except Exception as e:
         # Cleanup flag on failure to start
@@ -1717,3 +1717,4 @@ if __name__ == "__main__":
     app_port = int(os.environ.get("PORT", 3402))
     print(f"[*] Starting server on port {app_port}...")
     app.run(host="0.0.0.0", port=app_port, debug=False)
+
