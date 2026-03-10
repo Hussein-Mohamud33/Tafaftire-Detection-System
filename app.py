@@ -455,7 +455,7 @@ def is_vague_source(text):
 import tldextract
 
 TRUSTED_SOURCES = {
-    "bbc.com", "voasomali.com", "goobjoog.com", 
+    "bbc.com", "voasomali.com", "goobjoog.com", "goobjoog.net",
     "garoweonline.com", "somalistream.com", "somnn.com", 
     "somaliglobe.net", "sntv.so", "sonna.so", "hiiraan.com",
     "caasimada.net", "jowhar.com", "warsheekh.com",
@@ -463,7 +463,8 @@ TRUSTED_SOURCES = {
     "daljir.com", "puntlandpost.net", "horseedmedia.net", "barkulan.com",
     "radioergo.org", "aljazeera.com", "reuters.com", "apnews.com",
     "nytimes.com", "cnn.com", "theguardian.com", "standardmedia.co.ke",
-    "mogadishucenter.com", "puntland.so", "galmudug.so", "hirshabelle.so"
+    "mogadishucenter.com", "puntland.so", "galmudug.so", "hirshabelle.so",
+    "dalsanradio.com", "radiodalsan.com", "mustaqbalmedia.net", "shabellemedia.com"
 }
 
 UNTRUSTED_PATTERNS = [
@@ -489,6 +490,7 @@ def heuristic_fact_check(text, url=None):
     reasons = []
     text_lower = text.lower()
     words = text.split()
+    found_citations = False
     
     # Pre-detect if source is trusted
     is_trusted_domain = False
@@ -555,31 +557,35 @@ def heuristic_fact_check(text, url=None):
                 if any(dk in res_text for dk in debunk_words) and res_matches >= 5:
                     found_debunk = True
 
+            if max_sim >= 6:
+                found_citations = True
+
             if found_debunk:
                 score -= 200 # Confirmed Fake
                 reasons.append("Natiijooyinka Baaritaanka: Xog laga helay internet-ka ayaa sheegaysa in qoraalkan uu yahay been-abuur la xaqiijiyay.")
             elif trusted_hits:
                 score += 120
+                found_citations = True
                 source_link = trusted_hits[0]
                 reasons.append(f"Xog Run Ah: Warkan waxaa lagu tebiyay ilo caalami ah oo sugan. <a href='{source_link}' target='_blank'>Riix halkan si aad u eegto</a>.")
-            elif max_sim >= 7:
-                score += 60
+            elif max_sim >= 6:
+                score += 70
                 reasons.append("Baaris Web: Waxaa la helay xog u dhiganta warka aad soo gudbisay, taas oo kor u qaadaysa kalsoonida.")
             elif has_danger and max_sim < 3:
                 score -= 100
                 reasons.append("Digniin: Dhacdo xasaasi ah (Danger/Death) laguma tebin ilaha rasmiga ah ee internet-ka.")
             else:
-                score -= 35 # Increased penalty for lack of citations
+                score -= 25 # Mild suspicion for lack of citations
                 reasons.append("Xog La'aan: Markii la baaray internet-ka, laguma helin xaqiijin ku filan (No citations found).")
         else:
             # Search failed or no results
-            score -= 25 # Increased search-failure penalty
+            score -= 15
             reasons.append("Baaris Fashilantay: Ma jirto xog internet-ka laga helay oo xaqiijinaysa nuxurka qoraalkan.")
 
     # 2.5 Prompt/Question Check (Misleading starters)
     if any(text_lower.startswith(p) for p in ["miyaad ogtahay", "ma la socotaa", "ma ogtahay", "war ma u haysaa"]):
         if not found_citations:
-            score -= 60
+            score -= 50
             reasons.append("Digniin: Qoraalkan wuxuu ku billowdaa hab su'aal/hordhac ah oo badanaa loo isticmaalo wararka beenta ah (Misleading Prompt).")
 
 
@@ -765,13 +771,11 @@ def predict():
         ai_conf = (1 / (1 + np.exp(-abs(final_ai_score * 0.8)))) * 100
         ai_conf_str = f"{min(98.5, max(75.0, ai_conf)):.2f}%"
         
-        # BALANCED STRICT VERDICT: > 2.0 is Real
-        if final_ai_score > 2.0:
+        # BALANCED VERDICT: > 0.75 is Real
+        if final_ai_score > 0.75:
             ai_pred = "Real News"
-        elif final_ai_score < 1.0:
-            ai_pred = "Fake news"
         else:
-            ai_pred = "Fake news" # Safety first in grey zone
+            ai_pred = "Fake news"
         
         print(f"[*] AI SCAN - Model: {ai_score_val:.2f}, Patterns: -{pattern_penalty:.2f}, Boost: +{source_boost:.2f}, Final: {final_ai_score:.2f}")
 
@@ -873,24 +877,27 @@ def analyze_deep():
         ai_conf = (1 / (1 + np.exp(-abs(final_ai_score * 0.8)))) * 100
         ai_conf = f"{min(98.5, max(75.0, ai_conf)):.2f}%"
         
-        # BALANCED STRICT VERDICT: > 2.0 is Real
-        ai_pred = "Real News" if final_ai_score > 2.0 else "Fake news"
+        # BALANCED VERDICT: > 0.75 is Real
+        ai_pred = "Real News" if final_ai_score > 0.75 else "Fake news"
 
         # Expert Fact-Check
         fc_res = heuristic_fact_check(content, input_url)
         
-        # 3. Unified Decision (Highest Confidence Logic)
-        # Final label is determined by the engine with the highest confidence
+        # 3. Unified Decision (Expert-Priority Logic)
+        # We prioritize the Fact-Check (Expert) if it finds a definitive answer
+        fc_rating = fc_res.get("rating", "Unverified")
         ai_conf_num = float(ai_conf.replace("%", ""))
         fc_conf_num = float(fc_res.get("confidence", "0").replace("%", ""))
         
-        if ai_conf_num >= fc_conf_num:
+        if fc_rating == "Trusted":
+            final_label = "TRUSTED"
+        elif fc_rating == "Fake":
+            final_label = "FAKE INFO"
+        elif ai_conf_num >= fc_conf_num:
+            # Fallback to AI if expert is unverified or AI has higher confidence
             final_label = "REAL NEWS" if ai_pred == "Real News" else "FAKE NEWS"
         else:
-             rating = fc_res.get("rating", "Unverified").upper()
-             if "TRUSTED" in rating: final_label = "TRUSTED"
-             elif "FAKE" in rating: final_label = "FAKE INFO"
-             else: final_label = "UNVERIFIED"
+            final_label = "UNVERIFIED"
 
         # 4. Final Metadata Preparation
         try:
