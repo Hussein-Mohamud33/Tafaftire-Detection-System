@@ -258,17 +258,27 @@ document.addEventListener('DOMContentLoaded', () => {
 
             // Handle Expert Result
             let fcText = "UNVERIFIED";
-            if (fcRes.rating.toLowerCase().includes("trusted")) {
+            const fcRatingLower = (fcRes.rating || "").toLowerCase();
+
+            if (fcRatingLower.includes("trusted")) {
                 fcText = "TRUSTED";
                 fcResult.innerText = "TRUSTED";
                 fcResult.style.color = "#2ecc71";
                 fcConfidence.innerHTML = `<i class="fas fa-check-square"></i> SOURCE VALIDATED (${fcRes.confidence})`;
-            } else if (fcRes.rating.toLowerCase().includes("fake")) {
+            } else if (fcRatingLower.includes("fake")) {
                 fcText = "FAKE INFO";
                 fcResult.innerText = "FAKE INFO";
                 fcResult.style.color = "#ff4757";
                 fcConfidence.innerText = `Expert Score: ${fcRes.confidence}`;
+            } else if (fcRatingLower.includes("unverified-clean")) {
+                // Expert found NO objections, deferred to AI
+                fcText = "NO ISSUES";
+                fcResult.innerText = "NO ISSUES FOUND";
+                fcResult.style.color = "#9ca3af";
+                fcResult.style.fontSize = "1.4rem";
+                fcConfidence.innerHTML = `<i class="fas fa-shield-alt" style="color:#9ca3af; margin-right:5px;"></i> <span style="color:#9ca3af;">No fake signals detected</span>`;
             } else {
+                // Genuine Unverified (Expert found some concerns but not enough to judge)
                 fcResult.innerText = "UNVERIFIED";
                 fcResult.style.color = "#f39c12";
                 fcConfidence.innerText = `Expert Score: ${fcRes.confidence}`;
