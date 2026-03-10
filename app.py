@@ -569,12 +569,18 @@ def heuristic_fact_check(text, url=None):
                 score -= 100
                 reasons.append("Digniin: Dhacdo xasaasi ah (Danger/Death) laguma tebin ilaha rasmiga ah ee internet-ka.")
             else:
-                score -= 20 # Mild suspicion for lack of citations
+                score -= 35 # Increased penalty for lack of citations
                 reasons.append("Xog La'aan: Markii la baaray internet-ka, laguma helin xaqiijin ku filan (No citations found).")
         else:
             # Search failed or no results
-            score -= 10
+            score -= 25 # Increased search-failure penalty
             reasons.append("Baaris Fashilantay: Ma jirto xog internet-ka laga helay oo xaqiijinaysa nuxurka qoraalkan.")
+
+    # 2.5 Prompt/Question Check (Misleading starters)
+    if any(text_lower.startswith(p) for p in ["miyaad ogtahay", "ma la socotaa", "ma ogtahay", "war ma u haysaa"]):
+        if not found_citations:
+            score -= 60
+            reasons.append("Digniin: Qoraalkan wuxuu ku billowdaa hab su'aal/hordhac ah oo badanaa loo isticmaalo wararka beenta ah (Misleading Prompt).")
 
 
 
@@ -589,14 +595,20 @@ def heuristic_fact_check(text, url=None):
             reasons.append(f"Digniin: Waxaa la helay qoraal u eg clickbait ama been-abuur ({pattern}).")
             if pattern_matches >= 3: break 
 
+    # FINAL SCORE ADJUSTMENTS
+    if score > 0 and not found_citations and not is_trusted_domain:
+        # If it's positive but has NO search backing, cap it.
+        score = min(score, 30)
+        reasons.append("Fiiro Gaar ah: In kasta oo hab-dhismeedka qoraalku u muuqdo mid wanaagsan, looma helin cadayn internet-ka ah.")
+
     # Final Verdict Calculation
     confidence_base = 65 + (min(33, abs(score) * 0.2))
     
-    # Verdict Logic (BALANCED STRICTNESS)
-    if score >= 70 or is_trusted_domain: 
+    # Verdict Logic (STRICTER MIDDLE GROUND)
+    if score >= 80 or is_trusted_domain: 
         rating = "Trusted"
         confidence = max(94, confidence_base) if is_trusted_domain else confidence_base
-    elif score <= -60: 
+    elif score <= -35: 
         rating = "Fake"
         confidence = max(88, confidence_base)
     else:
@@ -753,13 +765,13 @@ def predict():
         ai_conf = (1 / (1 + np.exp(-abs(final_ai_score * 0.8)))) * 100
         ai_conf_str = f"{min(98.5, max(75.0, ai_conf)):.2f}%"
         
-        # BALANCED VERDICT: > 1.5 is Real, < 1.0 is Fake
-        if final_ai_score > 1.5:
+        # BALANCED STRICT VERDICT: > 2.0 is Real
+        if final_ai_score > 2.0:
             ai_pred = "Real News"
         elif final_ai_score < 1.0:
             ai_pred = "Fake news"
         else:
-            ai_pred = "Fake news" # Default to fake if in grey zone for safety
+            ai_pred = "Fake news" # Safety first in grey zone
         
         print(f"[*] AI SCAN - Model: {ai_score_val:.2f}, Patterns: -{pattern_penalty:.2f}, Boost: +{source_boost:.2f}, Final: {final_ai_score:.2f}")
 
@@ -861,8 +873,8 @@ def analyze_deep():
         ai_conf = (1 / (1 + np.exp(-abs(final_ai_score * 0.8)))) * 100
         ai_conf = f"{min(98.5, max(75.0, ai_conf)):.2f}%"
         
-        # BALANCED VERDICT: > 1.5 is Real
-        ai_pred = "Real News" if final_ai_score > 1.5 else "Fake news"
+        # BALANCED STRICT VERDICT: > 2.0 is Real
+        ai_pred = "Real News" if final_ai_score > 2.0 else "Fake news"
 
         # Expert Fact-Check
         fc_res = heuristic_fact_check(content, input_url)
