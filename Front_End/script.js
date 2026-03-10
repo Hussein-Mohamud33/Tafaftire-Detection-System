@@ -468,16 +468,27 @@ document.addEventListener('DOMContentLoaded', () => {
     };
 
     window.switchAdminTab = (tabId) => {
-        const tabs = ['overview', 'datasets', 'retrain', 'logs', 'history', 'editor'];
-        tabs.forEach(t => {
-            const el = document.getElementById(`admin${t.charAt(0).toUpperCase() + t.slice(1)}Tab`);
+        // Map tab IDs to the section IDs in Admin.html
+        const sectionMap = {
+            'overview': 'dashboardSection',
+            'datasets': 'datasetsSection',
+            'retrain': 'retrainSection',
+            'logs': 'logsSection',
+            'history': 'historySection',
+            'editor': 'editorSection'
+        };
+
+        Object.values(sectionMap).forEach(id => {
+            const el = document.getElementById(id);
             if (el) el.classList.add('hidden');
         });
-        const target = document.getElementById(`admin${tabId.charAt(0).toUpperCase() + tabId.slice(1)}Tab`);
+
+        const targetId = sectionMap[tabId];
+        const target = document.getElementById(targetId);
         if (target) target.classList.remove('hidden');
 
         // Style active menu
-        document.querySelectorAll('.admin-nav-item').forEach(item => {
+        document.querySelectorAll('.nav-item').forEach(item => {
             item.classList.remove('active');
             if (item.innerText.toLowerCase().includes(tabId)) item.classList.add('active');
         });
@@ -487,21 +498,46 @@ document.addEventListener('DOMContentLoaded', () => {
         if (tabId === 'history') loadAdminHistory();
     };
 
+    window.syncEmails = async () => {
+        const btn = document.getElementById('syncEmailsBtnAdmin');
+        const btnSmall = document.getElementById('syncEmailsBtnAdminSmall');
+        [btn, btnSmall].forEach(b => { if (b) { b.disabled = true; b.innerHTML = '<i class="fas fa-sync fa-spin"></i> Syncing...'; } });
+
+        try {
+            const res = await fetch(`${API_BASE_URL}/api/admin/sync_emails`, { method: 'POST' });
+            const data = await res.json();
+            if (data.success) {
+                showToast(data.message || "Email-shii waa la soo dejiyey!");
+                loadAdminLogs();
+                loadDashNotifications();
+            } else {
+                showToast("Khalad: " + (data.message || "Lama heli karo fariimo"), "error");
+            }
+        } catch (err) {
+            showToast("Connection Error!", "error");
+        } finally {
+            if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fas fa-sync-alt"></i> Check Email Messages'; }
+            if (btnSmall) { btnSmall.disabled = false; btnSmall.innerHTML = '<i class="fas fa-sync-alt"></i>'; }
+        }
+    };
+
     async function loadAdminStats() {
         try {
             const res = await fetch(`${API_BASE_URL}/api/admin/stats`);
             const data = await res.json();
-            const statDs = document.getElementById('statDatasets');
-            const statAcc = document.getElementById('statAccuracy');
-            if (statDs) statDs.innerText = data.total_datasets;
-            if (statAcc) statAcc.innerText = data.model_accuracy;
 
-            const statMessages = document.getElementById('statMessages');
-            if (statMessages) statMessages.innerText = data.messages_count;
-            const statHistory = document.getElementById('statHistory');
-            if (statHistory) statHistory.innerText = data.history_count || 0;
+            const statDs = document.getElementById('stat-datasets');
+            const statAcc = document.getElementById('stat-accuracy');
+            const statMessages = document.getElementById('stat-messages');
+            const statHistoryCount = document.getElementById('stat-history-count');
             const statRequests = document.getElementById('statRequests');
-            if (statRequests) statRequests.innerText = data.requests_handled;
+
+            if (statDs) statDs.innerText = data.total_datasets || 0;
+            if (statAcc) statAcc.innerText = data.model_accuracy || "0%";
+            if (statMessages) statMessages.innerText = data.messages_count || 0;
+            if (statHistoryCount) statHistoryCount.innerText = data.history_count || 0;
+            if (statRequests) statRequests.innerText = data.requests_handled || 0;
+
             loadDashNotifications();
         } catch (err) {
             console.error("Stats Error:", err);
@@ -512,14 +548,15 @@ document.addEventListener('DOMContentLoaded', () => {
         try {
             const res = await fetch(`${API_BASE_URL}/api/admin/datasets`);
             const data = await res.json();
-            const body = document.getElementById('datasetsBody');
+            const body = document.getElementById('datasetsTable');
             if (body) {
                 body.innerHTML = data.map(f => `
                     <tr>
                         <td>${f.name}</td>
                         <td>${f.size} (${f.rows} entries)</td>
-                        <td>
-                            <button class="admin-btn-login" style="width:auto; padding:5px 15px; background:#10b981;" 
+                        <td>${f.modified || '-'}</td>
+                        <td style="text-align:center;">
+                            <button class="admin-btn-login" style="width:auto; padding:5px 15px; background:#10b981; border:none; border-radius:4px; color:white; cursor:pointer;" 
                                 onclick="downloadDataset('${f.name}')"><i class="fas fa-download"></i> Download</button>
                         </td>
                     </tr>
@@ -687,17 +724,17 @@ document.addEventListener('DOMContentLoaded', () => {
         try {
             const res = await fetch(`${API_BASE_URL}/api/admin/logs`);
             const data = await res.json();
-            const body = document.getElementById('logsBody');
+            const body = document.getElementById('logsTable');
             if (body) {
                 body.innerHTML = data.map(l => `
                     <tr>
-                        <td>${l.name}</td>
-                        <td>${l.email}</td>
-                        <td>${l.message}</td>
-                        <td>
-                            <button class="admin-btn-login" style="width:auto; padding:5px 15px; margin-right:5px; background:#10b981;" 
+                        <td style="padding:15px;">${l.name}</td>
+                        <td style="padding:15px;">${l.email}</td>
+                        <td style="padding:15px;">${l.message}</td>
+                        <td style="padding:15px; text-align:center;">
+                            <button class="admin-btn-login" style="width:auto; padding:5px 15px; margin-right:5px; background:#10b981; border:none; border-radius:4px; color:white; cursor:pointer;" 
                                 onclick="openReplyModal('${l.email}', '${l.name.replace(/'/g, "\\'")}')"><i class="fas fa-reply"></i> Reply</button>
-                            <button class="admin-btn-login" style="width:auto; padding:5px 15px; background:#ef4444;" 
+                            <button class="admin-btn-login" style="width:auto; padding:5px 15px; background:#ef4444; border:none; border-radius:4px; color:white; cursor:pointer;" 
                                 onclick="deleteAdminLog(${l.id})"><i class="fas fa-trash"></i> Delete</button>
                         </td>
                     </tr>
@@ -709,10 +746,15 @@ document.addEventListener('DOMContentLoaded', () => {
     let historyData = [];
 
     window.loadAdminHistory = async () => {
+        // Alias for HTML compatibility
+        loadAdminHistory();
+    };
+
+    async function loadAdminHistory() {
         try {
-            const body = document.getElementById('historyBody');
+            const body = document.getElementById('historyTable');
             if (!body) return;
-            body.innerHTML = '<tr><td colspan="5" style="text-align: center; padding: 20px;"><i class="fas fa-spinner fa-spin"></i> Loading...</td></tr>';
+            body.innerHTML = '<tr><td colspan="5" style="text-align: center; padding: 40px; color: var(--text-muted);"><i class="fas fa-spinner fa-spin"></i> Loading...</td></tr>';
 
             const res = await fetch(`${API_BASE_URL}/api/admin/analysis_history?t=${Date.now()}`);
             historyData = await res.json();
@@ -744,10 +786,14 @@ document.addEventListener('DOMContentLoaded', () => {
             `}).join('');
         } catch (err) {
             console.error("History Error:", err);
-            const b = document.getElementById('historyBody');
+            const b = document.getElementById('historyTable');
             if (b) b.innerHTML = `<tr><td colspan="5" style="text-align: center; color: #ef4444; padding: 20px;">Error loading history</td></tr>`;
         }
-    };
+    }
+
+    // Alias functions for HTML buttons
+    window.loadAnalysisHistory = () => loadAdminHistory();
+    window.clearAnalysisHistory = () => clearAllHistory();
 
     window.viewHistoryItem = (id) => {
         const item = historyData.find(i => i.id === id);
@@ -790,6 +836,11 @@ document.addEventListener('DOMContentLoaded', () => {
     };
 
     window.clearAllHistory = async () => {
+        // This function is defined as clearAllHistory for modularity
+        await clearAllHistory();
+    };
+
+    async function clearAllHistory() {
         if (!confirm("Are you sure you want to delete ALL analysis history?")) return;
 
         try {
