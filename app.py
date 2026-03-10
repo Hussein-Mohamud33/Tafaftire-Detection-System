@@ -1,6 +1,5 @@
 import os
 import re
-import joblib
 import traceback
 import numpy as np
 import requests
@@ -13,7 +12,6 @@ import imaplib
 import email
 import tldextract
 import nltk
-import pandas as pd
 from flask import Flask, request, jsonify, make_response
 from flask_cors import CORS
 from email.header import decode_header
@@ -244,6 +242,7 @@ def load_resources():
         return
 
     print("[*] Loading AI models and NLTK data...")
+    import joblib
     
     # 1. NLTK Path Setup
     data_dir = os.path.join(BASE_DIR, "nltk_data")
@@ -1478,6 +1477,7 @@ def get_dataset_content():
         return jsonify({"error": "Invalid filename"}), 400
     
     try:
+        import pandas as pd
         path = os.path.join(BASE_DIR, "Dataset", filename)
         print(f"[*] Isku dayaya in la akhriyo: {path}")
         
@@ -1552,6 +1552,7 @@ def save_dataset_content():
         return jsonify({"error": "Missing data"}), 400
         
     try:
+        import pandas as pd
         path = os.path.join(BASE_DIR, "Dataset", filename)
         
         # Preserve data beyond the 200 rows loaded in frontend
