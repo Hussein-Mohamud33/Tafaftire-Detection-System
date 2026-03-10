@@ -970,6 +970,7 @@ def analyze_deep():
 
         return jsonify({
             "final_verdict": final_label,
+            "winning_confidence": winning_confidence,
             "ai_res": {
                 "prediction": ai_pred,
                 "confidence": ai_conf
