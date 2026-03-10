@@ -896,8 +896,8 @@ def analyze_deep():
         fc_res = heuristic_fact_check(content, input_url)
         
         # 3. Unified Decision (Expert-Priority Logic)
-        # We prioritize the Fact-Check (Expert) if it finds a definitive answer
         fc_rating = fc_res.get("rating", "Unverified")
+        expert_score_val = fc_res.get("score", 0)
         ai_conf_num = float(ai_conf.replace("%", ""))
         fc_conf_num = float(fc_res.get("confidence", "0").replace("%", ""))
         
@@ -907,19 +907,23 @@ def analyze_deep():
         elif fc_rating == "Fake":
             final_label = "FAKE INFO"
             winning_confidence = fc_res.get("confidence", ai_conf)
-        elif ai_pred == "Real News":
-            # Both AI=Real and Expert=Unverified: pick higher confidence
-            if ai_conf_num >= fc_conf_num:
+        elif fc_rating == "Unverified" and ai_pred == "Real News":
+            # Expert found nothing bad (score >= 0) and AI is confident → Real
+            if expert_score_val >= 0:
+                # Signal to frontend: Expert had NO objections, deferred to AI
+                fc_res["rating"] = "Unverified-Clean"
                 final_label = "REAL NEWS"
                 winning_confidence = ai_conf
+                print(f"[*] DEEP: Expert clean (no objections), AI=Real → REAL NEWS")
             else:
-                # Expert's Unverified has higher confidence (unusual, but defer)
+                # Expert found some concerns (negative score) → Unverified
                 final_label = "UNVERIFIED"
                 winning_confidence = fc_res.get("confidence", ai_conf)
         else:
-            # AI says Fake, Expert says Unverified
+            # AI says Fake OR Expert says Unverified with negative signals
             final_label = "UNVERIFIED"
             winning_confidence = fc_res.get("confidence", ai_conf)
+
 
         # ================= Save to History (Safe Block) =================
         try:
