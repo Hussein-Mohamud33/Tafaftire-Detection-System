@@ -857,23 +857,18 @@ def analyze_deep():
         # Expert Fact-Check
         fc_res = heuristic_fact_check(content, input_url)
         
-        # 3. Unified Decision (Extreme Strict Logic)
-        # We ONLY mark as 'War Rasmi ah' if BOTH AI and Expert are POSITIVE.
-        is_ai_real = (ai_pred == "Real News" and final_ai_score > 1.25)
-        is_fc_trusted = (fc_res.get("rating") == "Trusted" and float(fc_res.get("confidence", "0").replace("%", "")) >= 95)
+        # 3. Unified Decision (Highest Confidence Logic)
+        # Final label is determined by the engine with the highest confidence
+        ai_conf_num = float(ai_conf.replace("%", ""))
+        fc_conf_num = float(fc_res.get("confidence", "0").replace("%", ""))
         
-        is_fc_fake = (fc_res.get("rating") == "Fake")
-        is_ai_fake = (ai_pred == "Fake news" or final_ai_score < 0.3)
-
-        # 1. Agreement on Trusted/Real
-        if is_fc_trusted and is_ai_real:
-            final_label = "Trusted"
-        # 2. Strong disagreement or either flags as Fake -> Final is Fake
-        elif is_fc_fake or (is_ai_fake and final_ai_score < -0.5):
-            final_label = "Fake News"
-        # 3. Any uncertainty -> Unverified
+        if ai_conf_num >= fc_conf_num:
+            final_label = "REAL NEWS" if ai_pred == "Real News" else "FAKE NEWS"
         else:
-            final_label = "Unverified"
+             rating = fc_res.get("rating", "Unverified").upper()
+             if "TRUSTED" in rating: final_label = "TRUSTED"
+             elif "FAKE" in rating: final_label = "FAKE INFO"
+             else: final_label = "UNVERIFIED"
 
         news_subject = guess_subject(content)
         save_analysis_result(
@@ -957,11 +952,11 @@ def fact_check():
         somali_label = "Lama xaqiijin"
         
         if "trusted" in rating_str: 
-            somali_label = "Trusted"
+            somali_label = "TRUSTED"
         elif "fake" in rating_str:
-            somali_label = "Fake News"
+            somali_label = "FAKE INFO"
         else:
-            somali_label = "Unverified"
+            somali_label = "UNVERIFIED"
 
         # ================= Save to History (Non-blocking) =================
         if not data.get("skip_history", False):
@@ -1023,7 +1018,7 @@ def unified_history_save():
         if ai_conf >= fc_conf and not ai_has_error:
             # Map AI Prediction to Somali Terminology
             ai_pred = ai_res.get("prediction", "N/A")
-            somali_label = "Real News" if "Real" in ai_pred else "Fake News"
+            somali_label = "REAL NEWS" if "Real" in ai_pred else "FAKE NEWS"
             
             save_analysis_result(
                 original_input=raw_input,
@@ -1043,11 +1038,11 @@ def unified_history_save():
             
             # Map Expert Rating to Somali Terminology
             if "trusted" in rating_str:
-                somali_label = "Trusted"
+                somali_label = "TRUSTED"
             elif "fake" in rating_str or "been" in rating_str:
-                somali_label = "Fake News"
+                somali_label = "FAKE INFO"
             else:
-                somali_label = "Unverified"
+                somali_label = "UNVERIFIED"
 
             save_analysis_result(
                 original_input=raw_input,
@@ -1338,7 +1333,7 @@ def retrain_model():
         
         subprocess.Popen(cmd)
         
-        return jsonify({"success": True, "message": "Tababarka model-ka waa la bilaabay, fadlan sug inta uu ka dhamaanayo."})
+        return jsonify({"success": True, "message": "Tababarka model-ka waa la bilaabay, fadlan sug inta uu dhamaanayo."})
 
     except Exception as e:
         # Cleanup flag on failure to start
@@ -1717,4 +1712,3 @@ if __name__ == "__main__":
     app_port = int(os.environ.get("PORT", 3402))
     print(f"[*] Starting server on port {app_port}...")
     app.run(host="0.0.0.0", port=app_port, debug=False)
-
