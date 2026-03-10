@@ -278,30 +278,32 @@ document.addEventListener('DOMContentLoaded', () => {
             const aiConfNum = parseFloat(aiRes.confidence);
             const fcConfNum = parseFloat(fcRes.confidence);
 
-            let finalLabelToDisplay = "";
+            // Final Unified Verdict (Use Server's Decision)
+            const finalLabelToDisplay = data.final_verdict || "UNVERIFIED";
+
+            // Determine which confidence to show based on the final label's origin
             let finalConfToDisplay = "";
             let finalSourceToDisplay = "";
 
-            if (fcConfNum > aiConfNum) {
-                finalLabelToDisplay = fcText;
+            if (finalLabelToDisplay === "TRUSTED" || finalLabelToDisplay === "FAKE INFO") {
                 finalConfToDisplay = fcRes.confidence;
-                finalSourceToDisplay = "Source: Live Web Verification";
+                finalSourceToDisplay = "Source: Expert Fact-Check (Search)";
             } else {
-                finalLabelToDisplay = aiText;
                 finalConfToDisplay = aiRes.confidence;
-                finalSourceToDisplay = "Source: AI Model Analysis";
+                finalSourceToDisplay = "Source: AI Content Analysis";
             }
 
             finalVerdict.innerText = finalLabelToDisplay;
             finalConfidence.innerText = `Confidence: ${finalConfToDisplay}`;
             finalSource.innerText = finalSourceToDisplay;
 
-            if (finalLabelToDisplay.includes("REAL") || finalLabelToDisplay.includes("TRUSTED")) {
+            // Apply premium colors
+            if (finalLabelToDisplay === "TRUSTED" || finalLabelToDisplay === "REAL NEWS") {
                 finalVerdict.style.color = "#2ecc71";
-            } else if (finalLabelToDisplay.includes("FAKE") || finalLabelToDisplay.includes("INFO")) {
+            } else if (finalLabelToDisplay === "FAKE INFO" || finalLabelToDisplay === "FAKE NEWS") {
                 finalVerdict.style.color = "#ff4757";
             } else {
-                finalVerdict.style.color = "#f39c12";
+                finalVerdict.style.color = "#f39c12"; // Yellow for Unverified
             }
 
         } catch (err) {
