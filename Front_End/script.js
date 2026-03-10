@@ -274,23 +274,32 @@ document.addEventListener('DOMContentLoaded', () => {
                 fcConfidence.innerText = `Expert Score: ${fcRes.confidence}`;
             }
 
-            // Final Unified Verdict (Highest Confidence Selection)
+            // === FINAL VERDICT: Use Server's Decision + Highest Confidence ===
             const aiConfNum = parseFloat(aiRes.confidence);
             const fcConfNum = parseFloat(fcRes.confidence);
-
-            // Final Unified Verdict (Use Server's Decision)
             const finalLabelToDisplay = data.final_verdict || "UNVERIFIED";
 
-            // Determine which confidence to show based on the final label's origin
+            // Pick confidence & source based on which engine "won" the verdict
             let finalConfToDisplay = "";
             let finalSourceToDisplay = "";
 
             if (finalLabelToDisplay === "TRUSTED" || finalLabelToDisplay === "FAKE INFO") {
+                // Expert won definitively
                 finalConfToDisplay = fcRes.confidence;
                 finalSourceToDisplay = "Source: Expert Fact-Check (Search)";
-            } else {
+            } else if (finalLabelToDisplay === "REAL NEWS" || finalLabelToDisplay === "FAKE NEWS") {
+                // AI won — show AI confidence (it was higher)
                 finalConfToDisplay = aiRes.confidence;
                 finalSourceToDisplay = "Source: AI Content Analysis";
+            } else {
+                // UNVERIFIED — show whichever confidence is higher for transparency
+                if (aiConfNum >= fcConfNum) {
+                    finalConfToDisplay = aiRes.confidence;
+                    finalSourceToDisplay = "Source: AI Analysis (Expert Unverified)";
+                } else {
+                    finalConfToDisplay = fcRes.confidence;
+                    finalSourceToDisplay = "Source: Expert Fact-Check";
+                }
             }
 
             finalVerdict.innerText = finalLabelToDisplay;
@@ -300,10 +309,16 @@ document.addEventListener('DOMContentLoaded', () => {
             // Apply premium colors
             if (finalLabelToDisplay === "TRUSTED" || finalLabelToDisplay === "REAL NEWS") {
                 finalVerdict.style.color = "#2ecc71";
+                finalVerdictCard.style.borderColor = "rgba(46,204,113,0.25)";
+                finalVerdictCard.style.boxShadow = "0 0 30px rgba(46,204,113,0.1)";
             } else if (finalLabelToDisplay === "FAKE INFO" || finalLabelToDisplay === "FAKE NEWS") {
                 finalVerdict.style.color = "#ff4757";
+                finalVerdictCard.style.borderColor = "rgba(255,71,87,0.25)";
+                finalVerdictCard.style.boxShadow = "0 0 30px rgba(255,71,87,0.1)";
             } else {
                 finalVerdict.style.color = "#f39c12"; // Yellow for Unverified
+                finalVerdictCard.style.borderColor = "rgba(243,156,18,0.25)";
+                finalVerdictCard.style.boxShadow = "0 0 30px rgba(243,156,18,0.1)";
             }
 
         } catch (err) {
