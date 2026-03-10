@@ -517,12 +517,11 @@ def heuristic_fact_check(text, url=None):
         except:
             pass
 
-    # 2. Live Web Verification (Searching for Citations/Confirmations)
-    # Extract query words
-    # Ensure resources are loaded to have stop_words
+    # Live Web Verification (Searching for Citations/Confirmations)
     load_resources()
-    query_words = [w for w in words if len(w) > 3 and w.lower() not in stop_words]
-    subjects = [w for w in words if len(w) > 3 and w[0].isupper()]
+    word_len_threshold = 3 if len(words) < 15 else 4
+    query_words = [w for w in words if len(w) >= word_len_threshold and w.lower() not in stop_words]
+    subjects = [w for w in words if len(w) >= word_len_threshold and w[0].isupper()]
     
     danger_keywords = ["dhintey", "geeriyooday", "qarax", "shil", "dhaawacmay", "iscasilay", "xilka laga qaaday", "killed", "attacked"]
     has_danger = any(kw in text_lower for kw in danger_keywords)
@@ -530,7 +529,9 @@ def heuristic_fact_check(text, url=None):
     if subjects and has_danger:
         query = f"{subjects[0]} {', '.join([kw for kw in danger_keywords if kw in text_lower])}"
     else:
-        query = " ".join(query_words[:8]) if query_words else text[:60]
+        # Use more words for short texts to increase specificity
+        query_limit = 12 if len(words) < 20 else 8
+        query = " ".join(query_words[:query_limit]) if query_words else text[:60]
 
     if len(query) > 10:
         live_results = search_duckduckgo_lite(query)
@@ -541,38 +542,41 @@ def heuristic_fact_check(text, url=None):
             
             debunk_words = ["fake", "false", "hoax", "fact check", "been abuur", "been-abuur", "checked", "debunked"]
             
+            # Match threshold based on query length (relative accuracy)
+            req_matches = min(6, max(3, int(len(query_words) * 0.6)))
+            
             for res in live_results:
                 res_text = (res['title'] + " " + res['snippet']).lower()
-                res_matches = sum(1 for w in query_words[:10] if w.lower() in res_text)
+                res_matches = sum(1 for w in query_words[:12] if w.lower() in res_text)
                 if res_matches > max_sim: max_sim = res_matches
                 
                 # Check Domain of Result
                 try:
                     ext_res = tldextract.extract(res['link'])
                     res_domain = f"{ext_res.domain}.{ext_res.suffix}".lower()
-                    if res_domain in TRUSTED_SOURCES and res_matches >= 6:
+                    if res_domain in TRUSTED_SOURCES and res_matches >= req_matches:
                         trusted_hits.append(res['link'])
                 except: pass
                 
-                if any(dk in res_text for dk in debunk_words) and res_matches >= 5:
+                if any(dk in res_text for dk in debunk_words) and res_matches >= req_matches:
                     found_debunk = True
 
-            if max_sim >= 6:
+            if max_sim >= req_matches:
                 found_citations = True
 
             if found_debunk:
                 score -= 200 # Confirmed Fake
                 reasons.append("Natiijooyinka Baaritaanka: Xog laga helay internet-ka ayaa sheegaysa in qoraalkan uu yahay been-abuur la xaqiijiyay.")
             elif trusted_hits:
-                score += 120
+                score += 150 # Increased trust for web-confirmed info
                 found_citations = True
                 source_link = trusted_hits[0]
                 reasons.append(f"Xog Run Ah: Warkan waxaa lagu tebiyay ilo caalami ah oo sugan. <a href='{source_link}' target='_blank'>Riix halkan si aad u eegto</a>.")
-            elif max_sim >= 6:
-                score += 70
+            elif max_sim >= req_matches:
+                score += 80
                 reasons.append("Baaris Web: Waxaa la helay xog u dhiganta warka aad soo gudbisay, taas oo kor u qaadaysa kalsoonida.")
             elif has_danger and max_sim < 3:
-                score -= 100
+                score -= 120
                 reasons.append("Digniin: Dhacdo xasaasi ah (Danger/Death) laguma tebin ilaha rasmiga ah ee internet-ka.")
             else:
                 score -= 5 # Neutral suspicion
@@ -590,41 +594,57 @@ def heuristic_fact_check(text, url=None):
 
 
 
-    # 3. Text Pattern Check (Untrusted Patterns)
+    # 3. Text Pattern Check (Untrusted vs Trusted Patterns)
+    # Trusted indicators (Official Somali news terminology)
+    TRUSTED_PATTERNS = ["war-saxaafadeed", "shir jaraa'id", "wasaaradda", "hey'adda", "taliska", "afhayeenka", "ayaa lagu sheegay", "sida uu qoray", "sida ay werisay", "wararkii ugu dambeeyey"]
+    official_match = False
+    for tp in TRUSTED_PATTERNS:
+        if tp in text_lower:
+            score += 45
+            reasons.append(f"Xog Sugan: Qoraalku wuxuu isticmaalayaa luuqad rasmi ah ({tp}).")
+            official_match = True
+            break
+
     # Adding more common Somali fake news tropes
-    SOMALI_BAIT_PATTERNS = ["share dheh", "nasiibkaaga", "guulayso", "waalli", "mucjiso", "wax la qariyay", "nin naxay"]
+    SOMALI_BAIT_PATTERNS = ["share dheh", "nasiibkaaga", "guulayso", "waalli", "mucjiso", "wax la qariyay", "nin naxay", "naag naxday", "subxaanallaah yaab"]
     pattern_matches = 0
     for pattern in UNTRUSTED_PATTERNS + SOMALI_BAIT_PATTERNS:
         if pattern in text_lower:
             pattern_matches += 1
-            score -= 60 # Increased penalty per pattern
+            score -= 70 # Increased penalty per pattern
             reasons.append(f"Digniin: Waxaa la helay qoraal u eg clickbait ama been-abuur ({pattern}).")
             if pattern_matches >= 3: break 
 
-    # --- Short Text Grace Rule ---
-    # If text is short with no URL and no suspicious patterns detected, don't over-penalize
-    if len(words) < 30 and not url and pattern_matches == 0 and not has_danger and score == 0:
-        score += 25  # Neutral clean short text - small boost
-        reasons.append("Qoraalku waa mid gaaban laakiin calaamado been-abuur ah kuma jiraan (Short Clean Text).")
+    # --- Short Text Grace Rule (Enhanced) ---
+    # If text is short with no URL and no suspicious patterns detected, we give a baseline "Clean" boost
+    if len(words) < 30 and not url and pattern_matches == 0 and not has_danger:
+        if score <= 0:
+            score += 50  # Promote to borderline Trusted if clean
+            reasons.append("Falanqeyn: Qoraalku waa mid gaaban oo aan lahayn calaamadaha warka beenta ah (Clean Short Text).")
+        else:
+            score += 20 # Extra boost for clean text that already has official markers
     
     # --- Score Cap ---
-    # If score is positive but has NO web search backing and not trusted domain, cap it
-    if score > 0 and not found_citations and not is_trusted_domain and score < 80:
-        score = min(score, 35)
+    # If score is positive but has NO web search backing and not trusted domain, cap it to prevent false "Trusted"
+    # However, if it has official patterns AND is clean, we allow a higher cap
+    if score > 0 and not found_citations and not is_trusted_domain:
+        max_allowed = 65 if official_match else 40
+        score = min(score, max_allowed)
 
     # Final Verdict Calculation
     confidence_base = 65 + (min(33, abs(score) * 0.2))
     
-    # Verdict Logic
-    if score >= 70 or is_trusted_domain: 
+    # Verdict Logic (Refined thresholds)
+    if score >= 60 or is_trusted_domain: 
         rating = "Trusted"
-        confidence = max(94, confidence_base) if is_trusted_domain else confidence_base
+        confidence = max(92, confidence_base) if is_trusted_domain else confidence_base
     elif score <= -35: 
         rating = "Fake"
         confidence = max(88, confidence_base)
     else:
+        # If it's short and clean but score is just below 60, we still call it Unverified but with higher confidence
         rating = "Unverified"
-        confidence = max(65, min(75, confidence_base))  # 65-75% range for Unverified
+        confidence = max(65, min(80, confidence_base)) 
 
     return {
         "rating": rating,
