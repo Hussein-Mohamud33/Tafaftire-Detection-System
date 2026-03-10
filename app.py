@@ -573,8 +573,8 @@ def heuristic_fact_check(text, url=None):
                 reasons.append("Xog La'aan: Markii la baaray internet-ka, laguma helin natiijooyin xaqiijinaya warkaan (No citations found).")
         else:
             if not is_trusted_domain:
-                score -= 100
-                reasons.append("Cilad Baaris: Wax xog ah lagama helin internet-ka oo ku saabsan nuxurka qoraalkan.")
+                score -= 150
+                reasons.append("Cilad Baaris: Xog la xaqiijin karo lagama helin internet-ka oo ku saabsan qoraalkan.")
             else:
                 score += 50
                 reasons.append("Cilad Baaris: Search fashilmay laakiin isha warka ayaa la xaqiijiyay.")
@@ -592,20 +592,17 @@ def heuristic_fact_check(text, url=None):
             reasons.append(f"Digniin: Waxaa la helay qoraal u eg clickbait ama been-abuur ({pattern}).")
             if pattern_matches >= 3: break 
 
-    # Final Verdict for Expert Fact-Check
-    confidence_base = 70 + (min(28, abs(score) * 0.15))
-    
-    # Verdict Logic (STRICTER)
-    if score >= 100 or is_trusted_domain: 
+    # Verdict Logic (ULTRA STRICT)
+    if score >= 150 or is_trusted_domain: 
         rating = "Trusted"
         # Ensure trusted domains reach > 90% even without search hits
         confidence = max(96, confidence_base) if is_trusted_domain else confidence_base
-    elif score <= -50: 
+    elif score <= -30: 
         rating = "Fake"
         confidence = max(85, confidence_base)
     else:
         rating = "Unverified"
-        confidence = 60 
+        confidence = 65 
 
     return {
         "rating": rating,
@@ -733,8 +730,12 @@ def predict():
         if len(words) > 5 and sum(1 for w in words if w.isupper() and len(w) > 2) / len(words) > 0.3:
             pattern_penalty += 2.0
             
-        if len(content.split()) < 15:
-             pattern_penalty += 4.5 # Stronger penalty for very short text 
+        if len(content.split()) < 20:
+             pattern_penalty += 6.5 # even stronger penalty for short text 
+             
+        if not input_url:
+             pattern_penalty += 2.0 # Penalty for text without a source URL
+             print("[*] AI SCAN: No source URL provided. Applying 'No-Source' suspicion penalty.")
 
         # 2. Source-Based Validation (Highly Trusted Sources Boost)
         source_boost = 0
@@ -753,8 +754,8 @@ def predict():
         ai_conf = (1 / (1 + np.exp(-abs(final_ai_score * 0.8)))) * 100
         ai_conf_str = f"{min(98.5, max(75.0, ai_conf)):.2f}%"
         
-        # STRICT VERDICT: Must be > 2.0 to be Real (Raised from 1.25)
-        ai_pred = "Real News" if final_ai_score > 2.0 else "Fake news"
+        # ULTRA-STRICT VERDICT: Must be > 3.0 to be Real (Raised from 2.0)
+        ai_pred = "Real News" if final_ai_score > 3.0 else "Fake news"
         
         print(f"[*] AI SCAN - Model: {ai_score_val:.2f}, Patterns: -{pattern_penalty:.2f}, Boost: +{source_boost:.2f}, Final: {final_ai_score:.2f}")
 
@@ -834,8 +835,10 @@ def analyze_deep():
         sensational_list = ["mucjiso", "lacag bilaash", "deg deg", "yaab", "shaki", "hubaal ma leh", "qarax cusub", "sir culus"]
         if any(kw in text_lower for kw in sensational_list): 
             deep_penalty += 3.5
-        if len(content.split()) < 20: 
-            deep_penalty += 4.0
+        if len(content.split()) < 25: 
+            deep_penalty += 6.0
+        if not input_url:
+            deep_penalty += 2.5 # Text-only deep scan penalty
         
         # 2.2 Source-Based Validation (Mirror predict logic)
         source_boost = 0
@@ -854,8 +857,8 @@ def analyze_deep():
         ai_conf = (1 / (1 + np.exp(-abs(final_ai_score * 0.8)))) * 100
         ai_conf = f"{min(98.5, max(75.0, ai_conf)):.2f}%"
         
-        # STRICT VERDICT: Must be > 2.0 to be Real (Raised from 1.25)
-        ai_pred = "Real News" if final_ai_score > 2.0 else "Fake news"
+        # ULTRA-STRICT VERDICT: Must be > 3.0 to be Real (Raised from 2.0)
+        ai_pred = "Real News" if final_ai_score > 3.0 else "Fake news"
 
         # Expert Fact-Check
         fc_res = heuristic_fact_check(content, input_url)
