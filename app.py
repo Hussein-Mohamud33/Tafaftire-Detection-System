@@ -594,13 +594,18 @@ def heuristic_fact_check(text, url=None):
 
 
     # 3. Text Pattern Check (Untrusted vs Trusted Patterns)
-    # Trusted indicators (Official Somali news terminology)
-    TRUSTED_PATTERNS = ["war-saxaafadeed", "shir jaraa'id", "wasaaradda", "hey'adda", "taliska", "afhayeenka", "ayaa lagu sheegay", "sida uu qoray", "sida ay werisay", "wararkii ugu dambeeyey"]
+    # Trusted indicators (Official Somali news terminology and common reporting phrases)
+    TRUSTED_PATTERNS = [
+        "war-saxaafadeed", "shir jaraa'id", "wasaaradda", "hey'adda", "taliska", "afhayeenka", 
+        "ayaa lagu sheegay", "sida uu qoray", "sida ay werisay", "wararkii ugu dambeeyey",
+        "madaxweynaha", "ra'iisul-wasaaruhu", "gobolka", "degmada", "ayaa sheegay", 
+        "ayaa xaqiijiyay", "ayaa kormeeray", "ayaa booqday", "kulan", "munaasabad"
+    ]
     official_match = False
     for tp in TRUSTED_PATTERNS:
         if tp in text_lower:
-            score += 45
-            reasons.append(f"Xog Sugan: Qoraalku wuxuu isticmaalayaa luuqad rasmi ah ({tp}).")
+            score += 55
+            reasons.append(f"Xog Sugan: Qoraalku wuxuu isticmaalayaa luuqad rasmi ah ama xogtebin ah ({tp}).")
             official_match = True
             break
 
@@ -610,38 +615,39 @@ def heuristic_fact_check(text, url=None):
     for pattern in UNTRUSTED_PATTERNS + SOMALI_BAIT_PATTERNS:
         if pattern in text_lower:
             pattern_matches += 1
-            score -= 70 # Increased penalty per pattern
+            score -= 80 # Heavy penalty for clickbait
             reasons.append(f"Digniin: Waxaa la helay qoraal u eg clickbait ama been-abuur ({pattern}).")
             if pattern_matches >= 3: break 
 
-    # --- Short Text Grace Rule (Enhanced) ---
-    # If text is short with no URL and no suspicious patterns detected, we give a baseline "Clean" boost
-    if len(words) < 30 and not url and pattern_matches == 0 and not has_danger:
-        if score <= 0:
-            score += 50  # Promote to borderline Trusted if clean
-            reasons.append("Falanqeyn: Qoraalku waa mid gaaban oo aan lahayn calaamadaha warka beenta ah (Clean Short Text).")
+    # --- Short Text Grace Rule (Refined) ---
+    # If text is short (< 35 words), clean, and official-sounding or simple
+    if len(words) < 35 and not url and pattern_matches == 0 and not has_danger:
+        if official_match:
+            score += 25 # Boost further if official
+            reasons.append("Falanqeyn: Qoraalku waa mid rasmi ah oo nadiif ah (Official Clean News).")
         else:
-            score += 20 # Extra boost for clean text that already has official markers
+            score += 65 # Base grace for clear short text
+            reasons.append("Falanqeyn: Qoraalku waa mid gaaban oo aan lahayn calaamadaha warka beenta ah (Clean Short Text).")
     
-    # --- Score Cap ---
-    # If score is positive but has NO web search backing and not trusted domain, cap it to prevent false "Trusted"
-    # However, if it has official patterns AND is clean, we allow a higher cap
+    # --- Score Cap (Increased for Official Content) ---
+    # If it has official patterns AND is clean, we allow a higher cap so it hits 'Trusted'
     if score > 0 and not found_citations and not is_trusted_domain:
-        max_allowed = 65 if official_match else 40
+        # Increase from 65/40 to 75/55
+        max_allowed = 75 if official_match else 55
         score = min(score, max_allowed)
 
     # Final Verdict Calculation
     confidence_base = 65 + (min(33, abs(score) * 0.2))
     
-    # Verdict Logic (Refined thresholds)
-    if score >= 60 or is_trusted_domain: 
+    # Verdict Logic (Refined thresholds: Trusted at 55 for short clean text)
+    if score >= 55 or is_trusted_domain: 
         rating = "Trusted"
         confidence = max(92, confidence_base) if is_trusted_domain else confidence_base
     elif score <= -35: 
         rating = "Fake"
         confidence = max(88, confidence_base)
     else:
-        # If it's short and clean but score is just below 60, we still call it Unverified but with higher confidence
+        # Fallback for borderline or vague items
         rating = "Unverified"
         confidence = max(65, min(80, confidence_base)) 
 
