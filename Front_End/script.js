@@ -239,10 +239,13 @@ document.addEventListener('DOMContentLoaded', () => {
                 signal: controller.signal
             });
 
-            const data = await response.json();
-            clearTimeout(timeoutId);
+            if (!response.ok) {
+                const errorData = await safeJson(response);
+                throw new Error(errorData.error || `Server Error: ${response.status}`);
+            }
 
-            if (data.error) throw new Error(data.error);
+            const data = await safeJson(response);
+            clearTimeout(timeoutId);
 
             const aiRes = data.ai_res;
             const fcRes = data.fc_res;
@@ -303,7 +306,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
         } catch (err) {
             console.error("Analysis Failed:", err);
-            showError("Verification request timed out or failed. Please try again.", "newsText");
+            const displayMsg = err.message || "Verification request timed out or failed. Please try again.";
+            showError(displayMsg, "newsText");
             [finalVerdict, aiResult, fcResult].forEach(el => el.innerText = "FAILED");
             [aiConfidence, fcConfidence].forEach(el => el.innerText = "Error during scan");
         } finally {
