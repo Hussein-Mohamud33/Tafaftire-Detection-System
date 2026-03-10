@@ -926,35 +926,27 @@ def analyze_deep():
         ai_conf_num = float(ai_conf.replace("%", ""))
         fc_conf_num = float(fc_res.get("confidence", "0").replace("%", ""))
         
+        # HIGHEST CONFIDENCE: Always pick the max for the final display
+        winning_confidence = f"{int(max(ai_conf_num, fc_conf_num))}%"
+        
         if fc_rating == "Trusted":
             final_label = "TRUSTED"
-            winning_confidence = fc_res.get("confidence", ai_conf)
         elif fc_rating == "Fake":
             final_label = "FAKE INFO"
-            winning_confidence = fc_res.get("confidence", ai_conf)
         elif fc_rating == "Unverified" and ai_pred == "Real News":
-            # Expert found nothing bad (score >= 0) and AI is confident
             if expert_score_val >= 0 and ai_conf_num > 85:
-                # Still use REAL NEWS only if AI is very confident
                 fc_res["rating"] = "Unverified-Clean"
                 final_label = "REAL NEWS"
-                winning_confidence = ai_conf
                 print(f"[*] DEEP: Expert clean, high AI confidence -> REAL NEWS")
             elif expert_score_val >= 0:
-                # Borderline clean
                 final_label = "UNVERIFIED"
-                winning_confidence = ai_conf
             else:
-                # Expert found concerns despite AI saying real
                 final_label = "SUSPICIOUS"
-                winning_confidence = fc_res.get("confidence", ai_conf)
         else:
-            # AI says Fake OR Expert found negative signals
             if ai_pred == "Fake news" and fc_rating == "Unverified":
-                final_label = "SUSPICIOUS" # AI says fake but expert isn't sure
+                final_label = "SUSPICIOUS"
             else:
                 final_label = "UNVERIFIED"
-            winning_confidence = fc_res.get("confidence", ai_conf)
 
 
 
