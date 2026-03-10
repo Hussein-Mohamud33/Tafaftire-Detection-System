@@ -575,11 +575,11 @@ def heuristic_fact_check(text, url=None):
                 score -= 100
                 reasons.append("Digniin: Dhacdo xasaasi ah (Danger/Death) laguma tebin ilaha rasmiga ah ee internet-ka.")
             else:
-                score -= 25 # Mild suspicion for lack of citations
+                score -= 5 # Neutral suspicion
                 reasons.append("Xog La'aan: Markii la baaray internet-ka, laguma helin xaqiijin ku filan (No citations found).")
         else:
             # Search failed or no results
-            score -= 15
+            score -= 0 # Neutral
             reasons.append("Baaris Fashilantay: Ma jirto xog internet-ka laga helay oo xaqiijinaysa nuxurka qoraalkan.")
 
     # 2.5 Prompt/Question Check (Misleading starters)
@@ -748,11 +748,11 @@ def predict():
             pattern_penalty += 2.0
             
         if len(content.split()) < 20:
-             pattern_penalty += 6.5 # even stronger penalty for short text 
+             pattern_penalty += 1.0 # Significant reduction
              
         if not input_url:
-             pattern_penalty += 2.0 # Penalty for text without a source URL
-             print("[*] AI SCAN: No source URL provided. Applying 'No-Source' suspicion penalty.")
+             pattern_penalty += 0.5 # Minimal penalty
+             print("[*] AI SCAN: No source URL provided.")
 
         # 2. Source-Based Validation (Highly Trusted Sources Boost)
         source_boost = 0
@@ -771,8 +771,8 @@ def predict():
         ai_conf = (1 / (1 + np.exp(-abs(final_ai_score * 0.8)))) * 100
         ai_conf_str = f"{min(98.5, max(75.0, ai_conf)):.2f}%"
         
-        # BALANCED VERDICT: > 0.75 is Real
-        if final_ai_score > 0.75:
+        # BALANCED VERDICT: > 0.0 is Real
+        if final_ai_score >= 0.0:
             ai_pred = "Real News"
         else:
             ai_pred = "Fake news"
@@ -854,11 +854,11 @@ def analyze_deep():
         deep_penalty = 0
         sensational_list = ["mucjiso", "lacag bilaash", "deg deg", "yaab", "shaki", "hubaal ma leh", "qarax cusub", "sir culus"]
         if any(kw in text_lower for kw in sensational_list): 
-            deep_penalty += 2.5 # Reduced from 3.5
+            deep_penalty += 1.5 
         if len(content.split()) < 25: 
-            deep_penalty += 4.5 # Reduced from 6.0
+            deep_penalty += 1.5 
         if not input_url:
-            deep_penalty += 1.5 # Text-only deep scan penalty (Reduced from 2.5)
+            deep_penalty += 0.5 
         
         # 2.2 Source-Based Validation (Mirror predict logic)
         source_boost = 0
@@ -877,8 +877,8 @@ def analyze_deep():
         ai_conf = (1 / (1 + np.exp(-abs(final_ai_score * 0.8)))) * 100
         ai_conf = f"{min(98.5, max(75.0, ai_conf)):.2f}%"
         
-        # BALANCED VERDICT: > 0.75 is Real
-        ai_pred = "Real News" if final_ai_score > 0.75 else "Fake news"
+        # BALANCED VERDICT: > 0.0 is Real
+        ai_pred = "Real News" if final_ai_score >= 0.0 else "Fake news"
 
         # Expert Fact-Check
         fc_res = heuristic_fact_check(content, input_url)
