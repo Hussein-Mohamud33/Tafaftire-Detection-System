@@ -592,12 +592,10 @@ def heuristic_fact_check(text, url=None):
             reasons.append(f"Digniin: Waxaa la helay qoraal u eg clickbait ama been-abuur ({pattern}).")
             if pattern_matches >= 3: break 
 
-    # Verdict Logic (ULTRA STRICT)
-    if score >= 150 or is_trusted_domain: 
+    # Verdict Logic (BALANCED STRICTNESS)
+    if score >= 90 or is_trusted_domain: 
         rating = "Trusted"
-        # Ensure trusted domains reach > 90% even without search hits
-        confidence = max(96, confidence_base) if is_trusted_domain else confidence_base
-    elif score <= -30: 
+    elif score <= -40: 
         rating = "Fake"
         confidence = max(85, confidence_base)
     else:
@@ -722,7 +720,7 @@ def predict():
             "fadeexo", "ceeb", "nin weyn", "naag weyn", "subxanalaah", "yaabka aduunka"
         ]
         if any(kw in text_lower for kw in sensational_keywords):
-            pattern_penalty += 4.5 # Increased penalty from 3.0
+            pattern_penalty += 2.5 # Balanced penalty
             print(f"[*] AI SCAN: Sensational keyword detected. Penalty applied.")
 
         # Shouting (ALL CAPS)
@@ -754,8 +752,13 @@ def predict():
         ai_conf = (1 / (1 + np.exp(-abs(final_ai_score * 0.8)))) * 100
         ai_conf_str = f"{min(98.5, max(75.0, ai_conf)):.2f}%"
         
-        # ULTRA-STRICT VERDICT: Must be > 3.0 to be Real (Raised from 2.0)
-        ai_pred = "Real News" if final_ai_score > 3.0 else "Fake news"
+        # BALANCED VERDICT: > 1.5 is Real, < 1.0 is Fake
+        if final_ai_score > 1.5:
+            ai_pred = "Real News"
+        elif final_ai_score < 1.0:
+            ai_pred = "Fake news"
+        else:
+            ai_pred = "Fake news" # Default to fake if in grey zone for safety
         
         print(f"[*] AI SCAN - Model: {ai_score_val:.2f}, Patterns: -{pattern_penalty:.2f}, Boost: +{source_boost:.2f}, Final: {final_ai_score:.2f}")
 
@@ -857,8 +860,8 @@ def analyze_deep():
         ai_conf = (1 / (1 + np.exp(-abs(final_ai_score * 0.8)))) * 100
         ai_conf = f"{min(98.5, max(75.0, ai_conf)):.2f}%"
         
-        # ULTRA-STRICT VERDICT: Must be > 3.0 to be Real (Raised from 2.0)
-        ai_pred = "Real News" if final_ai_score > 3.0 else "Fake news"
+        # BALANCED VERDICT: > 1.5 is Real
+        ai_pred = "Real News" if final_ai_score > 1.5 else "Fake news"
 
         # Expert Fact-Check
         fc_res = heuristic_fact_check(content, input_url)
