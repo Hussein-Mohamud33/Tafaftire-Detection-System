@@ -435,8 +435,7 @@ def search_duckduckgo_lite(query):
     except Exception as e:
         print(f"[!] Search Error: {e}")
         return []
-    except Exception:
-        return []
+
 
 # ================= EXTRA FEATURES =================
 def is_extreme_claim(text):
@@ -908,21 +907,29 @@ def analyze_deep():
             final_label = "FAKE INFO"
             winning_confidence = fc_res.get("confidence", ai_conf)
         elif fc_rating == "Unverified" and ai_pred == "Real News":
-            # Expert found nothing bad (score >= 0) and AI is confident → Real
-            if expert_score_val >= 0:
-                # Signal to frontend: Expert had NO objections, deferred to AI
+            # Expert found nothing bad (score >= 0) and AI is confident
+            if expert_score_val >= 0 and ai_conf_num > 85:
+                # Still use REAL NEWS only if AI is very confident
                 fc_res["rating"] = "Unverified-Clean"
                 final_label = "REAL NEWS"
                 winning_confidence = ai_conf
-                print(f"[*] DEEP: Expert clean (no objections), AI=Real → REAL NEWS")
-            else:
-                # Expert found some concerns (negative score) → Unverified
+                print(f"[*] DEEP: Expert clean, high AI confidence -> REAL NEWS")
+            elif expert_score_val >= 0:
+                # Borderline clean
                 final_label = "UNVERIFIED"
+                winning_confidence = ai_conf
+            else:
+                # Expert found concerns despite AI saying real
+                final_label = "SUSPICIOUS"
                 winning_confidence = fc_res.get("confidence", ai_conf)
         else:
-            # AI says Fake OR Expert says Unverified with negative signals
-            final_label = "UNVERIFIED"
+            # AI says Fake OR Expert found negative signals
+            if ai_pred == "Fake news" and fc_rating == "Unverified":
+                final_label = "SUSPICIOUS" # AI says fake but expert isn't sure
+            else:
+                final_label = "UNVERIFIED"
             winning_confidence = fc_res.get("confidence", ai_conf)
+
 
 
         # ================= Save to History (Safe Block) =================
