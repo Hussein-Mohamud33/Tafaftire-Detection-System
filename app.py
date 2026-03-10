@@ -475,7 +475,9 @@ UNTRUSTED_PATTERNS = [
     "cod qarsoodi ah", "sir culus", "fadeexad", "looma quudho",
     "dawo kasta", "lacag fudud", "halkan ka gal", "share dheh",
     "isbaaro", "si degdeg ah", "ha ka habsaamin", "lacag badan", "nasiib",
-    "daawo hadda", "yaab badan", "been maaha", "runti", "dhugo", "war naxdin leh"
+    "daawo hadda", "yaab badan", "been maaha", "runti", "dhugo", "war naxdin leh",
+    "fadeexo", "ceeb", "naxdin", "ilaahayow", "ilaahow", "ilaahay", "subxanalaah",
+    "nin weyn", "naag weyn", "dhacdo xanuun badan", "nin soomaali ah", "naag soomaali ah"
 ]
 
 def heuristic_fact_check(text, url=None):
@@ -719,10 +721,11 @@ def predict():
             "isbaaro", "si degdeg ah", "lacag badan", "nasiib", "daawo hadda",
             "shaki", "hubaal ma leh", "waalli", "cajalad qarsoodi ah", "nin ka naxay",
             "wax la qariyay", "dawladdu way qarisay", "si qarsoodi ah", "ha ka habsaamin",
-            "fursad qaali ah", "nasiibkaaga tijaabi", "lacag ku guulayso"
+            "fursad qaali ah", "nasiibkaaga tijaabi", "lacag ku guulayso", "fadeexad", 
+            "fadeexo", "ceeb", "nin weyn", "naag weyn", "subxanalaah", "yaabka aduunka"
         ]
         if any(kw in text_lower for kw in sensational_keywords):
-            pattern_penalty += 3.0
+            pattern_penalty += 4.5 # Increased penalty from 3.0
             print(f"[*] AI SCAN: Sensational keyword detected. Penalty applied.")
 
         # Shouting (ALL CAPS)
@@ -750,8 +753,8 @@ def predict():
         ai_conf = (1 / (1 + np.exp(-abs(final_ai_score * 0.8)))) * 100
         ai_conf_str = f"{min(98.5, max(75.0, ai_conf)):.2f}%"
         
-        # STRICT VERDICT: Must be > 1.25 to be Real
-        ai_pred = "Real News" if final_ai_score > 1.25 else "Fake news"
+        # STRICT VERDICT: Must be > 2.0 to be Real (Raised from 1.25)
+        ai_pred = "Real News" if final_ai_score > 2.0 else "Fake news"
         
         print(f"[*] AI SCAN - Model: {ai_score_val:.2f}, Patterns: -{pattern_penalty:.2f}, Boost: +{source_boost:.2f}, Final: {final_ai_score:.2f}")
 
@@ -851,8 +854,8 @@ def analyze_deep():
         ai_conf = (1 / (1 + np.exp(-abs(final_ai_score * 0.8)))) * 100
         ai_conf = f"{min(98.5, max(75.0, ai_conf)):.2f}%"
         
-        # STRICT VERDICT: Must be > 1.25 to be Real
-        ai_pred = "Real News" if final_ai_score > 1.25 else "Fake news"
+        # STRICT VERDICT: Must be > 2.0 to be Real (Raised from 1.25)
+        ai_pred = "Real News" if final_ai_score > 2.0 else "Fake news"
 
         # Expert Fact-Check
         fc_res = heuristic_fact_check(content, input_url)
