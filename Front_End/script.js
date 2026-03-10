@@ -284,32 +284,19 @@ document.addEventListener('DOMContentLoaded', () => {
                 fcConfidence.innerText = `Expert Score: ${fcRes.confidence}`;
             }
 
-            // === FINAL VERDICT: Use Server's Decision + Highest Confidence ===
-            const aiConfNum = parseFloat(aiRes.confidence);
-            const fcConfNum = parseFloat(fcRes.confidence);
+            // === FINAL VERDICT: Use Server's Calculated Winning Confidence ===
             const finalLabelToDisplay = data.final_verdict || "UNVERIFIED";
 
-            // Pick confidence & source based on which engine "won" the verdict
-            let finalConfToDisplay = "";
+            // Priority: Server-calculated winning_confidence, then fallback
+            let finalConfToDisplay = data.winning_confidence || aiRes.confidence;
             let finalSourceToDisplay = "";
 
             if (finalLabelToDisplay === "TRUSTED" || finalLabelToDisplay === "FAKE INFO") {
-                // Expert won definitively
-                finalConfToDisplay = fcRes.confidence;
                 finalSourceToDisplay = "Source: Expert Fact-Check (Search)";
             } else if (finalLabelToDisplay === "REAL NEWS" || finalLabelToDisplay === "FAKE NEWS") {
-                // AI won — show AI confidence (it was higher)
-                finalConfToDisplay = aiRes.confidence;
                 finalSourceToDisplay = "Source: AI Content Analysis";
             } else {
-                // UNVERIFIED — show whichever confidence is higher for transparency
-                if (aiConfNum >= fcConfNum) {
-                    finalConfToDisplay = aiRes.confidence;
-                    finalSourceToDisplay = "Source: AI Analysis (Expert Unverified)";
-                } else {
-                    finalConfToDisplay = fcRes.confidence;
-                    finalSourceToDisplay = "Source: Expert Fact-Check";
-                }
+                finalSourceToDisplay = "Source: Unified Verification Engine";
             }
 
             finalVerdict.innerText = finalLabelToDisplay;
