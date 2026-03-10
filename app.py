@@ -13,6 +13,7 @@ import imaplib
 import email
 import tldextract
 import nltk
+import pandas as pd
 from flask import Flask, request, jsonify, make_response
 from flask_cors import CORS
 from email.header import decode_header
