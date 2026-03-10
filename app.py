@@ -1,7 +1,6 @@
 import os
 import re
 import traceback
-import numpy as np
 import requests
 import subprocess
 import json
@@ -10,14 +9,11 @@ import csv
 import smtplib
 import imaplib
 import email
-import tldextract
-import nltk
 from flask import Flask, request, jsonify, make_response
 from flask_cors import CORS
 from email.header import decode_header
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
-from bs4 import BeautifulSoup
 from functools import lru_cache
 
 # ================= FLASK INIT =================
@@ -196,7 +192,12 @@ def save_stats(stats):
     except:
         pass
 
-global_stats = load_stats()
+_global_stats_cache = None
+def get_global_stats():
+    global _global_stats_cache
+    if _global_stats_cache is None:
+        _global_stats_cache = load_stats()
+    return _global_stats_cache
 
 @app.route("/api/health", methods=["GET"])
 def health_check():
@@ -235,14 +236,16 @@ somali_stopwords = [
 ]
 
 def load_resources():
-    """Lazy loader for NLTK and AI models to keep startup fast."""
+    """Lazy loader for NLTK, NumPy and AI models to keep startup fast."""
     global model, vectorizer, label_encoder, lemmatizer, stop_words, nltk_initialized
     
     if nltk_initialized:
         return
 
-    print("[*] Loading AI models and NLTK data...")
+    print("[*] Loading AI models, NumPy and NLTK data...")
     import joblib
+    import numpy as np
+    import nltk
     
     # 1. NLTK Path Setup
     data_dir = os.path.join(BASE_DIR, "nltk_data")
@@ -410,6 +413,7 @@ def search_duckduckgo_lite(query):
     Kala soo bax natiijooyin live ah DuckDuckGo Lite si loo xaqiijiyo dhacdooyinka hadda socda.
     """
     try:
+        from bs4 import BeautifulSoup
         url = "https://lite.duckduckgo.com/lite/"
         headers = {"User-Agent": "Mozilla/5.0"}
         # Strict timeout to avoid blocking the server
@@ -485,6 +489,7 @@ def heuristic_fact_check(text, url=None):
     EXPERT FACT-CHECK: Strictly focuses on Source Reputation and Live Web Verification.
     This does NOT analyze text patterns (which AI does), instead it looks for external truth.
     """
+    import tldextract
     score = 0
     reasons = []
     text_lower = text.lower()
@@ -686,8 +691,9 @@ def predict():
         if model is None or vectorizer is None:
             return jsonify({"error": "AI Models are not loaded on the server. Please check server logs."}), 500
 
-        global_stats["requests_handled"] = global_stats.get("requests_handled", 0) + 1
-        save_stats(global_stats)
+        gs = get_global_stats()
+        gs["requests_handled"] = gs.get("requests_handled", 0) + 1
+        save_stats(gs)
         data = request.get_json(silent=True)
         if not data:
             return jsonify({"error": "JSON not found"}), 400
@@ -873,6 +879,7 @@ def analyze_deep():
 
         # 2. Parallel Processing (AI and Facts)
         # AI Predict
+        import numpy as np
         clean_input = preprocess_text(content)
         X = vectorizer.transform([clean_input])
         ext = is_extreme_claim(content)
@@ -911,6 +918,7 @@ def analyze_deep():
             print(f"[*] DEEP SCAN: Safety cap applied.")
         
         # Simple AI Confidence
+        import numpy as np
         ai_conf = (1 / (1 + np.exp(-abs(final_ai_score * 0.8)))) * 100
         ai_conf = f"{min(98.5, max(75.0, ai_conf)):.2f}%"
         
@@ -989,8 +997,9 @@ def analyze_deep():
 @app.route("/api/fact-check", methods=["POST"])
 def fact_check():
     try:
-        global_stats["requests_handled"] = global_stats.get("requests_handled", 0) + 1
-        save_stats(global_stats)
+        gs = get_global_stats()
+        gs["requests_handled"] = gs.get("requests_handled", 0) + 1
+        save_stats(gs)
         data = request.get_json(silent=True)
         if not data:
             return jsonify({"error": "JSON not found"}), 400
