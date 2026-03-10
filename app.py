@@ -601,17 +601,22 @@ def heuristic_fact_check(text, url=None):
             reasons.append(f"Digniin: Waxaa la helay qoraal u eg clickbait ama been-abuur ({pattern}).")
             if pattern_matches >= 3: break 
 
-    # FINAL SCORE ADJUSTMENTS
-    if score > 0 and not found_citations and not is_trusted_domain:
-        # If it's positive but has NO search backing, cap it.
-        score = min(score, 30)
-        reasons.append("Fiiro Gaar ah: In kasta oo hab-dhismeedka qoraalku u muuqdo mid wanaagsan, looma helin cadayn internet-ka ah.")
+    # --- Short Text Grace Rule ---
+    # If text is short with no URL and no suspicious patterns detected, don't over-penalize
+    if len(words) < 30 and not url and pattern_matches == 0 and not has_danger and score == 0:
+        score += 25  # Neutral clean short text - small boost
+        reasons.append("Qoraalku waa mid gaaban laakiin calaamado been-abuur ah kuma jiraan (Short Clean Text).")
+    
+    # --- Score Cap ---
+    # If score is positive but has NO web search backing and not trusted domain, cap it
+    if score > 0 and not found_citations and not is_trusted_domain and score < 80:
+        score = min(score, 35)
 
     # Final Verdict Calculation
     confidence_base = 65 + (min(33, abs(score) * 0.2))
     
-    # Verdict Logic (STRICTER MIDDLE GROUND)
-    if score >= 80 or is_trusted_domain: 
+    # Verdict Logic
+    if score >= 70 or is_trusted_domain: 
         rating = "Trusted"
         confidence = max(94, confidence_base) if is_trusted_domain else confidence_base
     elif score <= -35: 
@@ -619,7 +624,7 @@ def heuristic_fact_check(text, url=None):
         confidence = max(88, confidence_base)
     else:
         rating = "Unverified"
-        confidence = 65 
+        confidence = max(65, min(75, confidence_base))  # 65-75% range for Unverified
 
     return {
         "rating": rating,
@@ -898,22 +903,23 @@ def analyze_deep():
         
         if fc_rating == "Trusted":
             final_label = "TRUSTED"
+            winning_confidence = fc_res.get("confidence", ai_conf)
         elif fc_rating == "Fake":
             final_label = "FAKE INFO"
+            winning_confidence = fc_res.get("confidence", ai_conf)
         elif ai_pred == "Real News":
-            # AI says Real News and Expert is Unverified — trust AI
-            final_label = "REAL NEWS"
+            # Both AI=Real and Expert=Unverified: pick higher confidence
+            if ai_conf_num >= fc_conf_num:
+                final_label = "REAL NEWS"
+                winning_confidence = ai_conf
+            else:
+                # Expert's Unverified has higher confidence (unusual, but defer)
+                final_label = "UNVERIFIED"
+                winning_confidence = fc_res.get("confidence", ai_conf)
         else:
-            # Both AI and Expert uncertain/fake
+            # AI says Fake, Expert says Unverified
             final_label = "UNVERIFIED"
-
-        # 4. Final Metadata Preparation
-        try:
-            ai_score_num = float(str(ai_conf).replace("%", ""))
-            fc_score_num = float(str(fc_res.get("confidence", "0")).replace("%", ""))
-            winning_confidence = fc_res.get("confidence") if fc_score_num > ai_score_num else ai_conf
-        except:
-            winning_confidence = ai_conf
+            winning_confidence = fc_res.get("confidence", ai_conf)
 
         # ================= Save to History (Safe Block) =================
         try:
