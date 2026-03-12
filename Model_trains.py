@@ -59,15 +59,17 @@ lemmatizer = WordNetLemmatizer()
 # ======================================
 # TEXT PREPROCESSING
 # ======================================
+# Faster regex-based tokenizer to replace NLTK word_tokenize for speed
+TOKEN_PATTERN = re.compile(r"\b[a-z']+\b")
+
 def preprocess_text(text):
     if not isinstance(text, str):
         return ""
     text = text.lower()
-    # Keep A-Z and apostrophes for Somali/English
-    text = re.sub(r"[^a-z' ]", " ", text)
-    tokens = word_tokenize(text)
-    tokens = [lemmatizer.lemmatize(w) for w in tokens if w not in stop_words and len(w) > 2]
-    return " ".join(tokens)
+    # Simplified cleaning
+    tokens = TOKEN_PATTERN.findall(text)
+    # Filter stopwords and short words while lemmatizing
+    return " ".join(lemmatizer.lemmatize(w) for w in tokens if w not in stop_words and len(w) > 2)
 
 # ======================================
 # EXTREME / VAGUE CLAIM DETECTION
@@ -120,8 +122,9 @@ texts = pd.concat([fake_df["Text"], real_df["Text"]])
 labels = [0] * len(fake_df) + [1] * len(real_df)
 
 
-print("Preprocessing text...")
-processed_texts = [preprocess_text(t) for t in texts]
+print("Preprocessing text in parallel...")
+from joblib import Parallel, delayed
+processed_texts = Parallel(n_jobs=-1)(delayed(preprocess_text)(t) for t in texts)
 
 # Add extreme/vague features
 extreme_flags = [is_extreme_claim(t) for t in texts]
@@ -141,8 +144,8 @@ X_train, X_test, y_train, y_test, ext_train, ext_test, vague_train, vague_test =
 # TF-IDF
 # ======================================
 print("Vectorizing...")
-# Improvment: Use n-gram range (1, 3) and slightly better min_df to reduce noise
-tfidf = TfidfVectorizer(max_features=15000, ngram_range=(1, 3), min_df=3, use_idf=True, sublinear_tf=True)
+# Improvment: Use n-gram range (1, 2) for significantly faster vectorization
+tfidf = TfidfVectorizer(max_features=12000, ngram_range=(1, 2), min_df=3, use_idf=True, sublinear_tf=True)
 X_train_tfidf = tfidf.fit_transform(X_train)
 X_test_tfidf = tfidf.transform(X_test)
 
@@ -154,13 +157,11 @@ X_test_tfidf = hstack([X_test_tfidf, np.array([ext_test, vague_test]).T])
 # ======================================
 # MODELS
 # ======================================
-# Using class_weight='balanced' to handle the heavy imbalance in the dataset
-# Using class_weight='balanced' to handle the heavy imbalance in the dataset
-
+# Reduced iterations and enabled parallel jobs for LogisticRegression
 models = {
-    "Naive_Bayes": MultinomialNB(alpha=0.01), # Lower alpha for more sensitivity
-    "SVM": LinearSVC(max_iter=15000, C=1.0, dual=True, class_weight='balanced'),
-    "Logistic_Regression": LogisticRegression(max_iter=4000, solver='lbfgs', class_weight='balanced')
+    "Naive_Bayes": MultinomialNB(alpha=0.01),
+    "SVM": LinearSVC(max_iter=3000, C=1.0, dual=True, class_weight='balanced'),
+    "Logistic_Regression": LogisticRegression(max_iter=1000, solver='lbfgs', class_weight='balanced', n_jobs=-1)
 }
 
 results = {}
