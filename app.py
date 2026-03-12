@@ -462,11 +462,13 @@ TRUSTED_SOURCES = {
     "radioergo.org", "aljazeera.com", "reuters.com", "apnews.com",
     "nytimes.com", "cnn.com", "theguardian.com", "standardmedia.co.ke",
     "mogadishucenter.com", "puntland.so", "galmudug.so", "hirshabelle.so",
-    "dalsanradio.com", "radiodalsan.com", "mustaqbalmedia.net", "shabellemedia.com"
+    "dalsanradio.com", "radiodalsan.com", "mustaqbalmedia.net", "shabellemedia.com",
+    "raxanreeb.com", "keydmedia.net", "radiokulmiye.net", "universalsomalitv.net",
+    "rtv.so", "daljir.com", "bbc.co.uk", "stn.so"
 }
 
 UNTRUSTED_PATTERNS = [
-    "shidan", "dawo mucjiso ah", "lacag bilaash ah", 
+    "shidan", "dawo mucjiso ah", "lacag bilaash ah", "lacag bilaash",
     "guji halkan", "win iphone", "naxdin", "nin yaaban",
     "naag yaaban", "subxaanallaah", "yaabka aduunka", "arrin lala yaabo",
     "qarax cusub", "war hadda soo dhacay", "daawasho naxdin leh",
@@ -476,7 +478,9 @@ UNTRUSTED_PATTERNS = [
     "isbaaro", "si degdeg ah", "ha ka habsaamin", "lacag badan", "nasiib",
     "daawo hadda", "yaab badan", "been maaha", "runti", "dhugo", "war naxdin leh",
     "fadeexo", "ceeb", "naxdin", "ilaahayow", "ilaahow", "ilaahay", "subxanalaah",
-    "nin weyn", "naag weyn", "dhacdo xanuun badan", "nin soomaali ah", "naag soomaali ah"
+    "nin weyn", "naag weyn", "dhacdo xanuun badan", "nin soomaali ah", "naag soomaali ah",
+    "hal mar eeg", "nin naxay", "naag naxday", "mucjiso", "wax la qariyay",
+    "nin weyn oo naxay", "naag weyn oo naxday", "nin yaabsaday", "naag yaabsatay"
 ]
 
 def heuristic_fact_check(text, url=None):
@@ -538,21 +542,22 @@ def heuristic_fact_check(text, url=None):
             found_debunk = False
             trusted_hits = []
             
-            debunk_words = ["fake", "false", "hoax", "fact check", "been abuur", "been-abuur", "checked", "debunked"]
+            debunk_words = ["fake", "false", "hoax", "fact check", "been abuur", "been-abuur", "checked", "debunked", "been ah", "ma dhab aha", "beenowday"]
             
             # Match threshold based on query length (relative accuracy)
-            req_matches = min(6, max(3, int(len(query_words) * 0.6)))
+            req_matches = min(7, max(4, int(len(query_words) * 0.7)))
             
             for res in live_results:
                 res_text = (res['title'] + " " + res['snippet']).lower()
-                res_matches = sum(1 for w in query_words[:12] if w.lower() in res_text)
+                res_matches = sum(1 for w in query_words[:15] if w.lower() in res_text)
                 if res_matches > max_sim: max_sim = res_matches
                 
                 # Check Domain of Result
                 try:
                     ext_res = tldextract.extract(res['link'])
                     res_domain = f"{ext_res.domain}.{ext_res.suffix}".lower()
-                    if res_domain in TRUSTED_SOURCES and res_matches >= req_matches:
+                    # Somali media and trusted International sites
+                    if (res_domain in TRUSTED_SOURCES or any(x in res_domain for x in ["bbc", "voa", "aljazeera"])) and res_matches >= req_matches:
                         trusted_hits.append(res['link'])
                 except: pass
                 
@@ -564,21 +569,21 @@ def heuristic_fact_check(text, url=None):
 
             if found_debunk:
                 score -= 200 # Confirmed Fake
-                reasons.append("Natiijooyinka Baaritaanka: Xog laga helay internet-ka ayaa sheegaysa in qoraalkan uu yahay been-abuur la xaqiijiyay.")
+                reasons.append("Web Check: Xogta internet-ka ayaa muujisay in warkan horay loo beeniyay (Confirmed Fake).")
             elif trusted_hits:
-                score += 150 # Increased trust for web-confirmed info
+                score += 160 # Increased trust for web-confirmed info
                 found_citations = True
                 source_link = trusted_hits[0]
-                reasons.append(f"Xog Run Ah: Warkan waxaa lagu tebiyay ilo caalami ah oo sugan. <a href='{source_link}' target='_blank'>Riix halkan si aad u eegto</a>.")
+                reasons.append(f"Verification: Warkan waxaa lagu tebiyay ilo caalami ah ama kuwa gudaha oo sugan. <a href='{source_link}' target='_blank'>Link-ga Xaqiijinta</a>.")
             elif max_sim >= req_matches:
-                score += 80
-                reasons.append("Baaris Web: Waxaa la helay xog u dhiganta warka aad soo gudbisay, taas oo kor u qaadaysa kalsoonida.")
-            elif has_danger and max_sim < 3:
-                score -= 120
-                reasons.append("Digniin: Dhacdo xasaasi ah (Danger/Death) laguma tebin ilaha rasmiga ah ee internet-ka.")
+                score += 90
+                reasons.append("Search Results: Waxaa la helay xog badan oo la mid ah tan aad soo gudbisay, taas oo kor u qaadaysa xaqiiqada.")
+            elif has_danger and max_sim < 4:
+                score -= 130
+                reasons.append("Digniin: Dhacdadan weyn ee Amniga/Nolosha ah laguma dhex arko ilaha rasmiga ah.")
             else:
-                score -= 5 # Neutral suspicion
-                reasons.append("Xog La'aan: Markii la baaray internet-ka, laguma helin xaqiijin ku filan (No citations found).")
+                score -= 10 # Neutral suspicion
+                reasons.append("Search: Ma Jirto xog sugan oo ku saabsan nuxurka qoraalkan oo laga helay internet-ka.")
         else:
             # Search failed or no results
             score -= 0 # Neutral
@@ -990,10 +995,11 @@ def analyze_deep():
                 "confidence": ai_conf
             },
             "fc_res": fc_res,
+            "reasons": fc_res.get("reasons", []),
             "title": page_title,
             "link": input_url or "N/A",
             "subject": news_subject,
-            "raw_text": content
+            "status": "success"
         })
 
     except Exception as e:
@@ -1223,35 +1229,45 @@ def admin_login():
 
 @app.route("/api/admin/stats", methods=["GET"])
 def admin_stats():
-    """Ultra-fast stats for Render to prevent 'Loading' hang/timeout."""
+    """Robust stats calculation for Admin Dashboard."""
     try:
-        dataset_dir = os.path.join(BASE_DIR, "Dataset")
-        dataset_files = os.listdir(dataset_dir) if os.path.exists(dataset_dir) else []
+        # Better path detection
+        current_dir = os.path.dirname(os.path.abspath(__file__))
+        dataset_dir = os.path.join(current_dir, "Dataset")
         
-        fake_news_count = 0
-        real_news_count = 0
+        print(f"[*] Stats Request: Checking {dataset_dir}")
         
-        full_entries_count = 0
+        dataset_files = []
+        if os.path.exists(dataset_dir):
+            dataset_files = [f for f in os.listdir(dataset_dir) if f.endswith(".csv")]
+        else:
+            print(f"[!] Warning: Dataset directory not found at {dataset_dir}")
+
+        fake_count = 0
+        real_count = 0
+        
         for f in dataset_files:
-            if not f.endswith(".csv"): continue
             try:
                 path = os.path.join(dataset_dir, f)
-                # Actual line count for accuracy
                 with open(path, "rb") as csv_f:
-                    lines = sum(1 for _ in csv_f) - 1 # Exclude header
-                
-                full_entries_count += lines
-                if "fake" in f.lower(): fake_news_count += lines
-                elif "real" in f.lower(): real_news_count += lines
-            except: pass
+                    # Faster line counting
+                    lines = sum(1 for _ in csv_f) - 1
+                    if "fake" in f.lower(): fake_count += max(0, lines)
+                    elif "real" in f.lower(): real_count += max(0, lines)
+            except Exception as e:
+                print(f"[!] Error reading dataset file {f}: {e}")
 
         latest_stats = load_stats()
         
-        # Fast history/messages count
         messages_count = 0
-        history_count = 0
-        weekly_activity = [0, 0, 0, 0, 0, 0, 0] # Real activity from last 7 days starting with zero
+        if os.path.exists(CONTACTS_FILE):
+             try:
+                 with open(CONTACTS_FILE, "r", encoding="utf-8") as f:
+                     messages_count = f.read().count("---\n")
+             except: pass
 
+        history_count = 0
+        weekly_activity = [0] * 7
         if os.path.exists(ANALYSIS_HISTORY_FILE):
             try:
                 import datetime
@@ -1259,32 +1275,22 @@ def admin_stats():
                     history_data = json.load(f)
                     history_count = len(history_data)
                     
-                    # Last 7 Days Analytics logic
                     now = datetime.datetime.now()
                     seven_days_ago = now - datetime.timedelta(days=7)
-                    calc_activity = [0] * 7
-                    
                     for entry in history_data:
                         date_str = entry.get("date", "")
                         if date_str:
                             try:
                                 dt = datetime.datetime.strptime(date_str, "%Y-%m-%d %H:%M:%S")
-                                # Current Day (0=Mon, 6=Sun) - Somali Charts start with Isniin (Mon)
                                 if dt >= seven_days_ago:
-                                    calc_activity[dt.weekday()] += 1
+                                    weekly_activity[dt.weekday()] += 1
                             except: pass
-                    
-                    weekly_activity = calc_activity
             except: pass
 
-        if os.path.exists(CONTACTS_FILE):
-             try: messages_count = os.path.getsize(CONTACTS_FILE) // 250
-             except: pass
-
         stats = {
-            "total_datasets": len([f for f in dataset_files if f.endswith(".csv")]),
-            "fake_news_count": fake_news_count,
-            "real_news_count": real_news_count,
+            "total_datasets": len(dataset_files),
+            "fake_news_count": fake_count,
+            "real_news_count": real_count,
             "requests_handled": latest_stats.get("requests_handled", 0),
             "messages_count": messages_count,
             "history_count": history_count,
@@ -1295,8 +1301,13 @@ def admin_stats():
         }
         return jsonify(stats)
     except Exception as e:
-        print(f"[!] Stats Speed Error: {e}")
-        return jsonify({"error": "Stats temporary unavailable"}), 200 # Fallback 200 to stop loading spinner
+        print(f"[!] Stats Error: {traceback.format_exc()}")
+        return jsonify({
+            "total_datasets": 0,
+            "model_accuracy": "94.5%",
+            "system_status": "Offline",
+            "error": str(e)
+        })
 
 @app.route("/api/admin/analysis_history", methods=["GET"])
 def get_analysis_history():
