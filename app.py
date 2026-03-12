@@ -256,22 +256,17 @@ def load_resources():
         nltk.data.path.insert(0, data_dir)
 
     # 2. Delayed Imports
-    from nltk.corpus import stopwords
-    from nltk.stem import WordNetLemmatizer
-    
-    # Check for packages
-    for pkg in ["punkt", "punkt_tab", "stopwords", "wordnet"]:
-        try:
-            if pkg == "punkt": nltk.data.find("tokenizers/punkt")
-            elif pkg == "punkt_tab": nltk.data.find("tokenizers/punkt_tab")
-            else: nltk.data.find(f"corpora/{pkg}")
-        except:
-            print(f"[*] NLTK: Downloading {pkg} on-demand...")
-            nltk.download(pkg, download_dir=data_dir, quiet=True)
-
-    lemmatizer = WordNetLemmatizer()
-    stop_words = set(stopwords.words("english"))
-    stop_words.update(somali_stopwords)
+    # Stop on-demand downloads to prevent Render worker timeouts.
+    # NLTK data should be pre-installed via build.sh
+    try:
+        from nltk.corpus import stopwords
+        from nltk.stem import WordNetLemmatizer
+        lemmatizer = WordNetLemmatizer()
+        stop_words = set(stopwords.words("english"))
+        stop_words.update(somali_stopwords)
+    except Exception as e:
+        print(f"[!] NLTK resources not found. Falling back to simple processing: {e}")
+        stop_words = set(somali_stopwords)
 
     # 3. Model Loading
     try:
