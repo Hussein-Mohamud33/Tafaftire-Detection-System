@@ -218,7 +218,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         if (analyzeBtn) {
             analyzeBtn.disabled = true;
-            analyzeBtn.innerHTML = '<i class="fas fa-bolt fa-beat"></i> FAST SCANNING...';
+            analyzeBtn.innerHTML = '<i class="fas fa-bolt fa-beat"></i> Analysing...';
         }
 
         resultContainer.style.display = "flex";
@@ -226,7 +226,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         [finalVerdict, aiResult, fcResult].forEach(el => el.innerText = "⏳...");
         [aiConfidence, fcConfidence].forEach(el => el.innerText = "Processing...");
-        finalConfidence.innerText = "System validation in progress...";
+        finalConfidence.innerText = "Loading...";
 
         try {
             const controller = new AbortController();
@@ -254,7 +254,7 @@ document.addEventListener('DOMContentLoaded', () => {
             let aiText = aiRes.prediction.includes("Real News") ? "REAL NEWS" : "FAKE NEWS";
             aiResult.innerText = aiText;
             aiResult.style.color = aiRes.prediction.includes("Real News") ? "#2ecc71" : "#ff4757";
-            aiConfidence.innerText = `AI Score: ${aiRes.confidence}`;
+            aiConfidence.innerText = `Confidence: ${aiRes.confidence}`;
 
             // Handle Expert Result
             let fcText = "UNVERIFIED";
@@ -264,12 +264,12 @@ document.addEventListener('DOMContentLoaded', () => {
                 fcText = "TRUSTED";
                 fcResult.innerText = "TRUSTED";
                 fcResult.style.color = "#2ecc71";
-                fcConfidence.innerHTML = `<i class="fas fa-check-square"></i> SOURCE VALIDATED (${fcRes.confidence})`;
+                fcConfidence.innerHTML = `<i class="fas fa-check-square"></i> Confidence: (${fcRes.confidence})`;
             } else if (fcRatingLower.includes("fake")) {
                 fcText = "FAKE INFO";
                 fcResult.innerText = "FAKE INFO";
                 fcResult.style.color = "#ff4757";
-                fcConfidence.innerText = `Expert Score: ${fcRes.confidence}`;
+                fcConfidence.innerText = `Confidence: ${fcRes.confidence}`;
             } else if (fcRatingLower.includes("unverified-clean")) {
                 // Expert found NO objections, deferred to AI
                 fcText = "NO ISSUES";
@@ -281,7 +281,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 // Genuine Unverified (Expert found some concerns but not enough to judge)
                 fcResult.innerText = "UNVERIFIED";
                 fcResult.style.color = "#f39c12";
-                fcConfidence.innerText = `Expert Score: ${fcRes.confidence}`;
+                fcConfidence.innerText = `Confidence: ${fcRes.confidence}`;
             }
 
             // === FINAL VERDICT: Use Server's Calculated Winning Confidence ===
@@ -339,7 +339,7 @@ document.addEventListener('DOMContentLoaded', () => {
             window.isAnalyzing = false;
             if (analyzeBtn) {
                 analyzeBtn.disabled = false;
-                analyzeBtn.innerHTML = '<i class="fas fa-bolt"></i> FASTEST ANALYSIS';
+                analyzeBtn.innerHTML = '<i class="fas fa-bolt"></i> ANALYSIS';
             }
         }
     }
@@ -972,4 +972,5 @@ document.addEventListener('DOMContentLoaded', () => {
     window.addEventListener('hashchange', handleRouting);
     handleRouting();
 });
+
 
