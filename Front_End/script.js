@@ -218,7 +218,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         if (analyzeBtn) {
             analyzeBtn.disabled = true;
-            analyzeBtn.innerHTML = '<i class="fas fa-bolt fa-beat"></i> Analysing...';
+            analyzeBtn.innerHTML = '<i class="fas fa-bolt fa-beat"></i> FAST SCANNING...';
         }
 
         resultContainer.style.display = "flex";
@@ -226,7 +226,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         [finalVerdict, aiResult, fcResult].forEach(el => el.innerText = "⏳...");
         [aiConfidence, fcConfidence].forEach(el => el.innerText = "Processing...");
-        finalConfidence.innerText = "Loading...";
+        finalConfidence.innerText = "Processing...";
 
         try {
             const controller = new AbortController();
@@ -264,7 +264,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 fcText = "TRUSTED";
                 fcResult.innerText = "TRUSTED";
                 fcResult.style.color = "#2ecc71";
-                fcConfidence.innerHTML = `<i class="fas fa-check-square"></i> Confidence: (${fcRes.confidence})`;
+                fcConfidence.innerHTML = `Confidence: ${fcRes.confidence}`;
             } else if (fcRatingLower.includes("fake")) {
                 fcText = "FAKE INFO";
                 fcResult.innerText = "FAKE INFO";
@@ -276,7 +276,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 fcResult.innerText = "NO ISSUES FOUND";
                 fcResult.style.color = "#9ca3af";
                 fcResult.style.fontSize = "1.4rem";
-                fcConfidence.innerHTML = `<i class="fas fa-shield-alt" style="color:#9ca3af; margin-right:5px;"></i> <span style="color:#9ca3af;">No fake signals detected</span>`;
+                fcConfidence.innerHTML = `Confidence: ${fcRes.confidence}`;
             } else {
                 // Genuine Unverified (Expert found some concerns but not enough to judge)
                 fcResult.innerText = "UNVERIFIED";
@@ -339,7 +339,7 @@ document.addEventListener('DOMContentLoaded', () => {
             window.isAnalyzing = false;
             if (analyzeBtn) {
                 analyzeBtn.disabled = false;
-                analyzeBtn.innerHTML = '<i class="fas fa-bolt"></i> ANALYSIS';
+                analyzeBtn.innerHTML = '<i class="fas fa-bolt"></i> FASTEST ANALYSIS';
             }
         }
     }
@@ -972,5 +972,4 @@ document.addEventListener('DOMContentLoaded', () => {
     window.addEventListener('hashchange', handleRouting);
     handleRouting();
 });
-
 
