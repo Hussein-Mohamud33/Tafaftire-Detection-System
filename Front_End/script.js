@@ -289,15 +289,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
             // Priority: Server-calculated winning_confidence, then fallback
             let finalConfToDisplay = data.winning_confidence || aiRes.confidence;
-            let finalSourceToDisplay = "";
-
-            if (finalLabelToDisplay === "TRUSTED" || finalLabelToDisplay === "FAKE INFO") {
-                finalSourceToDisplay = "Source: Expert Fact-Check (Search)";
-            } else if (finalLabelToDisplay === "REAL NEWS" || finalLabelToDisplay === "FAKE NEWS") {
-                finalSourceToDisplay = "Source: AI Content Analysis";
-            } else {
-                finalSourceToDisplay = "Source: Unified Verification Engine";
-            }
+            let finalSourceToDisplay = data.winning_source ? `${data.winning_source}: ${finalConfToDisplay}` : "Unified Verification Engine";
 
             finalVerdict.innerText = finalLabelToDisplay;
             finalConfidence.innerText = `Confidence: ${finalConfToDisplay}`;
