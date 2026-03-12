@@ -292,6 +292,7 @@ def load_resources():
 # ================= PRE-COMPILED REGEX FOR SPEED =================
 URL_PATTERN = re.compile(r'^(https?://|www\.)[a-z0-9-]+(\.[a-z0-9-]+)+([/?#].*)?$', re.IGNORECASE)
 CLEAN_TEXT_PATTERN = re.compile(r"[^a-z' ]")
+TOKEN_PATTERN = re.compile(r"\b[a-z']+\b")
 DOMAIN_CLEAN_PATTERN = re.compile(r'^https?://(www\.)?')
 SUSPICIOUS_EXT_PATTERN = re.compile(r"\.(tk|ga|ml|cf|icu|xyz)$")
 
@@ -305,15 +306,27 @@ def sanitize_text(text):
     return text.strip()
 
 def preprocess_text(text):
-    """High-accuracy preprocessing using NLTK word_tokenize & lemmatization"""
+    """High-accuracy preprocessing using regex tokenization & lemmatization (consistent with training)"""
     load_resources() # Ensure loaded
     if not text: return ""
-    from nltk.tokenize import word_tokenize
+    
+    # Clean and lower
     text = sanitize_text(text).lower()
     text = CLEAN_TEXT_PATTERN.sub(" ", text)
-    tokens = word_tokenize(text)
+    
+    # Regex-based tokenization (Zero NLTK data dependency for tokenizing)
+    tokens = TOKEN_PATTERN.findall(text)
+    
     # Filter stopwords, short words and lemmatize
-    cleaned = [lemmatizer.lemmatize(t) for t in tokens if t not in stop_words and len(t) > 2]
+    cleaned = []
+    for t in tokens:
+        if t not in stop_words and len(t) > 2:
+            if lemmatizer:
+                try: cleaned.append(lemmatizer.lemmatize(t))
+                except: cleaned.append(t)
+            else:
+                cleaned.append(t)
+                
     return " ".join(cleaned)
 
 def is_url(text):
