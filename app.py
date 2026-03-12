@@ -950,34 +950,29 @@ def analyze_deep():
         # Expert Fact-Check
         fc_res = heuristic_fact_check(content, input_url)
         
-        # 3. Unified Decision (Expert-Priority Logic)
-        fc_rating = fc_res.get("rating", "Unverified")
-        expert_score_val = fc_res.get("score", 0)
+        # 3. Unified Decision: Highest Confidence Wins
         ai_conf_num = float(ai_conf.replace("%", ""))
-        fc_conf_num = float(fc_res.get("confidence", "0").replace("%", ""))
+        # Clean Expert confidence (handles bracketed values like "(98%)")
+        fc_conf_str = fc_res.get("confidence", "0").replace("%", "").replace("(", "").replace(")", "")
+        fc_conf_num = float(fc_conf_str)
         
-        # HIGHEST CONFIDENCE: Always pick the max for the final display
-        winning_confidence = f"{int(max(ai_conf_num, fc_conf_num))}%"
-        winning_source = "Ai analysis" if ai_conf_num >= fc_conf_num else "Expert Fact-check"
-        
-        if fc_rating == "Trusted":
-            final_label = "TRUSTED"
-        elif fc_rating == "Fake":
-            final_label = "FAKE INFO"
-        elif fc_rating == "Unverified" and ai_pred == "Real News":
-            if expert_score_val >= 0 and ai_conf_num > 85:
-                fc_res["rating"] = "Unverified-Clean"
-                final_label = "REAL NEWS"
-                print(f"[*] DEEP: Expert clean, high AI confidence -> REAL NEWS")
-            elif expert_score_val >= 0:
-                final_label = "UNVERIFIED"
-            else:
-                final_label = "SUSPICIOUS"
+        if ai_conf_num >= fc_conf_num:
+            # AI is the winner
+            final_label = "REAL NEWS" if ai_pred == "Real News" else "FAKE NEWS"
+            winning_confidence = ai_conf
+            winning_source = "Ai analysis"
         else:
-            if ai_pred == "Fake news" and fc_rating == "Unverified":
-                final_label = "SUSPICIOUS"
+            # Expert is the winner
+            fc_rating = fc_res.get("rating", "Unverified").lower()
+            if "trusted" in fc_rating:
+                final_label = "TRUSTED"
+            elif "fake" in fc_rating:
+                final_label = "FAKE INFO"
             else:
                 final_label = "UNVERIFIED"
+            
+            winning_confidence = fc_res.get("confidence")
+            winning_source = "Expert Fact-check"
 
 
 
