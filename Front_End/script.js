@@ -1,4 +1,4 @@
-const API_BASE_URL = window.location.origin;
+const API_BASE_URL = "https://tafaftire-detection-system.onrender.com";
 
 window.isAnalyzing = false;
 
@@ -295,6 +295,25 @@ document.addEventListener('DOMContentLoaded', () => {
             finalConfidence.innerText = `Confidence: ${finalConfToDisplay}`;
             finalSource.innerText = finalSourceToDisplay;
 
+            // Populate Reasons (Reliability Enhancement)
+            const reasonsBox = document.getElementById("reasonsContainer");
+            const reasonsList = document.getElementById("reasonsList");
+            if (reasonsBox && reasonsList) {
+                reasonsList.innerHTML = "";
+                const reasons = data.reasons || [];
+                if (reasons.length > 0) {
+                    reasonsBox.classList.remove("hidden");
+                    reasons.forEach(r => {
+                        const li = document.createElement("li");
+                        li.style.cssText = "color: rgba(255,255,255,0.7); font-size: 0.85rem; line-height: 1.6; display: flex; align-items: flex-start; gap: 10px; background: rgba(255,165,0,0.05); padding: 12px; border-radius: 10px; border-left: 3px solid var(--accent-orange);";
+                        li.innerHTML = `<i class="fas fa-info-circle" style="color: var(--accent-orange); margin-top: 3px;"></i> <span>${r}</span>`;
+                        reasonsList.appendChild(li);
+                    });
+                } else {
+                    reasonsBox.classList.add("hidden");
+                }
+            }
+
             // Apply premium colors
             if (finalLabelToDisplay === "TRUSTED" || finalLabelToDisplay === "REAL NEWS") {
                 finalVerdict.style.color = "#2ecc71";
@@ -358,6 +377,13 @@ document.addEventListener('DOMContentLoaded', () => {
             if (newsURL) newsURL.value = "";
             resultContainer.style.display = "none";
             [aiResultCard, fcResultCard].forEach(card => card.classList.add("hidden"));
+
+            // Clear reasons
+            const reasonsBox = document.getElementById("reasonsContainer");
+            const reasonsList = document.getElementById("reasonsList");
+            if (reasonsBox) reasonsBox.classList.add("hidden");
+            if (reasonsList) reasonsList.innerHTML = "";
+
             clearError();
         });
     }
