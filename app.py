@@ -157,16 +157,15 @@ def add_to_dataset(text, label, link="N/A", title="N/A", subject="General"):
         if len(clean_text) < 10: return
 
 
-        # Create new record structure matching CSV: Source/URL,Title,Text,Category,Label
+        # Create new record structure matching CSV: Title, Text, Category, Label
         import csv
         file_exists = os.path.exists(dataset_path)
         
         with open(dataset_path, "a", encoding="utf-8-sig", newline="") as f:
-            writer = csv.DictWriter(f, fieldnames=["Source/URL", "Title", "Text", "Category", "Label"])
+            writer = csv.DictWriter(f, fieldnames=["Title", "Text", "Category", "Label"])
             if not file_exists:
                 writer.writeheader()
             writer.writerow({
-                "Source/URL": str(link)[:500],
                 "Title": str(title)[:200],
                 "Text": str(text),
                 "Category": str(subject)[:100],
@@ -940,6 +939,7 @@ def analyze_deep():
         
         # HIGHEST CONFIDENCE: Always pick the max for the final display
         winning_confidence = f"{int(max(ai_conf_num, fc_conf_num))}%"
+        winning_source = "Ai analysis" if ai_conf_num >= fc_conf_num else "Expert Fact-check"
         
         if fc_rating == "Trusted":
             final_label = "TRUSTED"
@@ -970,7 +970,7 @@ def analyze_deep():
                 confidence=winning_confidence,
                 label=final_label,
                 extracted_text=content,
-                data_type="Unified Deep Analysis",
+                data_type=winning_source,
                 ai_score=ai_conf,
                 expert_score=fc_res.get("confidence"),
                 title=page_title,
@@ -983,6 +983,7 @@ def analyze_deep():
         return jsonify({
             "final_verdict": final_label,
             "winning_confidence": winning_confidence,
+            "winning_source": winning_source,
             "ai_res": {
                 "prediction": ai_pred,
                 "confidence": ai_conf
