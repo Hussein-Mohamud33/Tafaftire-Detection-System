@@ -885,6 +885,7 @@ def analyze_deep():
             page_title = content[:60] + "..." if len(content) > 60 else content
 
         import numpy as np
+        clean_input = preprocess_text(content)
         X = vectorizer.transform([clean_input])
         ext = is_extreme_claim(content)
         vague = is_vague_source(content)
