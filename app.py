@@ -114,7 +114,7 @@ def save_analysis_result(original_input, confidence, label, extracted_text=None,
             subject=subject
         )
         
-        print(f"[✅] History Saved: {label} ({confidence}) | Source: {data_type}")
+        print(f"[*] History Saved: {label} ({confidence}) | Source: {data_type}")
         return True
     except Exception as e:
         print(f"[!] Critical Error in save_analysis_result: {traceback.format_exc()}")
@@ -172,7 +172,7 @@ def add_to_dataset(text, label, link="N/A", title="N/A", subject="General"):
                 "Label": numerical_label
             })
             
-        print(f"[📈] DATASET UPDATED: Added new entry to {dataset_name} | Title: {title[:30]}...")
+        print(f"[*] DATASET UPDATED: Added new entry to {dataset_name} | Title: {title[:30]}...")
         
     except Exception as e:
         print(f"[!] Warning: Could not add to dataset feedback loop: {e}")
@@ -464,10 +464,10 @@ def extract_text_from_url(url):
         if len(extracted_text) < 50:
              raise Exception("Ma jiro qoraal ku filan oo laga helay boggan.")
 
-        print(f"[🌐] URL Extracted: {len(extracted_text)} chars from {url}")
+        print(f"[URL] Extracted: {len(extracted_text)} chars from {url}")
         return extracted_text.strip(), page_title.strip()
     except Exception as e:
-        print(f"[❌] URL Extract Error: {e}")
+        print(f"[URL] Extract Error: {e}")
         raise Exception(f"Cilad ka timid barta webka: {str(e)}")
 
 # ================= SEARCH ENGINE (DUCKDUCKGO LITE) =================
@@ -548,7 +548,8 @@ UNTRUSTED_PATTERNS = [
     "fadeexo", "ceeb", "naxdin", "ilaahayow", "ilaahow", "ilaahay", "subxanalaah",
     "nin weyn", "naag weyn", "dhacdo xanuun badan", "nin soomaali ah", "naag soomaali ah",
     "hal mar eeg", "nin naxay", "naag naxday", "mucjiso", "wax la qariyay",
-    "nin weyn oo naxay", "naag weyn oo naxday", "nin yaabsaday", "naag yaabsatay"
+    "nin weyn oo naxay", "naag weyn oo naxday", "nin yaabsaday", "naag yaabsatay",
+    "ha rumaysan", "waa been", "been abuur cad", "iska jir", "war qosol leh"
 ]
 
 def heuristic_fact_check(text, url=None):
@@ -613,7 +614,11 @@ def heuristic_fact_check(text, url=None):
             match_count = 0
             debunk_found = False
             
-            debunk_keywords = ["fake", "false", "hoax", "fact check", "been abuur", "been-abuur", "checked", "debunked", "been ah"]
+            debunk_keywords = [
+                "fake", "false", "hoax", "fact check", "been abuur", "been-abuur", 
+                "checked", "debunked", "been ah", "waa been", "ha rumaysan", 
+                "war been ah", "beenta", "been abuur cad"
+            ]
             
             for res in live_results[:8]: # Check top 8 results
                 res_content = (res['title'] + " " + res['snippet']).lower()
@@ -655,29 +660,41 @@ def heuristic_fact_check(text, url=None):
                     score -= 80
                     reasons.append("Digniin: Wararka ku saabsan nabad-galyada ama geerida oo aan laga helin saxaafadda waa in laga digtoonaadaa.")
                 else:
-                    score -= 20
-                    reasons.append("Search: Ma Jirto xog sugan oo internet-ka laga helay oo xaqiijinaysa nuxurka qoraalkan.")
+                    # If No Trusted Matches are found for a factual claim, Experts are more suspicious
+                    score -= 45 
+                    reasons.append("Falanqeyn Search: Ma jirto ilo xog-ogaal ah ama website-yo rasmi ah oo xaqiijinaya nuxurka qoraalkan internet-ka.")
         else:
-            reasons.append("Baaris: Ma jirto natiijo baaris ah oo laga helay bogagga internet-ka ee rasmiga ah.")
+            # Only penalize missing search results heavily if the text looks suspicious or is too short.
+            # Real news often exists online, so missing results is suspicious, but we must be careful with Real News samples.
+            if untrusted_matches > 0 or len(words) < 25:
+                score -= 45
+                reasons.append("Digniin: Ma jirto xog internet-ka laga helay oo xaqiijinaysa nuxurka qoraalkan, qoraalkuna wuxuu u muuqdaa mid shaki leh.")
+            else:
+                score -= 15 # Mild suspicion for unknown news
+                reasons.append("Falanqeyn: Ma jirto xog rasmi ah oo laga helay internet-ka, balse qoraalka qaabkiisu waa mid hagaagsan.")
 
     # 3. Linguistic & Structural Patterns (Expert Layer)
     # Clickbait patterns (penalized by experts)
-    cb_patterns = ["share dheh", "nasiibkaaga", "guulayso", "mucjiso", "wax la qariyay", "cod qarsoodi ah"]
-    cb_matches = sum(1 for p in cb_patterns if p in text_lower)
-    if cb_matches > 0:
-        score -= (50 * cb_matches)
-        reasons.append("Digniin Expert: Luuqadda loo isticmaalay qoraalka waa mid ku badan wararka beenta ah.")
+    cb_patterns = ["share dheh", "nasiibkaaga", "guulayso", "mucjiso", "wax la qariyay", "cod qarsoodi ah", "ha rumaysan", "waa been"]
+    untrusted_matches = sum(1 for p in UNTRUSTED_PATTERNS if p in text_lower)
+    
+    if untrusted_matches >= 3:
+        score -= (30 * untrusted_matches)
+        reasons.append(f"Digniin Expert: Waxaa la helay {untrusted_matches} calaamadood oo muujinaya in qoraalku yahay mid marin habaabin ah (Clickbait/Suspicious).")
+    elif untrusted_matches > 0:
+        score -= 25
+        reasons.append("Falanqeyn: Luuqadda qoraalka waxaa ka muuqda calaamado shaki dhalinaya.")
 
-    # Official Terminology (Green Flags)
-    official_terms = ["war-saxaafadeed", "shir jaraa'id", "wasaaradda", "hey'adda", "taliska"]
+    # Official Terminology (Green Flags - Experts recognize formal reporting)
+    official_terms = ["war-saxaafadeed", "shir jaraa'id", "wasaaradda", "hey'adda", "taliska", "ayaa sheegay", "ayaa lagu sheegay"]
     if any(ot in text_lower for ot in official_terms):
-        score += 40
-        reasons.append("Xog Sugan: Qoraalku wuxuu isticmaalayaa luuqad rasmi ah oo ay adeegsadaan hay'adaha dawliga ah.")
+        score += 65
+        reasons.append("Xog Sugan: Qoraalku wuxuu isticmaalayaa luuqad rasmi ah ama qaabka ay wararka u qoraan saxaafada xirfadleyda ah.")
 
-    # 4. Short Text Rule (REMOVED GRACE, replaced with skepticism)
-    if len(words) < 20 and not found_citations and not is_trusted_domain:
-        score -= 15
-        reasons.append("Falanqeyn: Qoraalku waa mid aad u gaaban, mana jirto xog dibadda ah oo xaqiijinaysa.")
+    # 4. Short Text Rule (Experts are very skeptical of short, unverified claims)
+    if len(words) < 25 and not found_citations and not is_trusted_domain:
+        score -= 25
+        reasons.append("Digniin: Qoraalku waa mid aad u gaaban, mana jirto xog dibadda ah (Citations) oo cadaynaysa.")
 
     # Final Confidence & Rating Logic
     confidence_val = 60 + min(39, abs(score) * 0.3)
@@ -687,7 +704,7 @@ def heuristic_fact_check(text, url=None):
         confidence_val = max(95, confidence_val)
     elif score >= 60:
         rating = "Trusted"
-    elif score <= -50:
+    elif score <= -40: # Lowered from -50 to be more decisive on Fake signals
         rating = "Fake"
     else:
         rating = "Unverified"
@@ -1111,7 +1128,7 @@ def unified_history_save():
             
         return jsonify({"success": True, "message": "History saved for highest confidence."})
     except Exception as e:
-        print(f"[❌] Unified Save Error: {traceback.format_exc()}")
+        print(f"[!] Unified Save Error: {traceback.format_exc()}")
         return jsonify({"error": str(e)}), 500
 
 @app.route("/contact", methods=["POST"])
@@ -1133,7 +1150,7 @@ def contact():
         with open(CONTACTS_FILE, "a", encoding="utf-8") as f:
             f.write(f"Name: {name}\nEmail: {email}\nMessage: {message}\n---\n")
 
-        print(f"[*] New message from {name} ({email})")
+        print(f"[*] New contact message received.")
         return jsonify({"status": "Success", "message": "Your message has been received!"})
 
 
