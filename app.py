@@ -9,8 +9,6 @@ import csv
 import smtplib
 import imaplib
 import email
-import numpy as np
-import tldextract
 import nltk
 from bs4 import BeautifulSoup
 from flask import Flask, request, jsonify, make_response
@@ -19,7 +17,6 @@ from email.header import decode_header
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 from functools import lru_cache
-import threading
 
 # ================= FLASK INIT =================
 app = Flask(__name__, static_folder='Front_End', static_url_path='')
@@ -248,6 +245,7 @@ def load_resources():
 
     print("[*] Loading AI models and NLTK data...")
     import joblib
+    import numpy as np
     
     # 1. NLTK Path Setup
     data_dir = os.path.join(BASE_DIR, "nltk_data")
@@ -519,7 +517,6 @@ def is_vague_source(text):
 # Resource loading moved to lazy pattern above
 
 # ================= HEURISTIC FACT CHECKER =================
-import tldextract
 
 TRUSTED_SOURCES = {
     "bbc.com", "voasomali.com", "goobjoog.com", "goobjoog.net",
@@ -571,6 +568,7 @@ def heuristic_fact_check(text, url=None):
     is_trusted_domain = False
     if url:
         try:
+            import tldextract
             extracted = tldextract.extract(url)
             domain = f"{extracted.domain}.{extracted.suffix}".lower()
             
@@ -798,6 +796,7 @@ def predict():
         ext = is_extreme_claim(content)
         vague = is_vague_source(content)
         
+        import numpy as np
         X_dense = X.toarray()
         X = np.hstack([X_dense, np.array([[ext, vague]])])
 
@@ -810,6 +809,7 @@ def predict():
         final_ai_score = raw_score 
         
         # AI Confidence calculation (standard sigmoid-like mapping)
+        import numpy as np
         ai_conf = (1 / (1 + np.exp(-abs(final_ai_score * 2.0)))) * 100
         ai_conf_str = f"{min(99.0, max(60.0, ai_conf)):.2f}%"
         
@@ -818,21 +818,23 @@ def predict():
         
         print(f"[*] AI SCAN (Pure Model) - Raw Score: {final_ai_score:.4f}, Prediction: {ai_pred}")
 
-        # ================= Save to History (Background) =================
+        # ================= Save to History (Non-blocking) =================
         if not data.get("skip_history", False):
-            # Run I/O intensive tasks in a separate thread to speed up Render response
-            threading.Thread(target=save_analysis_result, kwargs={
-                "original_input": raw_user_input,
-                "confidence": ai_conf_str,
-                "label": ai_pred,
-                "extracted_text": content,
-                "data_type": "AI Analysis",
-                "ai_score": ai_conf_str,
-                "expert_score": "N/A",
-                "title": page_title,
-                "link": input_url if input_url else "N/A",
-                "subject": news_subject
-            }).start()
+            try:
+                save_analysis_result(
+                    original_input=raw_user_input, # Save raw URL/Text
+                    confidence=ai_conf_str,
+                    label=ai_pred,
+                    extracted_text=content,
+                    data_type="AI Analysis",
+                    ai_score=ai_conf_str,
+                    expert_score="N/A",
+                    title=page_title,
+                    link=input_url if input_url else "N/A",
+                    subject=news_subject
+                )
+            except Exception as e:
+                print(f"[!] Warning: History saving failed: {e}")
 
         return jsonify({
             "prediction": ai_pred, 
@@ -882,8 +884,7 @@ def analyze_deep():
         else:
             page_title = content[:60] + "..." if len(content) > 60 else content
 
-        # 2. AI Predict (Pure Model)
-        clean_input = preprocess_text(content)
+        import numpy as np
         X = vectorizer.transform([clean_input])
         ext = is_extreme_claim(content)
         vague = is_vague_source(content)
@@ -892,7 +893,7 @@ def analyze_deep():
         raw_score = model.decision_function(X)[0] if hasattr(model, "decision_function") else 0
         final_ai_score = raw_score 
         
-        # AI Confidence
+        import numpy as np
         ai_conf_num = (1 / (1 + np.exp(-abs(final_ai_score * 2.0)))) * 100
         ai_conf = f"{min(99.0, max(60.0, ai_conf_num)):.2f}%"
         
@@ -928,23 +929,23 @@ def analyze_deep():
 
 
 
-        # ================= Save to History (Background) =================
+        # ================= Save to History (Safe Block) =================
         try:
             news_subject = guess_subject(content)
-            threading.Thread(target=save_analysis_result, kwargs={
-                "original_input": data.get("data") or data.get("text"),
-                "confidence": winning_confidence,
-                "label": final_label,
-                "extracted_text": content,
-                "data_type": winning_source,
-                "ai_score": ai_conf,
-                "expert_score": fc_res.get("confidence"),
-                "title": page_title,
-                "link": input_url or "N/A",
-                "subject": news_subject
-            }).start()
+            save_analysis_result(
+                original_input=data.get("data") or data.get("text"),
+                confidence=winning_confidence,
+                label=final_label,
+                extracted_text=content,
+                data_type=winning_source,
+                ai_score=ai_conf,
+                expert_score=fc_res.get("confidence"),
+                title=page_title,
+                link=input_url or "N/A",
+                subject=news_subject
+            )
         except Exception as save_err:
-            print(f"[!] Background Log Setup Failed: {save_err}")
+            print(f"[!] History Log Failed: {save_err}")
 
         return jsonify({
             "final_verdict": final_label,
@@ -1024,20 +1025,23 @@ def fact_check():
         else:
             somali_label = "UNVERIFIED"
 
-        # ================= Save to History (Background) =================
+        # ================= Save to History (Non-blocking) =================
         if not data.get("skip_history", False):
-            threading.Thread(target=save_analysis_result, kwargs={
-                "original_input": raw_user_input,
-                "confidence": fact_result["confidence"],
-                "label": somali_label,
-                "extracted_text": content,
-                "data_type": "Expert Fact-Check",
-                "ai_score": "N/A",
-                "expert_score": fact_result["confidence"],
-                "title": page_title,
-                "link": input_url if input_url else "N/A",
-                "subject": fact_result["subject"]
-            }).start()
+            try:
+                save_analysis_result(
+                    original_input=raw_user_input, # Save raw URL/Text
+                    confidence=fact_result["confidence"],
+                    label=somali_label,
+                    extracted_text=content,
+                    data_type="Expert Fact-Check",
+                    ai_score="N/A",
+                    expert_score=fact_result["confidence"],
+                    title=page_title,
+                    link=input_url if input_url else "N/A",
+                    subject=fact_result["subject"]
+                )
+            except Exception as e:
+                print(f"[!] Warning: History saving failed: {e}")
 
         return jsonify(fact_result)
 
