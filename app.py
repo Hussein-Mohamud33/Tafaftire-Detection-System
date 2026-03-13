@@ -19,6 +19,7 @@ from email.header import decode_header
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 from functools import lru_cache
+import threading
 
 # ================= FLASK INIT =================
 app = Flask(__name__, static_folder='Front_End', static_url_path='')
@@ -817,23 +818,21 @@ def predict():
         
         print(f"[*] AI SCAN (Pure Model) - Raw Score: {final_ai_score:.4f}, Prediction: {ai_pred}")
 
-        # ================= Save to History (Non-blocking) =================
+        # ================= Save to History (Background) =================
         if not data.get("skip_history", False):
-            try:
-                save_analysis_result(
-                    original_input=raw_user_input, # Save raw URL/Text
-                    confidence=ai_conf_str,
-                    label=ai_pred,
-                    extracted_text=content,
-                    data_type="AI Analysis",
-                    ai_score=ai_conf_str,
-                    expert_score="N/A",
-                    title=page_title,
-                    link=input_url if input_url else "N/A",
-                    subject=news_subject
-                )
-            except Exception as e:
-                print(f"[!] Warning: History saving failed: {e}")
+            # Run I/O intensive tasks in a separate thread to speed up Render response
+            threading.Thread(target=save_analysis_result, kwargs={
+                "original_input": raw_user_input,
+                "confidence": ai_conf_str,
+                "label": ai_pred,
+                "extracted_text": content,
+                "data_type": "AI Analysis",
+                "ai_score": ai_conf_str,
+                "expert_score": "N/A",
+                "title": page_title,
+                "link": input_url if input_url else "N/A",
+                "subject": news_subject
+            }).start()
 
         return jsonify({
             "prediction": ai_pred, 
@@ -929,23 +928,23 @@ def analyze_deep():
 
 
 
-        # ================= Save to History (Safe Block) =================
+        # ================= Save to History (Background) =================
         try:
             news_subject = guess_subject(content)
-            save_analysis_result(
-                original_input=data.get("data") or data.get("text"),
-                confidence=winning_confidence,
-                label=final_label,
-                extracted_text=content,
-                data_type=winning_source,
-                ai_score=ai_conf,
-                expert_score=fc_res.get("confidence"),
-                title=page_title,
-                link=input_url or "N/A",
-                subject=news_subject
-            )
+            threading.Thread(target=save_analysis_result, kwargs={
+                "original_input": data.get("data") or data.get("text"),
+                "confidence": winning_confidence,
+                "label": final_label,
+                "extracted_text": content,
+                "data_type": winning_source,
+                "ai_score": ai_conf,
+                "expert_score": fc_res.get("confidence"),
+                "title": page_title,
+                "link": input_url or "N/A",
+                "subject": news_subject
+            }).start()
         except Exception as save_err:
-            print(f"[!] History Log Failed: {save_err}")
+            print(f"[!] Background Log Setup Failed: {save_err}")
 
         return jsonify({
             "final_verdict": final_label,
@@ -1025,23 +1024,20 @@ def fact_check():
         else:
             somali_label = "UNVERIFIED"
 
-        # ================= Save to History (Non-blocking) =================
+        # ================= Save to History (Background) =================
         if not data.get("skip_history", False):
-            try:
-                save_analysis_result(
-                    original_input=raw_user_input, # Save raw URL/Text
-                    confidence=fact_result["confidence"],
-                    label=somali_label,
-                    extracted_text=content,
-                    data_type="Expert Fact-Check",
-                    ai_score="N/A",
-                    expert_score=fact_result["confidence"],
-                    title=page_title,
-                    link=input_url if input_url else "N/A",
-                    subject=fact_result["subject"]
-                )
-            except Exception as e:
-                print(f"[!] Warning: History saving failed: {e}")
+            threading.Thread(target=save_analysis_result, kwargs={
+                "original_input": raw_user_input,
+                "confidence": fact_result["confidence"],
+                "label": somali_label,
+                "extracted_text": content,
+                "data_type": "Expert Fact-Check",
+                "ai_score": "N/A",
+                "expert_score": fact_result["confidence"],
+                "title": page_title,
+                "link": input_url if input_url else "N/A",
+                "subject": fact_result["subject"]
+            }).start()
 
         return jsonify(fact_result)
 
