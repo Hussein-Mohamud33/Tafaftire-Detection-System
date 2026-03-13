@@ -346,6 +346,58 @@ def guess_subject(text):
         return "Dhaqaalaha"
     return "Guud"
 
+def clean_extracted_text(text):
+    """
+    Cleans extracted text by removing common news boilerplate, footers, 
+    social media prompts, and ad-related text in Somali and English.
+    """
+    if not text: return ""
+    
+    # Common Somali and International news boilerplate patterns to remove
+    boilerplate_patterns = [
+        r"Your email address will not be published.*",
+        r"Required fields are marked.*",
+        r"Save my name, email, and website.*",
+        r"Copyright © \d{4}.*",
+        r"All Rights Reserved.*",
+        r"Guji halkan.*",
+        r"Nagala soo xiriir.*",
+        r"Ku xirnow.*",
+        r"Wixii faahfaahin ah.*",
+        r"Read more.*",
+        r"Follow us on.*",
+        r"Subscribe to.*",
+        r"Like us on.*",
+        r"Mudug24 is an independent.*",
+        r"BBC masuul kama ahan.*",
+        r"Akhri xogta ku saabsan.*",
+        r"Waxaa qoray:.*",
+        r"Qoraalka sawirka,.*",
+        r"Wararka kale ee.*",
+        r"Daawo:.*",
+        r"Source:.*",
+        r"Lama oggola.*",
+        r"Xuquuqda qoraalkan.*",
+        r"Ku xayaysii.*",
+        r"©\s*\d{4}.*",
+        r"Contact us:.*",
+        r"Email:.*",
+        r"WhatsApp:.*",
+        r"Facebook:.*",
+        r"Twitter:.*",
+        r"Telegram:.*",
+        r"Instagram:.*"
+    ]
+    
+    cleaned = text
+    for pattern in boilerplate_patterns:
+        cleaned = re.sub(pattern, "", cleaned, flags=re.IGNORECASE | re.DOTALL)
+    
+    # Remove multiple spaces/newlines
+    cleaned = re.sub(r'\s+', ' ', cleaned).strip()
+    
+    return cleaned
+
 @lru_cache(maxsize=300)
 def extract_text_from_url(url):
     """Ka soo saar qoraalka bogga webka URL si qoto dheer"""
@@ -377,7 +429,7 @@ def extract_text_from_url(url):
         page_title = soup.title.string if soup.title else "News from URL"
         
         # Remove unwanted elements
-        for element in soup(["script", "style", "noscript", "header", "footer", "nav", "aside", "form", "iframe", "ad"]):
+        for element in soup(["script", "style", "noscript", "header", "footer", "nav", "aside", "form", "iframe", "ad", "button"]):
             element.decompose()
             
         text_parts = []
@@ -393,18 +445,21 @@ def extract_text_from_url(url):
         elements = target_soup.find_all(['p', 'h1', 'h2', 'h3', 'h4', 'li'])
         
         for el in elements:
+            # Skip if el is inside a footer or nav anyway (backup)
+            if el.find_parent(["nav", "footer", "header"]): continue
+            
             text = el.get_text(separator=" ", strip=True)
             # Filter out short fragments, menus, etc.
-            if len(text.split()) > 4:
+            if len(text.split()) > 5:
                 text_parts.append(text)
                 
-        extracted_text = " ".join(text_parts)
+        raw_text = " ".join(text_parts)
+        extracted_text = clean_extracted_text(raw_text)
         
-        # Fallback for sites with non-standard structures
+        # Fallback for sites with non-standard structures if too short
         if len(extracted_text) < 150:
             all_text = target_soup.get_text(separator=" ", strip=True)
-            # Simple cleaning for fallback text
-            extracted_text = re.sub(r'\s+', ' ', all_text)
+            extracted_text = clean_extracted_text(re.sub(r'\s+', ' ', all_text))
             
         if len(extracted_text) < 50:
              raise Exception("Ma jiro qoraal ku filan oo laga helay boggan.")
