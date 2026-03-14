@@ -19,6 +19,7 @@ from email.mime.multipart import MIMEMultipart
 from functools import lru_cache
 
 # ================= FLASK INIT =================
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 app = Flask(__name__, static_folder='Front_End', static_url_path='')
 app.config['SEND_FILE_MAX_AGE_DEFAULT'] = 0  # Disable caching
 
