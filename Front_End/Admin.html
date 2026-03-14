@@ -759,9 +759,16 @@
     </div>
 
     <script>
-        // Connect to local app.py (Auto-detects origin)
-        const API_BASE_URL = "https://tafaftire-detection-system.onrender.com"; 
-        const API_BASE = "/api/admin";
+        // Automatic Path Detection: Works for local, Render, and file protocol
+        const isLocalFile = window.location.protocol === "file:";
+        const isWrongPort = window.location.port !== "3402" && !window.location.hostname.includes("render.com");
+        
+        // If we are on the wrong port/file, hardcode the backend to 3402, otherwise use relative path
+        const BACKEND_URL = (isLocalFile || isWrongPort) ? "http://localhost:3402" : "";
+        const API_BASE_URL = BACKEND_URL;
+        const API_BASE = `${BACKEND_URL}/api/admin`;
+
+        console.log(`[*] Dashboard initialized. Backend: ${API_BASE}`);
 
         // Auth Logic
         function checkAuth() {
