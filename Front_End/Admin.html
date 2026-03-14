@@ -809,12 +809,14 @@
 
         function showSection(sectionId) {
             document.querySelectorAll('.content-area > div').forEach(div => div.classList.add('hidden'));
-            document.getElementById(sectionId + 'Section').classList.remove('hidden');
+            const target = document.getElementById(sectionId + 'Section');
+            if (target) target.classList.remove('hidden');
+            
             document.querySelectorAll('.nav-item').forEach(item => item.classList.remove('active'));
 
             // Set active class on the clicked nav item
-            if (event && event.target) {
-                const item = event.target.closest('.nav-item');
+            if (window.event && window.event.target) {
+                const item = window.event.target.closest('.nav-item');
                 if (item) item.classList.add('active');
             }
 
@@ -823,7 +825,7 @@
             if (sectionId === 'logs') loadLogs();
             if (sectionId === 'history') loadAnalysisHistory();
         }
-        
+
 
         async function loadStats() {
             try {
@@ -837,22 +839,28 @@
                 if (elA) elA.innerText = "...";
 
                 const res = await fetch(`${API_BASE}/stats?t=${Date.now()}`);
+                if (!res.ok) throw new Error(`Stats Fetch Error: ${res.status}`);
+                
                 const data = await res.json();
 
                 if (data.error) {
                     console.error("Stats API Error:", data.error);
                 }
 
-                if (elD) elD.innerText = data.total_datasets !== undefined ? data.total_datasets : "0";
+                if (elD) elD.innerText = (data.total_datasets !== undefined) ? data.total_datasets : "0";
                 if (elA) elA.innerText = data.model_accuracy || "94.5%";
-                const sm = document.getElementById('stat-messages');
-                if (sm) sm.innerText = data.messages_count;
-                const sh = document.getElementById('stat-history-count');
-                if (sh) sh.innerText = data.history_count || 0;
-                const sr = document.getElementById('stat-requests');
-                if (sr) sr.innerText = data.requests_handled;
+                if (elM) elM.innerText = data.messages_count !== undefined ? data.messages_count : "0";
+                if (elH) elH.innerText = data.history_count !== undefined ? data.history_count : "0";
+                
                 initCharts(data.fake_news_count, data.real_news_count, data.weekly_activity);
-            } catch (err) { console.error(err); }
+            } catch (err) { 
+                console.error("loadStats failed:", err);
+                // Fallback to 0 if fetch fails so it doesn't stay at "..."
+                const elD = document.getElementById('stat-datasets');
+                const elA = document.getElementById('stat-accuracy');
+                if (elD && elD.innerText === "...") elD.innerText = "0";
+                if (elA && elA.innerText === "...") elA.innerText = "94.5%";
+            }
         }
 
         async function loadDatasets() {
@@ -1453,9 +1461,9 @@
 
         // Function to toggle the DashboardNotification dropdown
         window.toggleNotificationDropdown = () => {
-            const dropdown = document.getElementById('dashboardNotificationDropdown');
+            const dropdown = document.getElementById('notificationDropdown');
             if (dropdown) {
-                dropdown.classList.toggle('hidden');
+                dropdown.style.display = dropdown.style.display === 'flex' ? 'none' : 'flex';
             }
         };
 
