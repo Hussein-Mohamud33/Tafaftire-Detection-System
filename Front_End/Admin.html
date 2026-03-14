@@ -759,14 +759,8 @@
     </div>
 
     <script>
-        // Automatic Path Detection: Works for local, Render, and file protocol
-        const isLocalFile = window.location.protocol === "file:";
-        const isRender = window.location.hostname.includes("render.com");
-        
-        // If we are already ON Render, use relative paths ("")
-        const RENDER_PROD_URL = "https://tafaftire-detection-system.onrender.com";
-        const BACKEND_URL = (isLocalFile && !isRender) ? RENDER_PROD_URL : (isRender ? "" : "http://localhost:3402");
-        
+        // Render Production Backend URL
+        const BACKEND_URL = "https://tafaftire-detection-system.onrender.com";
         const API_BASE_URL = BACKEND_URL;
         const API_BASE = `${BACKEND_URL}/api/admin`;
 
@@ -821,7 +815,7 @@
             document.querySelectorAll('.content-area > div').forEach(div => div.classList.add('hidden'));
             const target = document.getElementById(sectionId + 'Section');
             if (target) target.classList.remove('hidden');
-            
+
             document.querySelectorAll('.nav-item').forEach(item => item.classList.remove('active'));
 
             // Set active class on the clicked nav item
@@ -842,7 +836,7 @@
             const elA = document.getElementById('stat-accuracy');
             const elM = document.getElementById('stat-messages');
             const elH = document.getElementById('stat-history-count');
-            
+
             try {
                 // Show loading state
                 if (elD) elD.innerText = "...";
@@ -856,7 +850,7 @@
 
                 const res = await fetch(`${API_BASE}/stats?t=${Date.now()}`);
                 if (!res.ok) throw new Error(`Server Response: ${res.status}`);
-                
+
                 const data = await res.json();
 
                 if (data.error) {
@@ -868,22 +862,22 @@
                 if (elA) elA.innerText = data.model_accuracy || "94.5%";
                 if (elM) elM.innerText = data.messages_count !== undefined ? data.messages_count : "0";
                 if (elH) elH.innerText = data.history_count !== undefined ? data.history_count : "0";
-                
+
                 if (window.initCharts) {
                     initCharts(data.fake_news_count, data.real_news_count, data.weekly_activity);
                 }
-                
+
                 console.log("[*] Stats loaded successfully.");
 
-            } catch (err) { 
+            } catch (err) {
                 console.error("Stats Fetch Failed:", err);
-                
+
                 // Fallback values for UI so it doesn't stay at "..."
                 if (elD && elD.innerText === "...") elD.innerText = "0";
                 if (elA && elA.innerText === "...") elA.innerText = "94.5%";
                 if (elM && elM.innerText === "...") elM.innerText = "0";
                 if (elH && elH.innerText === "...") elH.innerText = "0";
-                
+
                 if (window.location.protocol === "file:") {
                     console.log("System is running in Local File mode, connecting to: " + BACKEND_URL);
                 } else {
@@ -1473,10 +1467,10 @@
                 options: {
                     plugins: { legend: { display: false } },
                     scales: {
-                        y: { 
+                        y: {
                             beginAtZero: true,
-                            grid: { color: 'rgba(255,255,255,0.05)' }, 
-                            ticks: { color: '#9ca3af', stepSize: 1 } 
+                            grid: { color: 'rgba(255,255,255,0.05)' },
+                            ticks: { color: '#9ca3af', stepSize: 1 }
                         },
                         x: { grid: { display: false }, ticks: { color: '#9ca3af' } }
                     }
