@@ -7,7 +7,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import json
 import argparse
-import time
+from scipy.sparse import hstack
 
 from nltk.corpus import stopwords
 from nltk.tokenize import word_tokenize
@@ -20,8 +20,6 @@ from sklearn.svm import LinearSVC
 from sklearn.linear_model import LogisticRegression
 from sklearn.metrics import accuracy_score, classification_report
 from sklearn.preprocessing import LabelEncoder
-from sklearn.linear_model import PassiveAggressiveClassifier
-from scipy.sparse import hstack
 
 # Define DATA_DIR outside the workspace to prevent Live Server reloads
 HOME_DIR = os.path.expanduser("~")
@@ -32,21 +30,18 @@ if not os.path.exists(DATA_DIR):
 # ======================================
 # NLTK SETUP
 # ======================================
-def setup_nltk():
-    try:
-        nltk.data.find('tokenizers/punkt')
-        nltk.data.find('corpora/stopwords')
-        nltk.data.find('corpora/wordnet')
-    except LookupError:
-        print("[*] Downloading NLTK resources...")
-        nltk.download("punkt")
-        nltk.download("stopwords")
-        nltk.download("wordnet")
-
-setup_nltk()
+try:
+    nltk.data.find('tokenizers/punkt')
+    nltk.data.find('corpora/stopwords')
+    nltk.data.find('corpora/wordnet')
+except LookupError:
+    print("[*] Downloading NLTK resources...")
+    nltk.download("punkt")
+    nltk.download("stopwords")
+    nltk.download("wordnet")
 
 stop_words = set(stopwords.words("english"))
-# Add Somali stopwords
+# Add Somali stopwords (Expanded for better accuracy)
 somali_stopwords = [
     "waa", "iyo", "in", "uu", "ay", "ayuu", "ayey", "ka", "u", "ee", "oo", "ah", 
     "sidii", "waxaan", "waxaad", "wuxuu", "waxay", "iska", "ahaa", "lagu", "loogu",
@@ -54,7 +49,9 @@ somali_stopwords = [
     "ilaa", "wax", "kale", "mar", "markii", "la", "si", "aad", "eeg", "ayaa",
     "ayay", "kuwa", "kuwaas", "kuwan", "kaas", "kan", "kuwaa", "loo", "loona",
     "yahay", "yihiin", "ahayd", "ahaa", "noqday", "noqon", "leh", "leeyihiin",
-    "kala", "hore", "danbe", "dhammaan", "kasta", "badnaa", "yar", "weyn"
+    "kala", "hore", "danbe", "dhammaan", "kasta", "badnaa", "yar", "weyn",
+    "waxa", "waxaa", "ila", "mid", "halkaas", "halkan", "door", "qaatay",
+    "kaasoo", "ayadoo", "isagaa", "iyadaa", "kuwaasoo", "hadana", "maxaa", "maxay"
 ]
 stop_words.update(somali_stopwords)
 
@@ -90,13 +87,14 @@ def is_vague_source(text):
 # FIND DATASET
 # ======================================
 def find_file(filename):
-    base_path = os.path.dirname(os.path.abspath(__file__))
-    local_path = os.path.join(base_path, filename)
-    if os.path.exists(local_path):
-        return local_path
-    dataset_path = os.path.join(base_path, "Dataset", filename)
+    if os.path.exists(filename):
+        return filename
+    dataset_path = os.path.join("Dataset", filename)
     if os.path.exists(dataset_path):
         return dataset_path
+    # Try case Variations
+    if os.path.exists(os.path.join("Dataset", filename.lower())):
+        return os.path.join("Dataset", filename.lower())
     return None
 
 def main():
@@ -106,30 +104,36 @@ def main():
     real_path = find_file("Real-news.csv")
 
     if not fake_path or not real_path:
-        # Try lowercase for fake as requested
+        # Fallback check
         fake_path = find_file("fake-news.csv")
         if not fake_path:
             print("Dataset lama helin")
             return
 
-    try:
-        fake_df = pd.read_csv(fake_path)
-        real_df = pd.read_csv(real_path)
-    except Exception as e:
-        print(f"[!] Error reading CSV: {e}")
-        return
+    fake_df = pd.read_csv(fake_path)
+    real_df = pd.read_csv(real_path)
 
     # Ensure 'Text' column is string
     fake_df["Text"] = fake_df["Text"].astype(str)
     real_df["Text"] = real_df["Text"].astype(str)
 
     # ======================================
-    # PREPARE DATA
+    # CLEAN & PREPARE DATA
     # ======================================
-    texts = pd.concat([fake_df["Text"], real_df["Text"]])
-    labels = pd.concat([fake_df["Lebal"], real_df["Lebal"]])
+    # CRITICAL: Drop duplicates to prevent over-fitting on repetitive data
+    fake_df = fake_df.drop_duplicates(subset=["Text"])
+    real_df = real_df.drop_duplicates(subset=["Text"])
+    
+    print(f"Unique Fake: {len(fake_df)} | Unique Real: {len(real_df)}")
 
-    print(f"Preprocessing {len(texts)} items...")
+    texts = pd.concat([fake_df["Text"], real_df["Text"]])
+    # Use the 'Label' column if exists, otherwise fallback to positional
+    if "Label" in fake_df.columns and "Label" in real_df.columns:
+        labels = pd.concat([fake_df["Label"], real_df["Label"]])
+    else:
+        labels = [0] * len(fake_df) + [1] * len(real_df)
+
+    print("Preprocessing text...")
     processed_texts = [preprocess_text(t) for t in texts]
 
     # Add extreme/vague features
@@ -164,8 +168,7 @@ def main():
     models = {
         "Naive_Bayes": MultinomialNB(alpha=0.01),
         "SVM": LinearSVC(max_iter=15000, C=1.0, dual=True, class_weight='balanced'),
-        "Logistic_Regression": LogisticRegression(max_iter=4000, solver='lbfgs', class_weight='balanced'),
-        "Passive_Aggressive": PassiveAggressiveClassifier(max_iter=2000, random_state=42)
+        "Logistic_Regression": LogisticRegression(max_iter=4000, solver='lbfgs', class_weight='balanced')
     }
 
     results = {}
@@ -186,25 +189,15 @@ def main():
         print(classification_report(y_test, preds))
 
     # ======================================
-    # CREATE SAVE FOLDER
+    # SAVE MODELS
     # ======================================
     os.makedirs("saved_model", exist_ok=True)
-
-    # ======================================
-    # SAVE ALL MODELS
-    # ======================================
     for name, model in trained_models.items():
         filename = f"saved_model/{name.lower()}_model.pkl"
         joblib.dump(model, filename)
         print(f"Saved: {filename}")
 
-    # Save vectorizer & encoder
-    joblib.dump(tfidf, "saved_model/fake_real_TF_IDF_vectorizer.pkl")
-    joblib.dump(le, "saved_model/fake_real_label_encoder.pkl")
-
-    # ======================================
-    # BEST MODEL (HIGH CONFIDENCE) 
-    # ======================================
+    # Best Model Logic
     best_model_name = max(results, key=results.get)
     best_model = trained_models[best_model_name]
 
@@ -213,12 +206,17 @@ def main():
     X_full_tfidf = hstack([X_full_tfidf, np.array([extreme_flags, vague_flags]).T])
     best_model.fit(X_full_tfidf, y)
 
-    # explicitly save SVM model to match expected app.py path, irrespective of best_model.
+    # Save vectorizer & encoder
+    joblib.dump(tfidf, "saved_model/fake_real_TF_IDF_vectorizer.pkl")
+    joblib.dump(le, "saved_model/fake_real_label_encoder.pkl")
+
+    # Sync with app.py expected path
     high_model_path = "saved_model/svm_high_confidence.pkl"
     svm_model = trained_models.get("SVM", best_model)
     svm_model.fit(X_full_tfidf, y)
     joblib.dump(svm_model, high_model_path)
 
+    # Update stats
     stats_file = os.path.join(DATA_DIR, "stats.json")
     stats = {}
     if os.path.exists(stats_file):
@@ -232,46 +230,27 @@ def main():
     with open(stats_file, "w") as f:
         json.dump(stats, f)
 
-    print(f"\nBest Model: {best_model_name}")
-    print(f"High confidence model saved as: {high_model_path}")
-
     # ======================================
     # ACCURACY TABLE IMAGE
     # ======================================
-    try:
-        df_results = pd.DataFrame(list(results.items()), columns=["Model", "Accuracy"])
-        df_results = df_results.sort_values(by="Accuracy", ascending=False)
+    df_results = pd.DataFrame(list(results.items()), columns=["Model", "Accuracy"])
+    df_results = df_results.sort_values(by="Accuracy", ascending=False)
 
-        fig, ax = plt.subplots(figsize=(7, 3))
-        ax.axis('off')
-        table = ax.table(cellText=df_results.values, colLabels=df_results.columns, cellLoc='center', loc='center')
-        
-        for (row, col), cell in table.get_celld().items():
-            if row == 0:
-                cell.set_facecolor("#4CAF50")
-                cell.set_text_props(color='white', weight='bold')
-            else:
-                cell.set_facecolor("#E3F2FD" if row % 2 == 0 else "#BBDEFB")
+    fig, ax = plt.subplots(figsize=(7, 3))
+    ax.axis('off')
+    table = ax.table(cellText=df_results.values, colLabels=df_results.columns, cellLoc='center', loc='center')
+    for (row, col), cell in table.get_celld().items():
+        if row == 0:
+            cell.set_facecolor("#4CAF50")
+            cell.set_text_props(color='white', weight='bold')
+        else:
+            cell.set_facecolor("#E3F2FD" if row % 2 == 0 else "#BBDEFB")
+    table.scale(1, 1.5)
+    plt.title("Model Accuracy Comparison", fontsize=12, fontweight="bold")
+    plt.savefig("saved_model/model_accuracy_table.png", dpi=300, bbox_inches="tight")
+    plt.close()
 
-        table.scale(1, 1.5)
-        plt.title("Model Accuracy Comparison", fontsize=12, fontweight="bold")
-        plt.savefig("saved_model/model_accuracy_table.png", dpi=300, bbox_inches="tight")
-        plt.close()
-    except: pass
-
-    print("Accuracy table saved: saved_model/model_accuracy_table.png")
     print("\nDHAMAAN HAWLII WAA LA DHAMEEYSTIRAY")
-
-    # Cleanup training flag if called from app.py
-    parser = argparse.ArgumentParser()
-    parser.add_argument("--flag", help="Path to the training flag file")
-    args, unknown = parser.parse_known_args()
-
-    if args.flag and os.path.exists(args.flag):
-        try:
-            os.remove(args.flag)
-            print(f"[*] Training flag removed: {args.flag}")
-        except: pass
 
 if __name__ == "__main__":
     main()
