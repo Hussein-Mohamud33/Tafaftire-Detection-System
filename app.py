@@ -29,9 +29,9 @@ CORS(app, resources={r"/*": {
     "methods": ["GET", "POST", "OPTIONS"]
 }}, supports_credentials=True)
 
-# DATA_DIR in current project folder for better permission handling on Render
-BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-DATA_DIR = os.path.join(BASE_DIR, "system_data")
+# DATA_DIR synced with Model_trains.py (Home directory for persistence)
+HOME_DIR = os.path.expanduser("~")
+DATA_DIR = os.path.join(HOME_DIR, ".tafaftire_system_data")
 if not os.path.exists(DATA_DIR):
     try:
         os.makedirs(DATA_DIR, exist_ok=True)
@@ -1245,14 +1245,17 @@ def admin_stats():
                     history_count = len(history_data)
                     
                     now = datetime.datetime.now()
-                    seven_days_ago = now - datetime.timedelta(days=7)
+                    # Calculate activity for the last 7 days (Chronological order)
+                    # index 0 is 6 days ago, index 6 is today
                     for entry in history_data:
                         date_str = entry.get("date", "")
                         if date_str:
                             try:
                                 dt = datetime.datetime.strptime(date_str, "%Y-%m-%d %H:%M:%S")
-                                if dt >= seven_days_ago:
-                                    weekly_activity[dt.weekday()] += 1
+                                days_diff = (now.date() - dt.date()).days
+                                if 0 <= days_diff < 7:
+                                    # Reverse index: today is index 6, yesterday is index 5
+                                    weekly_activity[6 - days_diff] += 1
                             except: pass
             except: pass
 
