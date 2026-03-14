@@ -315,8 +315,9 @@ def preprocess_text(text):
     text = sanitize_text(text).lower()
     text = CLEAN_TEXT_PATTERN.sub(" ", text)
     
-    # Regex-based tokenization (Zero NLTK data dependency for tokenizing)
-    tokens = TOKEN_PATTERN.findall(text)
+    import nltk
+    from nltk.tokenize import word_tokenize
+    tokens = word_tokenize(text)
     
     # Filter stopwords, short words and lemmatize
     cleaned = []
@@ -661,30 +662,28 @@ def heuristic_fact_check(text, url=None):
                     score -= 80
                     reasons.append("Digniin: Wararka ku saabsan nabad-galyada ama geerida oo aan laga helin saxaafadda waa in laga digtoonaadaa.")
                 else:
-                    # If No Trusted Matches are found for a factual claim, Experts are more suspicious
-                    score -= 45 
-                    reasons.append("Falanqeyn Search: Ma jirto ilo xog-ogaal ah ama website-yo rasmi ah oo xaqiijinaya nuxurka qoraalkan internet-ka.")
+                    # If No Trusted Matches are found, Experts are suspicious but not certain it's fake
+                    score -= 20 
+                    reasons.append("Falanqeyn Search: Ma jirto ilo xog-ogaal ah ama website-yo rasmi ah oo xaqiijinaya nuxurka qoraalkan internet-ka hadda.")
         else:
             # Only penalize missing search results heavily if the text looks suspicious or is too short.
             # Real news often exists online, so missing results is suspicious, but we must be careful with Real News samples.
             if untrusted_matches > 0 or len(words) < 25:
-                score -= 45
-                reasons.append("Digniin: Ma jirto xog internet-ka laga helay oo xaqiijinaysa nuxurka qoraalkan, qoraalkuna wuxuu u muuqdaa mid shaki leh.")
+                score -= 25
+                reasons.append("Digniin: Ma jirto xog internet-ka laga helay oo xaqiijinaysa nuxurka qoraalkan, qoraalkuna wuxuu leeyahay calaamado shaki dhalinaya.")
             else:
                 score -= 15 # Mild suspicion for unknown news
                 reasons.append("Falanqeyn: Ma jirto xog rasmi ah oo laga helay internet-ka, balse qoraalka qaabkiisu waa mid hagaagsan.")
 
     # 3. Linguistic & Structural Patterns (Expert Layer)
-    # Clickbait patterns (penalized by experts)
-    cb_patterns = ["share dheh", "nasiibkaaga", "guulayso", "mucjiso", "wax la qariyay", "cod qarsoodi ah", "ha rumaysan", "waa been"]
     untrusted_matches = sum(1 for p in UNTRUSTED_PATTERNS if p in text_lower)
     
-    if untrusted_matches >= 3:
-        score -= (30 * untrusted_matches)
-        reasons.append(f"Digniin Expert: Waxaa la helay {untrusted_matches} calaamadood oo muujinaya in qoraalku yahay mid marin habaabin ah (Clickbait/Suspicious).")
-    elif untrusted_matches > 0:
-        score -= 25
-        reasons.append("Falanqeyn: Luuqadda qoraalka waxaa ka muuqda calaamado shaki dhalinaya.")
+    if untrusted_matches >= 4:
+        score -= (15 * untrusted_matches)
+        reasons.append(f"Digniin Expert: Waxaa la helay {untrusted_matches} calaamadood oo muujinaya in qoraalku isticmaalayo luuqad dareen kicin ah (Sensationalist).")
+    elif untrusted_matches >= 1:
+        score -= 10
+        reasons.append("Falanqeyn: Luuqadda qoraalka waxaa ka muuqda erayo badanaa loo isticmaalo soo jiidashada (Clickbait).")
 
     # Official Terminology (Green Flags - Experts recognize formal reporting)
     official_terms = ["war-saxaafadeed", "shir jaraa'id", "wasaaradda", "hey'adda", "taliska", "ayaa sheegay", "ayaa lagu sheegay"]
@@ -694,9 +693,12 @@ def heuristic_fact_check(text, url=None):
 
     # 4. Short Text Rule (Enhanced: Force Unverified if short and unrecognized)
     is_unrecognized_short_text = False
+    # If the text is short AND we haven't found any citations AND it's not a trusted domain
     if len(words) < 30 and not found_citations and not is_trusted_domain:
         is_unrecognized_short_text = True
-        reasons.append("Falanqeyn: Qoraalku waa mid kooban (short), mana jiraan ilo rasmi ah oo lagu xaqiijiyay, sidaas darteed wali lama dhihi karo waa run ama waa been.")
+        # Instead of a large negative score, we use a smaller penalty and a flag
+        score -= 5 
+        reasons.append("Falanqeyn: Qoraalku waa mid kooban (short), mana jiraan ilo rasmi ah oo lagu xaqiijiyay hadda.")
 
     # Final Confidence & Rating Logic
     confidence_val = 60 + min(39, abs(score) * 0.3)
