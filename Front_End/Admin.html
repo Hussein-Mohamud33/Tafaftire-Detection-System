@@ -125,71 +125,54 @@
 
         /* Sidebar */
         .sidebar {
-            width: 220px;
-            background: linear-gradient(180deg, #0F2027 0%, #203A43 100%);
+            width: 260px;
+            background-color: var(--sidebar-bg);
             border-right: 1px solid var(--border-color);
             display: flex;
             flex-direction: column;
             flex-shrink: 0;
-            box-shadow: 10px 0 30px rgba(0, 0, 0, 0.4);
         }
 
         .sidebar-header {
-            padding: 30px 24px;
+            padding: 24px;
             display: flex;
             align-items: center;
-            gap: 15px;
+            gap: 12px;
             border-bottom: 1px solid var(--border-color);
-            background: rgba(0, 0, 0, 0.2);
         }
 
         .sidebar-header i {
             color: var(--accent-orange);
-            font-size: 1.8rem;
-            filter: drop-shadow(0 0 10px rgba(255, 159, 28, 0.4));
+            font-size: 1.5rem;
         }
 
         .sidebar-header span {
-            font-weight: 900;
-            font-size: 1.2rem;
-            letter-spacing: 2px;
-            background: var(--hybrid-gradient);
-            -webkit-background-clip: text;
-            background-clip: text;
-            -webkit-text-fill-color: transparent;
+            font-weight: 700;
+            font-size: 1.25rem;
+            letter-spacing: 1px;
         }
 
         .nav-menu {
-            padding: 25px 0;
+            padding: 20px 0;
             flex-grow: 1;
         }
 
         .nav-item {
-            padding: 12px 20px;
+            padding: 12px 24px;
             display: flex;
             align-items: center;
             gap: 12px;
             color: var(--text-muted);
             text-decoration: none;
-            transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+            transition: all 0.3s;
             cursor: pointer;
-            margin: 4px 10px;
-            border-radius: 10px;
-            font-weight: 500;
-            font-size: 0.9rem;
         }
 
-        .nav-item:hover {
-            background: rgba(255, 255, 255, 0.1);
-            color: #fff;
-            transform: translateX(5px);
-        }
-
+        .nav-item:hover,
         .nav-item.active {
-            background: var(--hybrid-gradient);
+            background: rgba(255, 255, 255, 0.05);
             color: #fff;
-            box-shadow: 0 10px 20px rgba(0, 123, 255, 0.2);
-            font-weight: 700;
+            border-left: 4px solid var(--accent-orange);
         }
 
         .nav-item i {
@@ -240,106 +223,157 @@
         }
 
         .avatar {
-            width: 40px;
-            height: 40px;
-            border-radius: 12px;
-            background: var(--hybrid-gradient);
+            width: 35px;
+            height: 35px;
+            border-radius: 50%;
+            background: var(--accent-orange);
             display: flex;
             align-items: center;
             justify-content: center;
-            font-weight: 900;
-            color: white;
-            box-shadow: 0 5px 15px rgba(0, 123, 255, 0.3);
+            font-weight: bold;
         }
 
         /* Dashboard Content */
         .content-area {
-            padding: 25px;
-            max-width: 1600px;
-            margin: 0 auto;
+            padding: 30px;
         }
 
         .stats-grid {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-            gap: 25px;
-            margin-bottom: 40px;
+            grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+            gap: 24px;
+            margin-bottom: 30px;
         }
 
         .stat-card {
-            background: rgba(255, 255, 255, 0.03);
-            backdrop-filter: blur(10px);
-            padding: 20px;
-            border-radius: 15px;
-            border: 1px solid rgba(255, 255, 255, 0.05);
+            background: var(--card-bg);
+            padding: 24px;
+            border-radius: 12px;
+            border: 1px solid var(--border-color);
             display: flex;
             flex-direction: column;
-            gap: 10px;
-            transition: all 0.3s ease;
+            gap: 8px;
+        }
+
+        .stat-card.blue {
+            border-top: 4px solid var(--accent-blue);
+        }
+
+        .stat-card.green {
+            border-top: 4px solid var(--accent-green);
+        }
+
+        .stat-card.red {
+            border-top: 4px solid var(--accent-red);
         }
 
         .stat-label {
             color: var(--text-muted);
-            font-size: 0.75rem;
+            font-size: 0.875rem;
             text-transform: uppercase;
             letter-spacing: 0.5px;
         }
 
         .stat-value {
-            font-size: 1.6rem;
-            font-weight: 800;
-            background: var(--hybrid-gradient);
-            -webkit-background-clip: text;
-            background-clip: text;
-            -webkit-text-fill-color: transparent;
+            font-size: 2rem;
+            font-weight: 700;
         }
 
-        .stat-card:hover {
-            transform: translateY(-5px);
-            background: rgba(255, 255, 255, 0.05);
-            border-color: rgba(255, 255, 255, 0.1);
+        .stat-trend {
+            font-size: 0.8rem;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+
+        .trend-up {
+            color: var(--accent-green);
         }
 
         /* Charts Section */
         .charts-row {
             display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 20px;
+            grid-template-columns: 2fr 1fr;
+            gap: 24px;
             margin-bottom: 30px;
         }
 
         .chart-card {
-            background: rgba(255, 255, 255, 0.02);
-            padding: 20px;
-            border-radius: 15px;
-            border: 1px solid rgba(255, 255, 255, 0.05);
+            background: var(--card-bg);
+            padding: 24px;
+            border-radius: 12px;
+            border: 1px solid var(--border-color);
         }
 
         .chart-header {
             display: flex;
             justify-content: space-between;
             align-items: center;
-            margin-bottom: 15px;
+            margin-bottom: 20px;
         }
 
-        .chart-header h3 {
-            font-size: 0.95rem;
-            font-weight: 700;
+        /* Table Section */
+        .table-card {
+            background: var(--card-bg);
+            padding: 24px;
+            border-radius: 12px;
+            border: 1px solid var(--border-color);
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+        }
+
+        th {
+            text-align: left;
+            padding: 12px;
+            border-bottom: 1px solid var(--border-color);
             color: var(--text-muted);
+            font-size: 0.8rem;
+            text-transform: uppercase;
+        }
+
+        td {
+            padding: 16px 12px;
+            border-bottom: 1px solid var(--border-color);
+            font-size: 0.9rem;
+        }
+
+        .badge {
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 0.75rem;
+            font-weight: 600;
+        }
+
+        .badge-success {
+            background: rgba(16, 185, 129, 0.1);
+            color: var(--accent-green);
+        }
+
+        .badge-error {
+            background: rgba(239, 68, 68, 0.1);
+            color: var(--accent-red);
+        }
+
+        .btn-action {
+            padding: 8px 16px;
+            border-radius: 6px;
+            border: none;
+            cursor: pointer;
+            font-weight: 500;
+            transition: 0.3s;
         }
 
         .btn-primary {
-            background: var(--hybrid-gradient);
+            background: var(--accent-orange);
             color: #fff;
-            border-radius: 10px;
-            box-shadow: 0 8px 20px rgba(0, 123, 255, 0.2);
-            font-weight: 700;
         }
 
         .btn-primary:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 12px 25px rgba(0, 123, 255, 0.3);
-            filter: brightness(1.1);
+            background: #f38d00;
         }
 
         /* Training Spinner */
@@ -412,23 +446,18 @@
                     <i class="fas fa-tachometer-alt"></i> Dashboard
                 </div>
                 <div class="nav-item" onclick="showSection('datasets')">
-                    <i class="fas fa-database"></i> Dataset Management
-                </div>
-                <div id="editorNavItem" class="nav-item hidden" onclick="showSection('editor')">
-                    <i class="fas fa-edit"></i> CSV Editor
+                    <i class="fas fa-database"></i> Manage Datasets
                 </div>
                 <div class="nav-item" onclick="showSection('retrain')">
-                    <i class="fas fa-microchip"></i> AI Training
+                    <i class="fas fa-microchip"></i> Retrain Model
                 </div>
-
                 <div class="nav-item" onclick="showSection('logs')">
-                    <i class="fas fa-file-alt"></i> User Messages
+                    <i class="fas fa-file-alt"></i> System Logs
                 </div>
                 <div class="nav-item" onclick="showSection('history')">
                     <i class="fas fa-server"></i> Analysis History
                 </div>
-                <div class="nav-item" onclick="logout()"
-                    style="margin-top: auto; border-top: 1px solid rgba(255,255,255,0.05);">
+                <div class="nav-item" onclick="logout()">
                     <i class="fas fa-sign-out-alt"></i> Logout
                 </div>
             </div>
@@ -476,54 +505,45 @@
             <div class="content-area">
                 <!-- Dashboard Overview -->
                 <div id="dashboardSection">
-                    <div
-                        style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 25px;">
-                        <h2 style="margin: 0; font-weight: 800;">System Overview</h2>
-                        <button class="btn-action" onclick="loadStats()"
-                            style="background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); color: #fff; padding: 8px 15px; border-radius: 8px; display: flex; align-items: center; gap: 8px;">
-                            <i class="fas fa-sync-alt"></i> Refresh Stats
-                        </button>
-                    </div>
                     <div class="stats-grid" style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 20px;">
                         <div class="stat-card blue" style="cursor: pointer;" onclick="showSection('datasets')">
-                            <span class="stat-label">TOTAL DATASETS</span>
+                            <span class="stat-label">Total Datasets</span>
                             <div class="stat-value" id="stat-datasets">0</div>
                             <div class="stat-trend trend-up"><i class="fas fa-plus"></i> Active files</div>
                         </div>
                         <div class="stat-card green" style="cursor: pointer;" onclick="showSection('retrain')">
-                            <span class="stat-label">AI ACCURACY</span>
+                            <span class="stat-label">Model Accuracy</span>
                             <div class="stat-value" id="stat-accuracy">0%</div>
                             <div class="stat-trend trend-up"><i class="fas fa-arrow-up"></i> Stable</div>
                         </div>
                         <div class="stat-card red" style="cursor: pointer;" onclick="showSection('logs')">
-                            <span class="stat-label">USER MESSAGES</span>
+                            <span class="stat-label">Contact Messages</span>
                             <div class="stat-value" id="stat-messages">0</div>
-                            <div class="stat-trend trend-up"><i class="fas fa-envelope"></i> New arrivals</div>
+                            <div class="stat-trend trend-up"><i class="fas fa-envelope"></i> Total messages</div>
                         </div>
                         <div class="stat-card orange"
                             style="cursor: pointer; background: linear-gradient(135deg, #ff9f1c, #ff6b35);"
                             onclick="showSection('history')">
-                            <span class="stat-label">ANALYSIS HISTORY</span>
-                            <div class="stat-value" id="stat-history-count">0</div>
-                            <div class="stat-trend trend-up" style="color: #fff;"><i class="fas fa-hdd"></i> Verified
-                                data</div>
+                            <span class="stat-label">Database</span>
+                            <div class="stat-value" id="stat-history-count">100+</div>
+                            <div class="stat-trend trend-up" style="color: #fff;"><i class="fas fa-hdd"></i> Evaluated
+                                History</div>
                         </div>
                     </div>
 
                     <div class="charts-row">
                         <div class="chart-card">
                             <div class="chart-header">
-                                <h3>Weekly Analysis Activity</h3>
-                                <i class="fas fa-chart-bar" style="color: var(--accent-blue); font-size: 0.8rem;"></i>
+                                <h3>Weekly Verification Activity</h3>
+                                <i class="fas fa-chart-bar" style="color: var(--accent-blue);"></i>
                             </div>
-                            <canvas id="weeklyBarChart" height="120"></canvas>
+                            <canvas id="weeklyBarChart" height="150"></canvas>
                         </div>
                         <div class="chart-card">
                             <div class="chart-header">
-                                <h3>Data Distribution (Fake vs Real)</h3>
-                                <i class="fas fa-chart-pie" style="color: var(--accent-orange); font-size: 0.8rem;"></i>
+                                <h3>Model Status</h3>
                             </div>
-                            <canvas id="distributionChart" height="120"></canvas>
+                            <canvas id="distributionChart" height="150"></canvas>
                         </div>
                     </div>
                 </div>
@@ -533,11 +553,7 @@
                     <div class="table-card">
                         <div style="display: flex; justify-content: space-between; align-items: center;">
                             <h3>Datasets Inventory</h3>
-                            <button class="btn-action btn-primary"
-                                onclick="document.getElementById('datasetUploadInput').click()"><i
-                                    class="fas fa-upload"></i> Upload CSV</button>
-                            <input type="file" id="datasetUploadInput" class="hidden" accept=".csv"
-                                onchange="handleDatasetUpload(event)">
+                            <button class="btn-action btn-primary"><i class="fas fa-upload"></i> Upload CSV</button>
                         </div>
                         <table>
                             <thead>
@@ -628,20 +644,22 @@
                                 <p style="color: var(--text-muted); font-size: 0.85rem; margin-top: 5px;">Comprehensive
                                     record of all news verifications performed.</p>
                             </div>
-                            <div style="display: flex; flex-direction: column; gap: 15px;">
-                                <div style="display: flex; gap: 12px; justify-content: flex-end;">
-                                    <button class="btn-action"
-                                        style="padding: 12px 20px; border-radius: 12px; background: rgba(239, 68, 68, 0.1); color: var(--accent-red); border: 1px solid rgba(239, 68, 68, 0.2); transition: all 0.3s ease; display: flex; align-items: center; gap: 10px;"
-                                        onclick="clearAnalysisHistory()">
-                                        <i class="fas fa-trash-alt"></i> Clear All
-                                    </button>
-                                    <button class="btn-action"
-                                        style="padding: 12px 25px; border-radius: 12px; background: linear-gradient(135deg, var(--accent-orange) 0%, var(--accent-orange-dark) 100%); color: #fff; font-weight: bold; border: none; transition: all 0.3s ease; display: flex; align-items: center; gap: 10px; box-shadow: 0 5px 15px rgba(255, 159, 28, 0.3);"
-                                        onclick="loadAnalysisHistory()">
-                                        <i class="fas fa-sync-alt"></i> Refresh
-                                    </button>
-                                </div>
-
+                            <div style="display: flex; gap: 12px;">
+                                <button class="btn-action"
+                                    style="padding: 12px 20px; border-radius: 12px; background: rgba(59, 130, 246, 0.1); color: var(--accent-blue); border: 1px solid rgba(59, 130, 246, 0.2); transition: all 0.3s ease; display: flex; align-items: center; gap: 10px;"
+                                    onclick="syncHistoryToDataset()">
+                                    <i class="fas fa-sync"></i> Sync to Dataset
+                                </button>
+                                <button class="btn-action"
+                                    style="padding: 12px 20px; border-radius: 12px; background: rgba(239, 68, 68, 0.1); color: var(--accent-red); border: 1px solid rgba(239, 68, 68, 0.2); transition: all 0.3s ease; display: flex; align-items: center; gap: 10px;"
+                                    onclick="clearAnalysisHistory()">
+                                    <i class="fas fa-trash-alt"></i> Clear All
+                                </button>
+                                <button class="btn-action"
+                                    style="padding: 12px 25px; border-radius: 12px; background: linear-gradient(135deg, var(--accent-orange) 0%, var(--accent-orange-dark) 100%); color: #fff; font-weight: bold; border: none; transition: all 0.3s ease; display: flex; align-items: center; gap: 10px; box-shadow: 0 5px 15px rgba(255, 159, 28, 0.3);"
+                                    onclick="loadAnalysisHistory()">
+                                    <i class="fas fa-sync-alt"></i> Refresh
+                                </button>
                             </div>
                         </div>
 
@@ -655,13 +673,11 @@
                                             ANALYZED CONTENT</th>
                                         <th
                                             style="padding: 18px; color: var(--text-muted); font-size: 0.75rem; letter-spacing: 2px; text-align: center;">
-                                            ENGINE</th>
+                                            TRUST SCORE</th>
                                         <th
                                             style="padding: 18px; color: var(--text-muted); font-size: 0.75rem; letter-spacing: 2px; text-align: center;">
-                                            SCORE</th>
-                                        <th
-                                            style="padding: 18px; color: var(--text-muted); font-size: 0.75rem; letter-spacing: 2px; text-align: center;">
-                                            VERDICT</th>
+
+                                            PERDICT</th>
                                         <th
                                             style="padding: 18px; color: var(--text-muted); font-size: 0.75rem; letter-spacing: 2px;">
                                             TIMESTAMP</th>
@@ -672,10 +688,10 @@
                                 </thead>
                                 <tbody id="historyTable">
                                     <tr>
-                                        <td colspan="6"
+                                        <td colspan="5"
                                             style="text-align: center; padding: 40px; color: var(--text-muted);">
-                                            <i class="fas fa-server" style="margin-right: 10px;"></i> Click "Taariikhda
-                                            Baaritaanka" to load history.
+                                            <i class="fas fa-spinner fa-spin" style="margin-right: 10px;"></i> Accessing
+                                            secure database...
                                         </td>
                                     </tr>
                                 </tbody>
@@ -683,46 +699,6 @@
                         </div>
                     </div>
                 </div>
-
-                <!-- CSV Dataset Editor Section -->
-                <div id="editorSection" class="hidden">
-                    <div class="table-card"
-                        style="background: rgba(26, 37, 47, 0.6); padding: 30px; border-radius: 20px;">
-                        <div
-                            style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 25px;">
-                            <div>
-                                <h3 id="editingFilename" style="margin: 0; font-size: 1.5rem; color: #fff;">Dataset
-                                    Editor</h3>
-                                <p style="color: var(--text-muted); font-size: 0.85rem; margin-top: 5px;">Si toos ah u
-                                    tafatir xogta CSV ee tababarka.</p>
-                            </div>
-                            <div style="display: flex; gap: 10px;">
-                                <button class="btn-action"
-                                    style="background: rgba(16, 185, 129, 0.2); color: #10b981; border: 1px solid #10b981;"
-                                    onclick="addEditorRow()">
-                                    <i class="fas fa-plus"></i> Ku dar Saf
-                                </button>
-                                <button id="saveDatasetBtn" class="btn-action btn-primary" style="padding: 10px 25px;">
-                                    <i class="fas fa-save"></i> Keydi Isbedelada
-                                </button>
-                                <button class="btn-action" style="background: rgba(239, 68, 68, 0.1); color: #ef4444;"
-                                    onclick="showSection('datasets')">
-                                    <i class="fas fa-times"></i> Buriyey
-                                </button>
-                            </div>
-                        </div>
-
-                        <div
-                            style="overflow-x: auto; max-height: 60vh; border-radius: 12px; background: rgba(0,0,0,0.2); border: 1px solid rgba(255,255,255,0.05);">
-                            <table style="width: 100%; border-collapse: collapse;">
-                                <thead id="editorHead"
-                                    style="position: sticky; top: 0; background: #1a1c23; z-index: 10;"></thead>
-                                <tbody id="editorBody"></tbody>
-                            </table>
-                        </div>
-                    </div>
-                </div>
-
             </div>
         </div>
     </div>
@@ -759,8 +735,9 @@
     </div>
 
     <script>
-        // Connect to Render Production Backend
-        const API_BASE_URL = "https://tafaftire-detection-system.onrender.com"; 
+        const API_BASE_URL = (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' || window.location.protocol === 'file:')
+            ? 'http://127.0.0.1:3402'
+            : 'https://tafaftire-detection-system.onrender.com';
         const API_BASE = `${API_BASE_URL}/api/admin`;
 
         // Auth Logic
@@ -810,75 +787,34 @@
 
         function showSection(sectionId) {
             document.querySelectorAll('.content-area > div').forEach(div => div.classList.add('hidden'));
-            const target = document.getElementById(sectionId + 'Section');
-            if (target) target.classList.remove('hidden');
-            
+            document.getElementById(sectionId + 'Section').classList.remove('hidden');
             document.querySelectorAll('.nav-item').forEach(item => item.classList.remove('active'));
 
             // Set active class on the clicked nav item
-            if (window.event && window.event.target) {
-                const item = window.event.target.closest('.nav-item');
+            if (event && event.target) {
+                const item = event.target.closest('.nav-item');
                 if (item) item.classList.add('active');
             }
 
-            if (sectionId === 'dashboard') loadStats();
             if (sectionId === 'datasets') loadDatasets();
             if (sectionId === 'logs') loadLogs();
             if (sectionId === 'history') loadAnalysisHistory();
         }
 
-
         async function loadStats() {
-            const elD = document.getElementById('stat-datasets');
-            const elA = document.getElementById('stat-accuracy');
-            const elM = document.getElementById('stat-messages');
-            const elH = document.getElementById('stat-history-count');
-            
             try {
-                // Show loading state
-                if (elD) elD.innerText = "...";
-                if (elA) elA.innerText = "...";
-
-                // Check for file:// protocol
-                if (window.location.protocol === "file:") {
-                    console.error("Fetch failed: You are opening Admin.html as a file. Please open http://localhost:3402/Admin.html instead.");
-                    throw new Error("Local file access");
-                }
-
-                const res = await fetch(`${API_BASE}/stats?t=${Date.now()}`);
-                if (!res.ok) throw new Error(`Server Response: ${res.status}`);
-                
+                const res = await fetch(`${API_BASE}/stats`);
                 const data = await res.json();
-
-                if (data.error) {
-                    console.error("Stats API Error:", data.error);
-                }
-
-                // Update cards with real data
-                if (elD) elD.innerText = (data.total_datasets !== undefined) ? data.total_datasets : "0";
-                if (elA) elA.innerText = data.model_accuracy || "94.5%";
-                if (elM) elM.innerText = data.messages_count !== undefined ? data.messages_count : "0";
-                if (elH) elH.innerText = data.history_count !== undefined ? data.history_count : "0";
-                
-                if (window.initCharts) {
-                    initCharts(data.fake_news_count, data.real_news_count, data.weekly_activity);
-                }
-                
-                console.log("[*] Stats loaded successfully.");
-
-            } catch (err) { 
-                console.error("Stats Fetch Failed:", err);
-                
-                // Fallback values for UI so it doesn't stay at "..."
-                if (elD && elD.innerText === "...") elD.innerText = "0";
-                if (elA && elA.innerText === "...") elA.innerText = "94.5%";
-                if (elM && elM.innerText === "...") elM.innerText = "0";
-                if (elH && elH.innerText === "...") elH.innerText = "0";
-                
-                if (window.location.protocol === "file:") {
-                    alert("Cilad: Waxaad fureen faylka Admin.html adigoo isticmaalaya 'File Explorer'.\n\nFadlan browser-ka ku qor: http://localhost:3402/Admin.html");
-                }
-            }
+                document.getElementById('stat-datasets').innerText = data.total_datasets;
+                document.getElementById('stat-accuracy').innerText = data.model_accuracy;
+                const sm = document.getElementById('stat-messages');
+                if (sm) sm.innerText = data.messages_count;
+                const sh = document.getElementById('stat-history-count');
+                if (sh) sh.innerText = data.history_count || 0;
+                const sr = document.getElementById('stat-requests');
+                if (sr) sr.innerText = data.requests_handled;
+                initCharts(data.fake_news_count, data.real_news_count);
+            } catch (err) { console.error(err); }
         }
 
         async function loadDatasets() {
@@ -890,17 +826,9 @@
                         <td><i class="far fa-file-alt" style="margin-right: 10px;"></i> ${f.name}</td>
                         <td>${f.size}</td>
                         <td>${f.modified}</td>
-                        <td style="text-align: center;">
-                            <div style="display: flex; gap: 8px; justify-content: center;">
-                                <button class="btn-action" style="background: rgba(59, 130, 246, 0.1); color: var(--accent-blue); border: 1px solid rgba(59, 130, 246, 0.2);" onclick="downloadDataset('${f.name}')">
-                                    <i class="fas fa-download"></i>
-                                </button>
-                                <button class="btn-action" style="background: rgba(168, 85, 247, 0.1); color: #a855f7; border: 1px solid rgba(168, 85, 247, 0.2);" onclick="openCsvEditor('${f.name}')">
-                                    <i class="fas fa-edit"></i> Edit
-                                </button>
-                            </div>
+                        <td>
+                            <!-- Actions removed as requested -->
                         </td>
-
                     </tr>
                 `).join('');
             } catch (err) { console.error(err); }
@@ -925,67 +853,65 @@
                     return;
                 }
 
-                renderHistoryTable(historyDataGlobal);
+                tableBody.innerHTML = historyDataGlobal.map((item) => {
+                    const originalInput = item.original_input || item.name || item.data || '';
+                    if (!originalInput) console.warn("[*] Missing label data for item:", item);
+                    const nameSnippet = originalInput.length > 50 ? originalInput.substring(0, 50) + "..." : (originalInput || "Unknown");
+
+                    // Improved Real Check
+                    const labelStr = (item.label || "").toUpperCase();
+                    const isReal = labelStr.includes('TRUSTED') || labelStr.includes('RASMI') || labelStr === 'REAL';
+                    const isFake = labelStr.includes('FAKE') || labelStr.includes('BEEN') || labelStr === 'FAKE';
+
+                    let typeLabel = "🔍 EXPERT";
+                    let typeColor = "#ff9f1c";
+                    let typeIcon = "fas fa-shield-alt";
+
+                    if (item.type === "Model Prediction") {
+                        typeLabel = "🤖 AI";
+                        typeColor = "#3b82f6";
+                        typeIcon = "fas fa-robot";
+                    } else if (item.type === "Unified Analysis") {
+                        const aiNum = item.ai_score ? parseFloat(item.ai_score.replace('%', '')) : 0;
+                        const expNum = item.expert_score ? parseFloat(item.expert_score.replace('%', '')) : 0;
+
+                        if (aiNum >= expNum) {
+                            typeLabel = "🤖 AI";
+                            typeColor = "#3b82f6";
+                            typeIcon = "fas fa-robot";
+                        } else {
+                            typeLabel = "🔍 EXPERT";
+                            typeColor = "#ff9f1c";
+                            typeIcon = "fas fa-shield-alt";
+                        }
+                    }
+
+                    const badgeColor = isReal ? '#10b981' : (isFake ? '#ef4444' : '#f59e0b');
+                    const badgeBg = isReal ? 'rgba(16,185,129,0.1)' : (isFake ? 'rgba(239,68,68,0.1)' : 'rgba(245,158,11,0.1)');
+
+                    return `
+                        <tr>
+                            <td title="${originalInput}">
+                                ${nameSnippet}
+                            </td>
+                            <td><span class="badge" style="background: rgba(168,85,247,0.1); color: #a855f7; padding: 4px 8px; border-radius: 4px;">${item.confidence || '-'}</span></td>
+                            <td><span class="badge" style="background: ${badgeBg}; color: ${badgeColor}; padding: 4px 8px; border-radius: 4px;">${item.label || '-'}</span></td>
+                            <td style="color: #9ca3af; font-size: 0.85rem;">${item.date || '-'}</td>
+                            <td>
+                                <div style="display:flex; gap:10px;">
+                                    <i class="fas fa-eye" style="cursor: pointer; color: var(--accent-blue);" onclick="viewHistoryItem(${item.id})"></i>
+                                    <i class="fas fa-trash" style="cursor: pointer; color: var(--accent-red);" onclick="deleteHistoryItem(${item.id})"></i>
+                                </div>
+                            </td>
+                        </tr>
+                    `}).join('');
             } catch (err) {
                 console.error("History Error:", err);
                 document.getElementById('historyTable').innerHTML = `<tr><td colspan="5" style="text-align: center; color: #ef4444; padding: 20px;">
                     Cilad: ${err.message}<br>
-                    <small>Hubi in server-ka uu online yahay (Render)</small>
+                    <small>Hubi in Flask uuu shaqeynayo port 3402</small>
                 </td></tr>`;
             }
-        }
-
-        function filterAnalysisHistory() {
-            const query = document.getElementById('historySearchInput').value.toLowerCase();
-            const filtered = historyDataGlobal.filter(item => {
-                const content = (item.original_input || item.name || "").toLowerCase();
-                const verdict = (item.label || "").toLowerCase();
-                const date = (item.date || "").toLowerCase();
-                const engine = (item.data_type || "").toLowerCase();
-                return content.includes(query) || verdict.includes(query) || date.includes(query) || engine.includes(query);
-            });
-            renderHistoryTable(filtered);
-        }
-
-        function renderHistoryTable(data) {
-            const tableBody = document.getElementById('historyTable');
-            if (data.length === 0) {
-                tableBody.innerHTML = '<tr><td colspan="5" style="text-align: center; padding: 40px; color: var(--text-muted);">No matching results found.</td></tr>';
-                return;
-            }
-
-            tableBody.innerHTML = data.map((item) => {
-                const originalInput = item.original_input || item.name || item.data || '';
-                const nameSnippet = originalInput.length > 50 ? originalInput.substring(0, 50) + "..." : (originalInput || "Unknown");
-
-                const labelStr = (item.label || "").toUpperCase();
-                const isReal = labelStr.includes('TRUSTED') || labelStr.includes('RASMI') || labelStr.includes('REAL') || labelStr.includes('SAX') || labelStr.includes('RUN');
-                const isFake = labelStr.includes('FAKE') || labelStr.includes('BEEN') || labelStr.includes('ABUUR') || labelStr.includes('UNVERIFIED') || labelStr.includes('SHAKI') || labelStr.includes('SHIK');
-
-                const badgeColor = isReal ? '#10b981' : (isFake ? '#ef4444' : '#f59e0b');
-                const badgeBg = isReal ? 'rgba(16,185,129,0.1)' : (isFake ? 'rgba(239,68,68,0.1)' : 'rgba(245,158,11,0.1)');
-
-                return `
-                    <tr style="animation: fadeIn 0.3s ease;">
-                        <td title="${originalInput}">
-                            ${nameSnippet}
-                        </td>
-                        <td style="text-align: center;">
-                            <span style="font-size: 0.7rem; color: #3b82f6; border: 1px solid rgba(59,130,246,0.3); padding: 2px 6px; border-radius: 4px;">
-                                ${item.data_type && item.data_type.includes('AI') ? '🤖 AI' : (item.data_type && item.data_type.includes('Unified') ? '🧠 HYBRID' : '⚖️ EXPERT')}
-                            </span>
-                        </td>
-                        <td style="text-align: center;"><span class="badge" style="background: rgba(168,85,247,0.1); color: #a855f7; padding: 4px 8px; border-radius: 4px;">${item.confidence || '-'}</span></td>
-                        <td style="text-align: center;"><span class="badge" style="background: ${badgeBg}; color: ${badgeColor}; padding: 4px 8px; border-radius: 4px;">${item.label || '-'}</span></td>
-                        <td style="color: #9ca3af; font-size: 0.85rem;">${item.date || '-'}</td>
-                        <td>
-                            <div style="display:flex; gap:15px; justify-content: center;">
-                                <i class="fas fa-eye" style="cursor: pointer; color: var(--accent-blue); font-size: 1.1rem;" title="View Details" onclick="viewHistoryItem(${item.id})"></i>
-                                <i class="fas fa-trash" style="cursor: pointer; color: var(--accent-red); font-size: 1.1rem;" title="Delete" onclick="deleteHistoryItem(${item.id})"></i>
-                            </div>
-                        </td>
-                    </tr>
-                `}).join('');
         }
 
         window.viewHistoryItem = (id) => {
@@ -998,35 +924,26 @@
 
             // Confidence or specific scores
             const labelStr = (item.label || "").toUpperCase();
-            const isReal = labelStr.includes('TRUSTED') || labelStr.includes('RASMI') || labelStr === 'REAL' || labelStr === 'REAL NEWS';
-            const isSuspicious = labelStr.includes('SUSPICIOUS') || labelStr.includes('SHAKI') || labelStr.includes('UNVERIFIED');
-
-            if (isReal) {
-                document.getElementById("modalResult").style.color = "#10b981"; // Green
-            } else if (isSuspicious) {
-                document.getElementById("modalResult").style.color = "#f59e0b"; // Orange/Yellow
-            } else {
-                document.getElementById("modalResult").style.color = "#ef4444"; // Red
-            }
+            const isReal = labelStr.includes('TRUSTED') || labelStr.includes('RASMI') || labelStr === 'REAL';
+            document.getElementById("modalResult").style.color = isReal ? "#10b981" : "#ef4444";
 
             document.getElementById("modalDate").innerText = item.date;
-
 
             // Handle scores
             const aiScore = document.getElementById("modalAIScore");
             const expertScore = document.getElementById("modalExpertScore");
             const scoresBox = document.getElementById("modalUnifiedScores");
 
-            if (item.data_type === "AI Analysis") {
+            if (item.type === "Unified Analysis") {
                 scoresBox.style.display = "grid";
-                aiScore.innerText = item.confidence || "N/A";
-                expertScore.innerText = "N/A (AI Run)";
-            } else if (item.data_type === "Expert Fact-Check") {
-                scoresBox.style.display = "grid";
-                aiScore.innerText = "N/A (Expert Run)";
-                expertScore.innerText = item.confidence || "N/A";
+                aiScore.innerText = item.ai_score || "N/A";
+                expertScore.innerText = item.expert_score || "N/A";
             } else {
                 scoresBox.style.display = "none";
+                // If it's old model prediction, show confidence in Result
+                if (item.confidence) {
+                    document.getElementById("modalResult").innerText += ` (${item.confidence})`;
+                }
             }
 
             const modal = document.getElementById("historyDetailModal");
@@ -1072,161 +989,13 @@
                 const data = await res.json();
                 if (data.success) {
                     alert(data.message);
-                    loadAnalysisHistory(); // Refresh the table
+                    loadAnalysisHistory(); // Refresh
                 } else {
                     alert("Khalad: " + data.message);
                 }
             } catch (err) {
                 console.error("Clear Error:", err);
-                alert("Khalad xagga xiriirka ah!");
-            }
-        };
-        // --- CSV Editor Logic ---
-        let currentEditorData = { filename: '', columns: [], rows: [] };
-
-        window.openCsvEditor = async (filename) => {
-            showSection('editor');
-            const titleEl = document.getElementById('editingFilename');
-            const navItem = document.getElementById('editorNavItem');
-            if (navItem) navItem.classList.remove('hidden');
-
-            if (titleEl) titleEl.innerText = `Soo raraya: ${filename}...`;
-            currentEditorData.filename = filename;
-
-            try {
-                const res = await fetch(`${API_BASE_URL}/api/admin/dataset/get?filename=${filename}`);
-                const data = await res.json();
-
-                if (!res.ok) throw new Error(data.error || `Server error: ${res.status}`);
-
-                if (titleEl) titleEl.innerText = `Tafatiraya: ${filename}`;
-                currentEditorData.columns = data.columns;
-                currentEditorData.rows = data.data;
-                renderEditorTable();
-            } catch (err) {
-                console.error("CSV Load Error:", err);
-                if (titleEl) titleEl.innerText = `Khalad ayaa dhacay!`;
-                alert(`Khalad: ${err.message}`);
-                showSection('datasets');
-            }
-        };
-
-        function renderEditorTable() {
-            const head = document.getElementById('editorHead');
-            const body = document.getElementById('editorBody');
-            if (!body) return;
-
-            if (!currentEditorData.columns || !currentEditorData.rows) {
-                body.innerHTML = '<tr><td colspan="5">Xogta lama heli karo</td></tr>';
-                return;
-            }
-
-            head.innerHTML = `<tr>${currentEditorData.columns.map(c => `<th style="padding:15px; text-align:left; color:#9ca3af; font-size:0.8rem; text-transform:uppercase;">${c}</th>`).join('')}<th style="padding:15px; text-align:center;">Action</th></tr>`;
-
-            body.innerHTML = currentEditorData.rows.length > 0
-                ? currentEditorData.rows.map((row, rIdx) => `
-                    <tr style="border-top: 1px solid rgba(255,255,255,0.05);">
-                        ${row.map((cell, cIdx) => `
-                            <td style="padding:10px;">
-                                <input type="text" value="${cell || ''}" 
-                                    style="width:100%; background:rgba(255,255,255,0.03); border:1px solid rgba(255,255,255,0.1); color:#fff; border-radius:4px; padding:8px;"
-                                    onchange="updateEditorCell(${rIdx}, ${cIdx}, this.value)">
-                            </td>
-                        `).join('')}
-                        <td style="text-align:center;">
-                            <button class="btn-action" style="background:rgba(239, 68, 68, 0.1); color:#ef4444;" onclick="deleteEditorRow(${rIdx})">
-                                <i class="fas fa-trash"></i>
-                            </button>
-                        </td>
-                    </tr>
-                `).reverse().slice(0, 100).join('') // Limit to 100 for performance
-                : '<tr><td colspan="5" style="padding:40px; text-align:center; color:#9ca3af;">Faylka waa maran yahay.</td></tr>';
-        }
-
-        window.updateEditorCell = (rIdx, cIdx, val) => {
-            currentEditorData.rows[rIdx][cIdx] = val;
-        };
-
-        window.addEditorRow = () => {
-            const newRow = new Array(currentEditorData.columns.length).fill('');
-            currentEditorData.rows.push(newRow);
-            renderEditorTable();
-            // Scroll to bottom technically but table is reversed so it appears at top
-        };
-
-        window.deleteEditorRow = (idx) => {
-            if (!confirm("Ma hubtaa inaad tirtirto safkan?")) return;
-            currentEditorData.rows.splice(idx, 1);
-            renderEditorTable();
-        };
-
-        document.getElementById('saveDatasetBtn').onclick = async () => {
-            const btn = document.getElementById('saveDatasetBtn');
-            const originalHtml = btn.innerHTML;
-            btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Keydinaya...';
-            btn.disabled = true;
-
-            try {
-                const res = await fetch(`${API_BASE_URL}/api/admin/dataset/save`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        filename: currentEditorData.filename,
-                        columns: currentEditorData.columns,
-                        rows: currentEditorData.rows
-                    })
-                });
-                const data = await res.json();
-                if (data.success) {
-                    alert("Si guul leh ayaa loo kaydiyey!");
-                    loadDatasets();
-                } else {
-                    alert("Khalad: " + data.message);
-                }
-            } catch (err) {
-                alert("Cilad dhinaca xiriirka ah!");
-            } finally {
-                btn.innerHTML = originalHtml;
-                btn.disabled = false;
-            }
-        };
-
-
-        window.downloadDataset = (filename) => {
-            window.open(`${API_BASE_URL}/api/admin/dataset/download?filename=${filename}`);
-        };
-
-        window.handleDatasetUpload = async (event) => {
-            const file = event.target.files[0];
-            if (!file) return;
-
-            if (!file.name.endsWith('.csv')) {
-                alert("Kaliya faylasha CSV ayaan aqbalnaa.");
-                return;
-            }
-
-            const formData = new FormData();
-            formData.append('file', file);
-
-            try {
-                const res = await fetch(`${API_BASE_URL}/api/admin/dataset/upload`, {
-                    method: 'POST',
-                    body: formData
-                });
-                const data = await res.json();
-
-                if (data.success) {
-                    alert(data.message);
-                    loadDatasets();
-                    loadStats();
-                } else {
-                    alert("Upload Error: " + data.message);
-                }
-            } catch (err) {
-                console.error("Upload Error:", err);
-                alert("Connection Error while uploading.");
-            } finally {
-                event.target.value = ''; // Reset
+                alert("Connection Error!");
             }
         };
 
@@ -1344,8 +1113,8 @@
                     return;
                 }
 
-                result.innerHTML = '<i class="fas fa-sync fa-spin"></i> Tababarku hadda ayuu socdaa (Quick Mode Active)... fadlan sug wax yar.';
-                result.style.color = '#00f2fe';
+                result.innerHTML = '<i class="fas fa-sync fa-spin"></i> Wali lama soo dhameeyey, tababarku hadda ayuu socdaa...';
+                result.style.color = 'var(--accent-orange)';
 
                 // Poll for completion
                 const pollInterval = setInterval(async () => {
@@ -1384,70 +1153,23 @@
             }
         }
 
-        function initCharts(fake, real, weeklyActivity) {
-            const ctx1 = document.getElementById('distributionChart').getContext('2d');
-            const ctx2 = document.getElementById('weeklyBarChart').getContext('2d');
-
-            // 1. Doughnut Chart (Model Status/Distribution)
+        function initCharts(fake, real) {
             if (window.distChart) window.distChart.destroy();
-            window.distChart = new Chart(ctx1, {
+            window.distChart = new Chart(document.getElementById('distributionChart'), {
                 type: 'doughnut',
                 data: {
-                    labels: ['Fake News', 'Real News'],
-                    datasets: [{
-                        data: [fake || 0, real || 0],
-                        backgroundColor: ['#ff4757', '#2ecc71'],
-                        hoverBackgroundColor: ['#ff6b81', '#7bed9f'],
-                        borderWidth: 0,
-                        hoverOffset: 10
-                    }]
+                    labels: ['Fake', 'Real'],
+                    datasets: [{ data: [fake, real], backgroundColor: ['#ef4444', '#10b981'], borderWidth: 0 }]
                 },
-                options: {
-                    cutout: '75%',
-                    plugins: {
-                        legend: {
-                            position: 'bottom',
-                            labels: {
-                                color: '#9ca3af',
-                                padding: 20,
-                                font: { size: 11, family: 'Inter' },
-                                usePointStyle: true
-                            }
-                        },
-                        tooltip: {
-                            backgroundColor: '#2d3436',
-                            titleColor: '#fff',
-                            bodyColor: '#eee',
-                            cornerRadius: 8,
-                            padding: 12
-                        }
-                    },
-                    animation: { animateScale: true, animateRotate: true }
-                }
+                options: { cutout: '70%', plugins: { legend: { position: 'bottom', labels: { color: '#fff' } } } }
             });
 
-            // 2. Bar Chart (Weekly Activity)
             if (window.barChart) window.barChart.destroy();
-
-            // Create Gradient
-            const gradient = ctx2.createLinearGradient(0, 0, 0, 150);
-            gradient.addColorStop(0, '#3b82f6');
-            gradient.addColorStop(1, 'rgba(59, 130, 246, 0.1)');
-
-            window.barChart = new Chart(ctx2, {
+            window.barChart = new Chart(document.getElementById('weeklyBarChart'), {
                 type: 'bar',
                 data: {
                     labels: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'],
-                    datasets: [{
-                        label: 'Analysis Activity',
-                        data: weeklyActivity && weeklyActivity.length === 7 ? weeklyActivity : [0, 0, 0, 0, 0, 0, 0],
-                        backgroundColor: gradient,
-                        borderColor: '#3b82f6',
-                        borderWidth: 1,
-                        borderRadius: 8,
-                        hoverBackgroundColor: '#60a5fa',
-                        barThickness: 25
-                    }]
+                    datasets: [{ label: 'Requests', data: [120, 190, 30, 50, 20, 30, 100], backgroundColor: '#3b82f6', borderRadius: 5 }]
                 },
                 options: {
                     plugins: { legend: { display: false } },
@@ -1479,9 +1201,9 @@
 
         // Function to toggle the DashboardNotification dropdown
         window.toggleNotificationDropdown = () => {
-            const dropdown = document.getElementById('notificationDropdown');
+            const dropdown = document.getElementById('dashboardNotificationDropdown');
             if (dropdown) {
-                dropdown.style.display = dropdown.style.display === 'flex' ? 'none' : 'flex';
+                dropdown.classList.toggle('hidden');
             }
         };
 
