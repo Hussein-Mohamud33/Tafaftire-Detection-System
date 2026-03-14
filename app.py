@@ -1189,13 +1189,20 @@ def admin_login():
         return jsonify({"success": True, "token": "admin-session-token-123"})
     return jsonify({"success": False, "message": "Invalid Username or Password"}), 401
 
+@app.route('/admin')
+def serve_admin():
+    return app.send_static_file('Admin.html')
+
+@app.route('/')
+def serve_index():
+    return app.send_static_file('index.html')
+
 @app.route("/api/admin/stats", methods=["GET"])
 def admin_stats():
     """Robust stats calculation for Admin Dashboard."""
     try:
-        # Better path detection
-        current_dir = os.path.dirname(os.path.abspath(__file__))
-        dataset_dir = os.path.join(current_dir, "Dataset")
+        # Absolute path detection to avoid issues with working directories
+        dataset_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "Dataset")
         
         print(f"[*] Stats Request: Checking {dataset_dir}")
         
