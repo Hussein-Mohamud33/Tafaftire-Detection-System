@@ -90,9 +90,11 @@ def is_vague_source(text):
 # FIND DATASET
 # ======================================
 def find_file(filename):
-    if os.path.exists(filename):
-        return filename
-    dataset_path = os.path.join("Dataset", filename)
+    base_path = os.path.dirname(os.path.abspath(__file__))
+    local_path = os.path.join(base_path, filename)
+    if os.path.exists(local_path):
+        return local_path
+    dataset_path = os.path.join(base_path, "Dataset", filename)
     if os.path.exists(dataset_path):
         return dataset_path
     return None
@@ -125,9 +127,9 @@ def main():
     # PREPARE DATA
     # ======================================
     texts = pd.concat([fake_df["Text"], real_df["Text"]])
-    labels = [0] * len(fake_df) + [1] * len(real_df)
+    labels = pd.concat([fake_df["Lebal"], real_df["Lebal"]])
 
-    print("Preprocessing text...")
+    print(f"Preprocessing {len(texts)} items...")
     processed_texts = [preprocess_text(t) for t in texts]
 
     # Add extreme/vague features
