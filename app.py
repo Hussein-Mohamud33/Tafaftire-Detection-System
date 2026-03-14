@@ -233,8 +233,9 @@ somali_stopwords = [
     "ayay", "kuwa", "kuwaas", "kuwan", "kaas", "kan", "kuwaa", "loo", "loona",
     "yahay", "yihiin", "ahayd", "ahaa", "noqday", "noqon", "leh", "leeyihiin",
     "kala", "hore", "danbe", "dhammaan", "kasta", "badnaa", "yar", "weyn",
-    "oo", "kale", "jira", "jiray", "ilaa", "halkan", "halkaas", "mid", "kaliya",
-    "isla", "markaana", "ahaana", "ahaanna", "hadda", "horey", "sheegay", "sheegtay"
+    "waxa", "waxaa", "ila", "mid", "loo", "halkaas", "halkan", "door", "qaatay",
+    "kaasoo", "ayadoo", "isagaa", "iyadaa", "kuwaasoo", "hadana", "maxaa", "maxay",
+    "aynu", "idinku", "inay", "inuu", "loogu", "una", "isuna", "isku"
 ]
 
 def load_resources():
