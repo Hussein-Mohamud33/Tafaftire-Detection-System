@@ -692,20 +692,24 @@ def heuristic_fact_check(text, url=None):
         score += 65
         reasons.append("Xog Sugan: Qoraalku wuxuu isticmaalayaa luuqad rasmi ah ama qaabka ay wararka u qoraan saxaafada xirfadleyda ah.")
 
-    # 4. Short Text Rule (Experts are very skeptical of short, unverified claims)
-    if len(words) < 25 and not found_citations and not is_trusted_domain:
-        score -= 25
-        reasons.append("Digniin: Qoraalku waa mid aad u gaaban, mana jirto xog dibadda ah (Citations) oo cadaynaysa.")
+    # 4. Short Text Rule (Enhanced: Force Unverified if short and unrecognized)
+    is_unrecognized_short_text = False
+    if len(words) < 30 and not found_citations and not is_trusted_domain:
+        is_unrecognized_short_text = True
+        reasons.append("Falanqeyn: Qoraalku waa mid kooban (short), mana jiraan ilo rasmi ah oo lagu xaqiijiyay, sidaas darteed wali lama dhihi karo waa run ama waa been.")
 
     # Final Confidence & Rating Logic
     confidence_val = 60 + min(39, abs(score) * 0.3)
     
-    if is_trusted_domain and score > 0:
+    if is_unrecognized_short_text:
+        rating = "Unverified"
+        confidence_val = 65.0 
+    elif is_trusted_domain and score > 0:
         rating = "Trusted"
         confidence_val = max(95, confidence_val)
     elif score >= 60:
         rating = "Trusted"
-    elif score <= -40: # Lowered from -50 to be more decisive on Fake signals
+    elif score <= -40: # Decisive on Fake signals
         rating = "Fake"
     else:
         rating = "Unverified"
@@ -818,6 +822,12 @@ def predict():
         # BALANCED VERDICT: >= 0.0 is Real
         ai_pred = "Real News" if final_ai_score >= 0.0 else "Fake news"
         
+        # SHORT TEXT GUARD: If text is short and not extremely certain, use Unverified
+        word_count = len(content.split())
+        if word_count < 25 and ai_conf < 93.0:
+            ai_pred = "Unverified"
+            ai_conf_str = f"Unverified ({int(ai_conf)}%)"
+        
         print(f"[*] AI SCAN (Pure Model) - Raw Score: {final_ai_score:.4f}, Prediction: {ai_pred}")
 
         # ================= Save to History (Non-blocking) =================
@@ -929,6 +939,17 @@ def analyze_deep():
             
             winning_confidence = fc_res.get("confidence")
             winning_source = "Expert Fact-check"
+
+        # SHORT TEXT GUARD: If text is short and neither AI nor Expert is VERY sure (>93%), 
+        # force UNVERIFIED to avoid false labeling on brief inputs.
+        word_count = len(str(content).split())
+        winning_conf_num = float(str(winning_confidence).replace("%", "").replace("(", "").replace(")", ""))
+        
+        if word_count < 25 and winning_conf_num < 93.0:
+            final_label = "UNVERIFIED"
+            winning_confidence = "Lama Xaqiijin" if "so" in str(request.headers.get('Accept-Language', '')) else "Unverified"
+            # If it's Unverified, we should probably still show the numeric confidence but label it clearly
+            winning_confidence = f"Unverified ({int(winning_conf_num)}%)"
 
 
 
