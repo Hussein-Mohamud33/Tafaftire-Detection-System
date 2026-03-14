@@ -741,11 +741,6 @@ def admin_page():
 def dashboard_page():
     return no_cache_response('index.html')
 
-@app.route("/api/health", methods=["GET"])
-def health_check():
-    """Lightweight health check for Render/Production."""
-    return jsonify({"status": "Healthy", "timestamp": time.time()}), 200
-
 @app.route("/api/predict", methods=["POST"])
 def predict():
     try:
