@@ -271,7 +271,7 @@ def load_resources():
 
     # 3. Model Loading
     try:
-        MODEL_PATH = os.path.join(BASE_DIR, "saved_model", "svm_high_confidence.pkl")
+        MODEL_PATH = os.path.join(BASE_DIR, "saved_model", "naive_bayes_model.pkl")
         VECTORIZER_PATH = os.path.join(BASE_DIR, "saved_model", "fake_real_TF_IDF_vectorizer.pkl")
         ENCODER_PATH = os.path.join(BASE_DIR, "saved_model", "fake_real_label_encoder.pkl")
 
