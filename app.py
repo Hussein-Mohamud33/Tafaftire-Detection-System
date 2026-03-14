@@ -9,8 +9,6 @@ import csv
 import smtplib
 import imaplib
 import email
-import nltk
-from bs4 import BeautifulSoup
 from flask import Flask, request, jsonify, make_response
 from flask_cors import CORS
 from email.header import decode_header
@@ -33,12 +31,12 @@ CORS(app, resources={r"/*": {
 # DATA_DIR synced with Model_trains.py (Home directory for persistence)
 HOME_DIR = os.path.expanduser("~")
 DATA_DIR = os.path.join(HOME_DIR, ".tafaftire_system_data")
-if not os.path.exists(DATA_DIR):
-    try:
+try:
+    if not os.path.exists(DATA_DIR):
         os.makedirs(DATA_DIR, exist_ok=True)
         print(f"[*] Created DATA_DIR at {DATA_DIR}")
-    except Exception as e:
-        print(f"[!] Warning: Could not create DATA_DIR: {e}")
+except Exception as e:
+    print(f"[!] Warning: Data storage issues: {e}")
 
 STATS_FILE = os.path.join(DATA_DIR, "stats.json")
 ANALYSIS_HISTORY_FILE = os.path.join(DATA_DIR, "analysis_history.json")
@@ -248,6 +246,8 @@ def load_resources():
     print("[*] Loading AI models and NLTK data...")
     import joblib
     import numpy as np
+    import nltk
+    from bs4 import BeautifulSoup
     
     # 1. NLTK Path Setup
     data_dir = os.path.join(BASE_DIR, "nltk_data")
@@ -271,7 +271,7 @@ def load_resources():
 
     # 3. Model Loading
     try:
-        MODEL_PATH = os.path.join(BASE_DIR, "saved_model", "naive_bayes_model.pkl")
+        MODEL_PATH = os.path.join(BASE_DIR, "saved_model", "svm_high_confidence.pkl")
         VECTORIZER_PATH = os.path.join(BASE_DIR, "saved_model", "fake_real_TF_IDF_vectorizer.pkl")
         ENCODER_PATH = os.path.join(BASE_DIR, "saved_model", "fake_real_label_encoder.pkl")
 
@@ -740,6 +740,11 @@ def admin_page():
 @app.route("/dashboard", methods=["GET"])
 def dashboard_page():
     return no_cache_response('index.html')
+
+@app.route("/api/health", methods=["GET"])
+def health_check():
+    """Lightweight health check for Render/Production."""
+    return jsonify({"status": "Healthy", "timestamp": time.time()}), 200
 
 @app.route("/api/predict", methods=["POST"])
 def predict():
