@@ -1,6 +1,4 @@
-const isLocal = window.location.protocol === "file:";
-const RENDER_URL = "https://tafaftire-detection-system.onrender.com";
-const API_BASE_URL = isLocal ? RENDER_URL : window.location.origin;
+const API_BASE_URL = "https://tafaftire-detection-system.onrender.com";
 
 window.isAnalyzing = false;
 
