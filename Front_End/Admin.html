@@ -759,8 +759,9 @@
     </div>
 
     <script>
-        const API_BASE_URL = window.location.origin;
-        const API_BASE = `${window.location.origin}/api/admin`;
+        // Connect to Render Production Backend
+        const API_BASE_URL = "https://tafaftire-detection-system.onrender.com"; 
+        const API_BASE = `${API_BASE_URL}/api/admin`;
 
         // Auth Logic
         function checkAuth() {
@@ -828,18 +829,24 @@
 
 
         async function loadStats() {
+            const elD = document.getElementById('stat-datasets');
+            const elA = document.getElementById('stat-accuracy');
+            const elM = document.getElementById('stat-messages');
+            const elH = document.getElementById('stat-history-count');
+            
             try {
                 // Show loading state
-                const elD = document.getElementById('stat-datasets');
-                const elA = document.getElementById('stat-accuracy');
-                const elM = document.getElementById('stat-messages');
-                const elH = document.getElementById('stat-history-count');
-
                 if (elD) elD.innerText = "...";
                 if (elA) elA.innerText = "...";
 
+                // Check for file:// protocol
+                if (window.location.protocol === "file:") {
+                    console.error("Fetch failed: You are opening Admin.html as a file. Please open http://localhost:3402/Admin.html instead.");
+                    throw new Error("Local file access");
+                }
+
                 const res = await fetch(`${API_BASE}/stats?t=${Date.now()}`);
-                if (!res.ok) throw new Error(`Stats Fetch Error: ${res.status}`);
+                if (!res.ok) throw new Error(`Server Response: ${res.status}`);
                 
                 const data = await res.json();
 
@@ -847,19 +854,30 @@
                     console.error("Stats API Error:", data.error);
                 }
 
+                // Update cards with real data
                 if (elD) elD.innerText = (data.total_datasets !== undefined) ? data.total_datasets : "0";
                 if (elA) elA.innerText = data.model_accuracy || "94.5%";
                 if (elM) elM.innerText = data.messages_count !== undefined ? data.messages_count : "0";
                 if (elH) elH.innerText = data.history_count !== undefined ? data.history_count : "0";
                 
-                initCharts(data.fake_news_count, data.real_news_count, data.weekly_activity);
+                if (window.initCharts) {
+                    initCharts(data.fake_news_count, data.real_news_count, data.weekly_activity);
+                }
+                
+                console.log("[*] Stats loaded successfully.");
+
             } catch (err) { 
-                console.error("loadStats failed:", err);
-                // Fallback to 0 if fetch fails so it doesn't stay at "..."
-                const elD = document.getElementById('stat-datasets');
-                const elA = document.getElementById('stat-accuracy');
+                console.error("Stats Fetch Failed:", err);
+                
+                // Fallback values for UI so it doesn't stay at "..."
                 if (elD && elD.innerText === "...") elD.innerText = "0";
                 if (elA && elA.innerText === "...") elA.innerText = "94.5%";
+                if (elM && elM.innerText === "...") elM.innerText = "0";
+                if (elH && elH.innerText === "...") elH.innerText = "0";
+                
+                if (window.location.protocol === "file:") {
+                    alert("Cilad: Waxaad fureen faylka Admin.html adigoo isticmaalaya 'File Explorer'.\n\nFadlan browser-ka ku qor: http://localhost:3402/Admin.html");
+                }
             }
         }
 
