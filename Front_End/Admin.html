@@ -761,10 +761,12 @@
     <script>
         // Automatic Path Detection: Works for local, Render, and file protocol
         const isLocalFile = window.location.protocol === "file:";
-        const isWrongPort = window.location.port !== "3402" && !window.location.hostname.includes("render.com");
+        const isRender = window.location.hostname.includes("render.com");
         
-        // If we are on the wrong port/file, hardcode the backend to 3402, otherwise use relative path
-        const BACKEND_URL = (isLocalFile || isWrongPort) ? "http://localhost:3402" : "";
+        // If we are already ON Render, use relative paths ("")
+        const RENDER_PROD_URL = "https://tafaftire-detection-system.onrender.com";
+        const BACKEND_URL = (isLocalFile && !isRender) ? RENDER_PROD_URL : (isRender ? "" : "http://localhost:3402");
+        
         const API_BASE_URL = BACKEND_URL;
         const API_BASE = `${BACKEND_URL}/api/admin`;
 
@@ -883,7 +885,9 @@
                 if (elH && elH.innerText === "...") elH.innerText = "0";
                 
                 if (window.location.protocol === "file:") {
-                    alert("Cilad: Waxaad fureen faylka Admin.html adigoo isticmaalaya 'File Explorer'.\n\nFadlan browser-ka ku qor: http://localhost:3402/Admin.html");
+                    console.log("System is running in Local File mode, connecting to: " + BACKEND_URL);
+                } else {
+                    alert("Cilad: Ma xirna backend-ka ama server-ku waa offline.");
                 }
             }
         }
