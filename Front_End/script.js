@@ -1,4 +1,6 @@
-const API_BASE_URL = "https://tafaftire-detection-system.onrender.com";
+const isLocal = window.location.protocol === "file:";
+const RENDER_URL = "https://tafaftire-detection-system.onrender.com";
+const API_BASE_URL = isLocal ? RENDER_URL : window.location.origin;
 
 window.isAnalyzing = false;
 
@@ -226,7 +228,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         [finalVerdict, aiResult, fcResult].forEach(el => el.innerText = "⏳...");
         [aiConfidence, fcConfidence].forEach(el => el.innerText = "Processing...");
-        finalConfidence.innerText = "Processing...";
+        finalConfidence.innerText = "System validation in progress...";
 
         try {
             const controller = new AbortController();
@@ -269,14 +271,14 @@ document.addEventListener('DOMContentLoaded', () => {
                 fcText = "FAKE INFO";
                 fcResult.innerText = "FAKE INFO";
                 fcResult.style.color = "#ff4757";
-                fcConfidence.innerText = `Confidence: ${fcRes.confidence}`;
+                fcConfidence.innerText = `Expert Score: ${fcRes.confidence}`;
             } else if (fcRatingLower.includes("unverified-clean")) {
                 // Expert found NO objections, deferred to AI
                 fcText = "NO ISSUES";
                 fcResult.innerText = "NO ISSUES FOUND";
                 fcResult.style.color = "#9ca3af";
                 fcResult.style.fontSize = "1.4rem";
-                fcConfidence.innerHTML = `Confidence: ${fcRes.confidence}`;
+                fcConfidence.innerHTML = `<i class="fas fa-shield-alt" style="color:#9ca3af; margin-right:5px;"></i> <span style="color:#9ca3af;">No fake signals detected</span>`;
             } else {
                 // Genuine Unverified (Expert found some concerns but not enough to judge)
                 fcResult.innerText = "UNVERIFIED";
