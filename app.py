@@ -9,6 +9,7 @@ import csv
 import smtplib
 import imaplib
 import email
+from bs4 import BeautifulSoup
 from flask import Flask, request, jsonify, make_response
 from flask_cors import CORS
 from email.header import decode_header
@@ -247,7 +248,6 @@ def load_resources():
     import joblib
     import numpy as np
     import nltk
-    from bs4 import BeautifulSoup
     
     # 1. NLTK Path Setup
     data_dir = os.path.join(BASE_DIR, "nltk_data")
