@@ -1,13 +1,10 @@
 flask
 flask-cors
-gunicorn
 numpy
-requests
 pandas
-joblib
+requests
 beautifulsoup4
-scipy
-nltk>=3.9.1
+nltk
 scikit-learn
-tldextract
-python-dotenv
+joblib
+gunicorn
