@@ -17,10 +17,17 @@ from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 from functools import lru_cache
 
-# ================= FLASK INIT =================
+# ================= SYSTEM ARCHITECTURE (QAAB-DHISMEEDKA SYSTEM-KA) =================
+# 1. FRONTEND: (Front_End/index.html, script.js) - UI-ga uu isticmaalaha arko.
+# 2. BACKEND: (app.py) - Flask API oo xiriirisa AI iyo Fact-check-ka.
+# 3. AI ENGINE: (saved_model/) - SVM Model oo lagu tababaray kumanaan warar Somali/English ah.
+# 4. EXPERT LAYER: (heuristic_fact_check) - Baaritaan Live ah oo internet-ka ah (DuckDuckGo).
+# 5. DATA STORAGE: (~/.tafaftire_system_data) - Meesha ay ku kaydsan yihiin tariikhda iyo xogta.
+# ===================================================================================
+
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 app = Flask(__name__, static_folder='Front_End', static_url_path='')
-app.config['SEND_FILE_MAX_AGE_DEFAULT'] = 0  # Disable caching
+app.config['SEND_FILE_MAX_AGE_DEFAULT'] = 0  # Iska deey caching-ka si isbedeladu u muuqdaan
 
 # Permissive CORS for production stability
 CORS(app, resources={r"/*": {
@@ -237,11 +244,11 @@ somali_stopwords = [
     "aynu", "idinku", "inay", "inuu", "loogu", "una", "isuna", "isku"
 ]
 
-def load_resources():
+def load_resources(force=False):
     """Lazy loader for NLTK, NumPy and AI models to keep startup fast."""
     global model, vectorizer, label_encoder, lemmatizer, stop_words, nltk_initialized
     
-    if nltk_initialized:
+    if nltk_initialized and not force:
         return
 
     print("[*] Loading AI models and NLTK data...")
@@ -561,8 +568,9 @@ UNTRUSTED_PATTERNS = [
 
 def heuristic_fact_check(text, url=None):
     """
-    EXPERT FACT-CHECK: Focuses on Source Reputation and Live Web Verification.
-    Connects to online websites via real-time search and domain validation.
+    EXPERT FACT-CHECK (Hubinta Khubarada):
+    Wuxuu diiradda saaraa Isha warka (Source), Isbarbardhigo Live ah (Live Search), 
+    iyo falanqaynta luuqadda (Linguistic Patterns).
     """
     score = 0
     reasons = []
@@ -570,7 +578,11 @@ def heuristic_fact_check(text, url=None):
     words = text.split()
     
     # Expanded Trusted Sources (Somali & International)
-    ADDITIONAL_TRUSTED = {"hillaac.net", "marqaannews.net", "berberatoday.com", "somalilandpost.net", "shabelle.net"}
+    ADDITIONAL_TRUSTED = {
+        "hillaac.net", "marqaannews.net", "berberatoday.com", "somalilandpost.net", 
+        "shabelle.net", "horufadhi.com", "baargaal.net", "halgan.net", "mareeg.com",
+        "dayniile.com", "badweyntimes.net", "puntlandpost.net", "radiodaljir.com"
+    }
     CURRENT_TRUSTED = TRUSTED_SOURCES.union(ADDITIONAL_TRUSTED)
     
     # 1. Source Reliability (URL / Domain Trust)
@@ -705,25 +717,30 @@ def heuristic_fact_check(text, url=None):
         # Instead of a large negative score, we use a smaller penalty and a flag
         score -= 5 
         reasons.append("Falanqeyn: Qoraalku waa mid kooban (short), mana jiraan ilo rasmi ah oo lagu xaqiijiyay hadda.")
-
-    # Final Confidence & Rating Logic
+    # Final Confidence & Rating Logic (Refined for Clarity)
     confidence_val = 60 + min(39, abs(score) * 0.3)
     
     if is_unrecognized_short_text:
         rating = "Unverified"
+        label_so = "UNVERIFIED"
         confidence_val = 65.0 
     elif is_trusted_domain and score > 0:
         rating = "Trusted"
+        label_so = "OFFICIAL NEWS"
         confidence_val = max(95, confidence_val)
     elif score >= 60:
         rating = "Trusted"
-    elif score <= -40: # Decisive on Fake signals
+        label_so = "OFFICIAL NEWS"
+    elif score <= -40: 
         rating = "Fake"
+        label_so = "FAKE NEWS"
     else:
         rating = "Unverified"
+        label_so = "UNVERIFIED"
 
     return {
         "rating": rating,
+        "label_so": label_so,
         "confidence": f"{int(confidence_val)}%",
         "reasons": reasons,
         "score": score
@@ -924,50 +941,62 @@ def analyze_deep():
         # Expert Fact-Check
         fc_res = heuristic_fact_check(content, input_url)
         
-        # 3. Unified Decision: Highest Confidence Wins
+        # ================= CONSENSUS ENGINE (MASHIINKA GO'AANKA) =================
+        # Halkii aan ka qaadan lahayn kii sareeya oo kaliya, waxaan isbarbardhigaynaa
+        # natiijooyinka si loo helo xaqiiqo sugan.
+        
         ai_conf_num = float(ai_conf.replace("%", ""))
-        # Clean Expert confidence (handles bracketed values like "(98%)")
         fc_conf_str = fc_res.get("confidence", "0").replace("%", "").replace("(", "").replace(")", "")
         fc_conf_num = float(fc_conf_str)
         
+        # 1. Consensus Logic: Haddii ay labaduba isku raaceen (Real + Trusted ama Fake + Fake)
+        agreement = False
+        if (ai_pred == "Real News" and fc_res["rating"] == "Trusted") or \
+           (ai_pred == "Fake news" and fc_res["rating"] == "Fake"):
+            agreement = True
+            
+        # 2. Winning Confidence Selection
         if ai_conf_num >= fc_conf_num:
-            # AI is the winner
             final_label = "REAL NEWS" if ai_pred == "Real News" else "FAKE NEWS"
+            label_so = "OFFICIAL NEWS" if ai_pred == "Real News" else "FAKE NEWS"
             winning_confidence = ai_conf
-            winning_source = "Ai analysis"
+            winning_source = "AI Analysis Engine"
         else:
-            # Expert is the winner
             fc_rating = fc_res.get("rating", "Unverified").lower()
             if "trusted" in fc_rating:
                 final_label = "TRUSTED"
+                label_so = "OFFICIAL NEWS"
             elif "fake" in fc_rating:
                 final_label = "FAKE INFO"
+                label_so = "FAKE NEWS"
             else:
                 final_label = "UNVERIFIED"
+                label_so = "UNVERIFIED"
             
             winning_confidence = fc_res.get("confidence")
-            winning_source = "Expert Fact-check"
+            winning_source = "Expert Verification Logic"
 
-        # SHORT TEXT GUARD: If text is short and neither AI nor Expert is VERY sure (>93%), 
-        # force UNVERIFIED to avoid false labeling on brief inputs.
+        # 3. Conflict Handling: Haddii AI iyo Expert ay is khilaafaan (High Confidence Conflict)
+        if ai_conf_num > 80 and fc_conf_num > 80 and not agreement:
+            final_label = "CONTRADICTORY"
+            label_so = "CONTRADICTORY"
+            winning_source = "System Conflict Detection"
+            fc_res["reasons"].append("Digniin: AI iyo Khubaraadu way isku khilaafeen warkan. Fadlan si taxadar leh u akhri.")
+
+        # 4. SHORT TEXT GUARD
         word_count = len(str(content).split())
-        winning_conf_num = float(str(winning_confidence).replace("%", "").replace("(", "").replace(")", ""))
-        
-        if word_count < 25 and winning_conf_num < 93.0:
+        if word_count < 25 and max(ai_conf_num, fc_conf_num) < 93.0:
             final_label = "UNVERIFIED"
-            winning_confidence = "Lama Xaqiijin" if "so" in str(request.headers.get('Accept-Language', '')) else "Unverified"
-            # If it's Unverified, we should probably still show the numeric confidence but label it clearly
-            winning_confidence = f"Unverified ({int(winning_conf_num)}%)"
+            label_so = "UNVERIFIED (SHORT TEXT)"
+            winning_confidence = f"Unverified ({int(max(ai_conf_num, fc_conf_num))}%)"
 
-
-
-        # ================= Save to History (Safe Block) =================
+        # ================= Save to History =================
         try:
             news_subject = guess_subject(content)
             save_analysis_result(
                 original_input=data.get("data") or data.get("text"),
                 confidence=winning_confidence,
-                label=final_label,
+                label=f"{final_label} ({label_so})",
                 extracted_text=content,
                 data_type=winning_source,
                 ai_score=ai_conf,
@@ -981,6 +1010,7 @@ def analyze_deep():
 
         return jsonify({
             "final_verdict": final_label,
+            "label_so": label_so,
             "winning_confidence": winning_confidence,
             "winning_source": winning_source,
             "ai_res": {
@@ -1048,12 +1078,12 @@ def fact_check():
         
         # Somali Labels
         rating_str = fact_result.get("rating", "unverified").lower()
-        somali_label = "Lama xaqiijin"
+        somali_label = "UNVERIFIED"
         
         if "trusted" in rating_str: 
-            somali_label = "TRUSTED"
+            somali_label = "OFFICIAL NEWS"
         elif "fake" in rating_str:
-            somali_label = "FAKE INFO"
+            somali_label = "FAKE NEWS"
         else:
             somali_label = "UNVERIFIED"
 
@@ -1197,7 +1227,18 @@ ADMIN_CREDENTIALS = {
     "password": "password123" # In production, use env variables and hashing
 }
 
+def admin_required(f):
+    from functools import wraps
+    @wraps(f)
+    def decorated(*args, **kwargs):
+        token = request.headers.get("Authorization")
+        if not token or token != "admin-session-token-123":
+            return jsonify({"success": False, "message": "Access Denied: Authentication required"}), 401
+        return f(*args, **kwargs)
+    return decorated
+
 @app.route("/api/admin/debug/paths", methods=["GET"])
+@admin_required
 def debug_paths():
     dataset_dir = os.path.join(BASE_DIR, "Dataset")
     return jsonify({
@@ -1229,6 +1270,7 @@ def serve_index():
     return app.send_static_file('index.html')
 
 @app.route("/api/admin/stats", methods=["GET"])
+@admin_required
 def admin_stats():
     """Robust stats calculation for Admin Dashboard."""
     try:
@@ -1313,6 +1355,7 @@ def admin_stats():
         })
 
 @app.route("/api/admin/analysis_history", methods=["GET"])
+@admin_required
 def get_analysis_history():
     try:
         if not os.path.exists(ANALYSIS_HISTORY_FILE):
@@ -1324,6 +1367,7 @@ def get_analysis_history():
         return jsonify({"error": str(e)}), 500
 
 @app.route("/api/admin/analysis_history/delete", methods=["POST"])
+@admin_required
 def delete_analysis_history():
     try:
         data = request.get_json()
@@ -1347,6 +1391,7 @@ def delete_analysis_history():
         return jsonify({"success": False, "message": str(e)}), 500
 
 @app.route("/api/admin/analysis_history/clear", methods=["POST"])
+@admin_required
 def clear_analysis_history():
     try:
         with open(ANALYSIS_HISTORY_FILE, "w", encoding="utf-8") as f:
@@ -1356,6 +1401,7 @@ def clear_analysis_history():
         return jsonify({"success": False, "message": str(e)}), 500
 
 @app.route("/api/admin/analysis_history/sync_all", methods=["POST"])
+@admin_required
 def sync_history_to_dataset():
     """
     Manually triggers a bulk sync of all analysis history into the training datasets.
@@ -1426,6 +1472,7 @@ def api_save_history():
         return jsonify({"success": False, "message": str(e)}), 500
 
 @app.route("/api/admin/retrain", methods=["POST"])
+@admin_required
 def retrain_model():
     try:
         # Check if already training
@@ -1458,6 +1505,7 @@ def retrain_model():
         return jsonify({"success": False, "message": str(e)}), 500
 
 @app.route("/api/admin/retrain_status", methods=["GET"])
+@admin_required
 def retrain_status():
     flag_file = os.path.join(DATA_DIR, "training_in_progress.flag")
     is_training = os.path.exists(flag_file)
@@ -1466,7 +1514,17 @@ def retrain_status():
         "message": "Tababarku waa socdaa..." if is_training else "Tababarku waa diyaar."
     })
 
+@app.route("/api/admin/reload_models", methods=["POST"])
+def reload_models_route():
+    """Forces the app to reload the SVM and Vectorizer files from disk."""
+    try:
+        load_resources(force=True)
+        return jsonify({"success": True, "message": "Moodalada AI-ga waa la cusubaysiiyey (Reloaded)!"})
+    except Exception as e:
+        return jsonify({"success": False, "message": str(e)}), 500
+
 @app.route("/api/admin/datasets", methods=["GET"])
+@admin_required
 def list_datasets():
     try:
         dataset_dir = os.path.join(BASE_DIR, "Dataset")
