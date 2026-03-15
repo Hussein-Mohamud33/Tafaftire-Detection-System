@@ -198,9 +198,9 @@ def heuristic_fact_check(text, url=None):
         elif m == 1: s += 40
     if sum(1 for p in BAD_P if p in t_l) >= 3: s -= 50; r.append("Sensationalist language.")
     conf = 60 + min(39, abs(s) * 0.4)
-    if is_t: rating, lbl, conf = "Trusted", "OFFICIAL NEWS", max(95, conf)
-    elif s >= 50: rating, lbl = "Trusted", "OFFICIAL NEWS"
-    elif s <= -30: rating, lbl = "Fake", "FAKE NEWS"
+    if is_t: rating, lbl, conf = "Trusted", max(95, conf)
+    elif s >= 50: rating, lbl = "Trusted", max(95, conf)
+    elif s <= -30: rating, lbl = "Fake News", max(95, conf)
     else: rating, lbl = "Unverified", "UNVERIFIED"
     return {"rating": rating, "label_so": lbl, "confidence": f"{int(conf)}%", "reasons": r}
 
