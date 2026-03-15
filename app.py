@@ -152,6 +152,14 @@ def extract_text_from_url(url):
         return (txt if len(txt) > 100 else s.get_text(separator=" ", strip=True))[:8000], title.strip()
     except Exception as e: raise Exception(f"URL Error: {str(e)}")
 
+def is_extreme_claim(t):
+    words = ["100 sano", "mucjiso", "lacag bilaash", "mirecle", "cure", "hal charge"]
+    return int(any(w in t.lower() for w in words))
+
+def is_vague_source(t):
+    words = ["khubaro ayaa sheegay", "warar la helayo", "ilo wareedyo", "daraasad ayaa sheegtay"]
+    return int(any(w in t.lower() for w in words))
+
 # ================= SEARCH & FACT CHECK =================
 @lru_cache(maxsize=128)
 def search_duckduckgo(q):
@@ -218,7 +226,11 @@ def analyze():
         if u and not u.startswith("http"): u = "https://" + u
         content, title = extract_text_from_url(u) if u else (orig, orig[:60]+"...")
         X = vectorizer.transform([preprocess_text(content)])
-        raw = model.decision_function(X.toarray())[0] if model else 0
+        
+        # [FIX] Added Meta-features to match training (12000 + 2 = 12002)
+        X = np.hstack([X.toarray(), np.array([[is_extreme_claim(content), is_vague_source(content)]])])
+        
+        raw = model.decision_function(X)[0] if model else 0
         ai_p, ai_c = ("Real News" if raw >= 0 else "Fake news"), (1 / (1 + np.exp(-abs(raw * 2.0)))) * 100
         if len(content.split()) < 20 and -0.8 < raw < 0: ai_p = "Real News"
         fc = heuristic_fact_check(content, u); fcn = float(fc["confidence"].replace("%", ""))
