@@ -849,7 +849,12 @@ def predict():
         
         # SHORT TEXT GUARD: If text is short and not extremely certain, use Unverified
         word_count = len(content.split())
-        if word_count < 25 and ai_conf < 93.0:
+        
+        # [NEW] Anti-Bias for Short Text in basic scan:
+        if word_count < 20 and final_ai_score < 0 and final_ai_score > -0.5:
+             ai_pred = "Real News" # Bias towards Real for very short weak fake signals
+        
+        if word_count < 28 and ai_conf < 94.0:
             ai_pred = "Unverified"
             ai_conf_str = f"Unverified ({int(ai_conf)}%)"
         
@@ -935,8 +940,25 @@ def analyze_deep():
         ai_conf_num = (1 / (1 + np.exp(-abs(final_ai_score * 2.0)))) * 100
         ai_conf = f"{min(99.0, max(60.0, ai_conf_num)):.2f}%"
         
+        # AI Prediction with Short Text Adjustment
         ai_pred = "Real News" if final_ai_score >= 0.0 else "Fake news"
-        print(f"[*] DEEP AI SCAN (Pure Model) - Raw Score: {final_ai_score:.4f}")
+        
+        # [NEW] Enhanced Short Text Accuracy:
+        # Instead of just blocking short text, we refine the score.
+        word_count = len(str(content).split())
+        if word_count < 25:
+            # If AI thinks it's fake but the score isn't extremely high, 
+            # we lower the confidence because short texts are prone to false positives.
+            if final_ai_score < 0 and final_ai_score > -1.5:
+                # Weak fake signal for short text -> Treat as uncertain/Real
+                ai_conf_num = ai_conf_num * 0.8
+                if final_ai_score > -0.8: ai_pred = "Real News" 
+            elif final_ai_score >= 0:
+                # Real signals for short text are usually more reliable if they match official patterns
+                ai_conf_num = min(92, ai_conf_num)
+        
+        ai_conf = f"{ai_conf_num:.2f}%"
+        print(f"[*] DEEP AI SCAN (Refined) - Score: {final_ai_score:.4f} | Prediction: {ai_pred}")
 
         # Expert Fact-Check
         fc_res = heuristic_fact_check(content, input_url)
@@ -983,12 +1005,22 @@ def analyze_deep():
             winning_source = "System Conflict Detection"
             fc_res["reasons"].append("Digniin: AI iyo Khubaraadu way isku khilaafeen warkan. Fadlan si taxadar leh u akhri.")
 
-        # 4. SHORT TEXT GUARD
-        word_count = len(str(content).split())
-        if word_count < 25 and max(ai_conf_num, fc_conf_num) < 93.0:
+        # 4. NUANCED SHORT TEXT LOGIC
+        # If text is short, we only give a definitive verdict if confidence is very high
+        # otherwise we use 'SUSPICIOUS' or 'POTENTIAL' instead of hard 'FAKE' or 'UNVERIFIED'.
+        if word_count < 30:
+            if final_label == "FAKE NEWS" and max(ai_conf_num, fc_conf_num) < 95:
+                final_label = "SUSPICIOUS"
+                label_so = "POTENTIAL FAKE" # User wanted "sax", so we be more specific than unverified
+            elif final_label == "UNVERIFIED" and max(ai_conf_num, fc_conf_num) > 85:
+                # If it was unverified but has decent confidence, let the AI verdict through
+                final_label = "REAL NEWS" if ai_pred == "Real News" else "FAKE NEWS"
+                label_so = "OFFICIAL NEWS" if ai_pred == "Real News" else "FAKE NEWS"
+        
+        # FINAL GUARD: If it still feels like a total guess (<70%)
+        if max(ai_conf_num, fc_conf_num) < 70:
             final_label = "UNVERIFIED"
-            label_so = "UNVERIFIED (SHORT TEXT)"
-            winning_confidence = f"Unverified ({int(max(ai_conf_num, fc_conf_num))}%)"
+            label_so = "UNVERIFIED"
 
         # ================= Save to History =================
         try:
