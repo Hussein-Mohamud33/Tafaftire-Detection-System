@@ -10,135 +10,93 @@
         rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <style>
-        :root {
-            --deep-ocean: linear-gradient(135deg, #0F2027, #203A43, #2C5364);
-            --hybrid-gradient: linear-gradient(135deg, #007bff 0%, #ff9f1c 100%);
-            --accent-orange: #ff9f1c;
-            --text-white: #ffffff;
-            --text-gray: #b8c5d6;
-        }
-
         body {
-            background: var(--deep-ocean);
+            background: #1a1c23;
             display: flex;
             justify-content: center;
             align-items: center;
             height: 100vh;
             margin: 0;
             font-family: 'Poppins', sans-serif;
-            color: var(--text-white);
         }
 
         .login-card {
-            background: rgba(32, 58, 67, 0.4);
-            backdrop-filter: blur(20px);
-            padding: 50px 40px;
-            border-radius: 24px;
-            box-shadow: 0 25px 50px rgba(15, 32, 39, 0.7);
+            background: #24262d;
+            padding: 40px;
+            border-radius: 15px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
             width: 100%;
-            max-width: 420px;
+            max-width: 400px;
             text-align: center;
-            border: 1px solid rgba(255, 255, 255, 0.1);
-            animation: fadeIn 0.8s ease-out;
-        }
-
-        @keyframes fadeIn {
-            from {
-                opacity: 0;
-                transform: translateY(20px);
-            }
-
-            to {
-                opacity: 1;
-                transform: translateY(0);
-            }
+            border: 1px solid rgba(255, 255, 255, 0.05);
         }
 
         .login-card h2 {
             color: #fff;
-            margin-bottom: 35px;
-            font-weight: 700;
-            letter-spacing: 2px;
-            text-transform: uppercase;
-            font-size: 1.8rem;
+            margin-bottom: 30px;
+            font-weight: 600;
         }
 
         .form-group {
-            margin-bottom: 25px;
+            margin-bottom: 20px;
             text-align: left;
         }
 
         .form-group label {
             display: block;
-            color: var(--text-gray);
-            margin-bottom: 10px;
-            font-size: 0.95rem;
-            font-weight: 500;
+            color: #8a8d93;
+            margin-bottom: 8px;
+            font-size: 0.9rem;
         }
 
         .form-group input {
             width: 100%;
-            padding: 15px 18px;
-            background: rgba(15, 32, 39, 0.5);
-            border: 2px solid rgba(255, 255, 255, 0.1);
-            border-radius: 12px;
+            padding: 12px 15px;
+            background: #1a1c23;
+            border: 1px solid #3f4249;
+            border-radius: 8px;
             color: #fff;
             outline: none;
             transition: 0.3s;
             box-sizing: border-box;
-            font-size: 1rem;
         }
 
         .form-group input:focus {
-            border-color: var(--accent-orange);
-            background: rgba(15, 32, 39, 0.7);
+            border-color: #ff9f1c;
         }
 
         .login-btn {
             width: 100%;
-            padding: 18px;
-            background: var(--hybrid-gradient);
+            padding: 12px;
+            background: #ff9f1c;
             border: none;
-            border-radius: 12px;
+            border-radius: 8px;
             color: #fff;
-            font-weight: 800;
-            font-size: 1.1rem;
+            font-weight: 600;
             cursor: pointer;
-            transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-            margin-top: 20px;
-            text-transform: uppercase;
-            letter-spacing: 2px;
-            box-shadow: 0 10px 20px rgba(0, 123, 255, 0.2);
+            transition: 0.3s;
+            margin-top: 10px;
         }
 
         .login-btn:hover {
-            transform: translateY(-5px);
-            box-shadow: 0 15px 30px rgba(255, 159, 28, 0.3);
-            filter: brightness(1.1);
+            background: #f38d00;
+            transform: translateY(-2px);
         }
 
         .error-msg {
             color: #ff5c5c;
-            font-size: 0.9rem;
-            margin-top: 20px;
+            font-size: 0.85rem;
+            margin-top: 15px;
             display: none;
-            font-weight: 600;
-            background: rgba(255, 92, 92, 0.1);
-            padding: 12px;
-            border-radius: 8px;
         }
 
         .logo-area {
-            margin-bottom: 25px;
+            margin-bottom: 20px;
         }
 
         .logo-area i {
-            font-size: 4rem;
-            background: var(--hybrid-gradient);
-            -webkit-background-clip: text;
-            background-clip: text;
-            -webkit-text-fill-color: transparent;
-            filter: drop-shadow(0 0 10px rgba(255, 159, 28, 0.3));
+            font-size: 3rem;
+            color: #ff9f1c;
         }
     </style>
 </head>
@@ -167,10 +125,8 @@
             const pass = document.getElementById('password').value;
             const errorDiv = document.getElementById('error');
 
-            const API_BASE_URL = 'https://tafaftire-detection-system.onrender.com';
-
             try {
-                const response = await fetch(`${API_BASE_URL}/api/admin/login`, {
+                const response = await fetch(window.location.origin + '/api/admin/login', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ username: user, password: pass })
