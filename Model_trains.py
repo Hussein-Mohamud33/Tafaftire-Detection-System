@@ -52,7 +52,8 @@ somali_stopwords = [
     "yahay", "yihiin", "ahayd", "ahaa", "noqday", "noqon", "leh", "leeyihiin",
     "kala", "hore", "danbe", "dhammaan", "kasta", "badnaa", "yar", "weyn",
     "waxa", "waxaa", "ila", "mid", "halkaas", "halkan", "door", "qaatay",
-    "kaasoo", "ayadoo", "isagaa", "iyadaa", "kuwaasoo", "hadana", "maxaa", "maxay"
+    "kaasoo", "ayadoo", "isagaa", "iyadaa", "kuwaasoo", "hadana", "maxaa", "maxay",
+    "aynu", "idinku", "inay", "inuu", "loogu", "una", "isuna", "isku"
 ]
 stop_words.update(somali_stopwords)
 
@@ -254,4 +255,16 @@ def main():
     print("\nDHAMAAN HAWLII WAA LA DHAMEEYSTIRAY")
 
 if __name__ == "__main__":
-    main()
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--flag", help="Path to training progress flag file")
+    args = parser.parse_args()
+    
+    try:
+        main()
+    finally:
+        if args.flag and os.path.exists(args.flag):
+            try:
+                os.remove(args.flag)
+                print(f"[*] Cleanup: Removed flag file {args.flag}")
+            except:
+                pass
