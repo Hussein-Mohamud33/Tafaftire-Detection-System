@@ -198,11 +198,11 @@ def heuristic_fact_check(text, url=None):
         elif m == 1: s += 40
     if sum(1 for p in BAD_P if p in t_l) >= 3: s -= 50; r.append("Sensationalist language.")
     conf = 60 + min(39, abs(s) * 0.4)
-    if is_t: rating, lbl, conf = "Trusted", max(95, conf)
-    elif s >= 50: rating, lbl = "Trusted", max(95, conf)
-    elif s <= -30: rating, lbl = "Fake News", max(95, conf)
-    else: rating, lbl = "Unverified", "UNVERIFIED"
-    return {"rating": rating, "label_so": lbl, "confidence": f"{int(conf)}%", "reasons": r}
+    if is_t: rating, conf = "Trusted", max(95, conf)
+    elif s >= 50: rating, conf = "Trusted", max(95, conf)
+    elif s <= -30: rating, conf = "Fake News", max(95, conf)
+    else: rating = "Unverified"
+    return {"rating": rating, "confidence": f"{int(conf)}%", "reasons": r}
 
 # ================= ROUTES =================
 @app.route("/", methods=["GET"])
@@ -234,10 +234,10 @@ def analyze():
         ai_p, ai_c = ("Real News" if raw >= 0 else "Fake news"), (1 / (1 + np.exp(-abs(raw * 2.0)))) * 100
         if len(content.split()) < 20 and -0.8 < raw < 0: ai_p = "Real News"
         fc = heuristic_fact_check(content, u); fcn = float(fc["confidence"].replace("%", ""))
-        final, winning_c, src = (("OFFICIAL NEWS" if ai_p == "Real News" else "FAKE NEWS"), f"{ai_c:.1f}%", "AI Engine") if ai_c >= fcn else (fc["label_so"], fc["confidence"], "Expert Logic")
+        final, winning_c, src = (("OFFICIAL NEWS" if ai_p == "Real News" else "FAKE NEWS"), f"{ai_c:.1f}%", "AI Engine") if ai_c >= fcn else (fc["rating"].upper(), fc["confidence"], "Expert Logic")
         if len(content.split()) < 30 and final == "FAKE NEWS" and max(ai_c, fcn) < 95: final = "SUSPICIOUS"
         save_analysis_result(orig, winning_c, final, content, src, f"{ai_c:.1f}%", fc["confidence"], title, u or "N/A", guess_subject(content))
-        return jsonify({"final_verdict": final, "label_so": final, "winning_confidence": winning_c, "winning_source": src, "ai_res": {"prediction": ai_p, "confidence": f"{ai_c:.1f}%"}, "fc_res": fc, "title": title, "status": "success"})
+        return jsonify({"final_verdict": final, "winning_confidence": winning_c, "winning_source": src, "ai_res": {"prediction": ai_p, "confidence": f"{ai_c:.1f}%"}, "fc_res": fc, "title": title, "status": "success"})
     except Exception as e: return jsonify({"error": str(e)}), 500
 
 # ================= ADMIN =================
