@@ -300,13 +300,12 @@ document.addEventListener('DOMContentLoaded', () => {
 
             // === FINAL VERDICT: Use Server's Calculated Winning Confidence ===
             const finalLabelToDisplay = data.final_verdict || "UNVERIFIED";
-            const labelSo = data.label_so || "";
 
             // Priority: Server-calculated winning_confidence, then fallback
             let finalConfToDisplay = data.winning_confidence || aiRes.confidence;
             let finalSourceToDisplay = data.winning_source ? `${data.winning_source}` : "Unified Verification Engine";
 
-            finalVerdict.innerText = `${finalLabelToDisplay} \n (${labelSo})`;
+            finalVerdict.innerText = finalLabelToDisplay;
             finalConfidence.innerText = `Confidence: ${finalConfToDisplay}`;
             finalSource.innerText = `Source: ${finalSourceToDisplay}`;
 
