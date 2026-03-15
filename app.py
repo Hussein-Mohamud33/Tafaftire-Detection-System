@@ -722,25 +722,20 @@ def heuristic_fact_check(text, url=None):
     
     if is_unrecognized_short_text:
         rating = "Unverified"
-        label_so = "UNVERIFIED"
         confidence_val = 65.0 
     elif is_trusted_domain and score > 0:
         rating = "Trusted"
-        label_so = "OFFICIAL NEWS"
         confidence_val = max(95, confidence_val)
     elif score >= 60:
         rating = "Trusted"
-        label_so = "OFFICIAL NEWS"
     elif score <= -40: 
         rating = "Fake"
         label_so = "FAKE NEWS"
     else:
         rating = "Unverified"
-        label_so = "UNVERIFIED"
 
     return {
         "rating": rating,
-        "label_so": label_so,
         "confidence": f"{int(confidence_val)}%",
         "reasons": reasons,
         "score": score
