@@ -584,6 +584,7 @@ def heuristic_fact_check(text, url=None):
         "dayniile.com", "badweyntimes.net", "puntlandpost.net", "radiodaljir.com"
     }
     CURRENT_TRUSTED = TRUSTED_SOURCES.union(ADDITIONAL_TRUSTED)
+    untrusted_matches = sum(1 for p in UNTRUSTED_PATTERNS if p in text_lower)
     
     # 1. Source Reliability (URL / Domain Trust)
     is_trusted_domain = False
@@ -694,8 +695,6 @@ def heuristic_fact_check(text, url=None):
                 reasons.append("Falanqeyn: Ma jirto xog rasmi ah oo laga helay internet-ka, balse qoraalka qaabkiisu waa mid hagaagsan.")
 
     # 3. Linguistic & Structural Patterns (Expert Layer)
-    untrusted_matches = sum(1 for p in UNTRUSTED_PATTERNS if p in text_lower)
-    
     if untrusted_matches >= 4:
         score -= (15 * untrusted_matches)
         reasons.append(f"Digniin Expert: Waxaa la helay {untrusted_matches} calaamadood oo muujinaya in qoraalku isticmaalayo luuqad dareen kicin ah (Sensationalist).")
@@ -722,20 +721,25 @@ def heuristic_fact_check(text, url=None):
     
     if is_unrecognized_short_text:
         rating = "Unverified"
+        label_so = "UNVERIFIED"
         confidence_val = 65.0 
     elif is_trusted_domain and score > 0:
         rating = "Trusted"
+        label_so = "OFFICIAL NEWS"
         confidence_val = max(95, confidence_val)
     elif score >= 60:
         rating = "Trusted"
+        label_so = "OFFICIAL NEWS"
     elif score <= -40: 
         rating = "Fake"
         label_so = "FAKE NEWS"
     else:
         rating = "Unverified"
+        label_so = "UNVERIFIED"
 
     return {
         "rating": rating,
+        "label_so": label_so,
         "confidence": f"{int(confidence_val)}%",
         "reasons": reasons,
         "score": score
