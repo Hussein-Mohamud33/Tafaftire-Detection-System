@@ -215,6 +215,19 @@ def serve():
 @app.route("/api/health")
 def health(): return jsonify({"status": "OK", "t": time.time()})
 
+def guess_subject(t):
+    t = t.lower()
+    mapping = {
+        "Politics": ["doorasho", "siyaasad", "dawlad", "xukum", "parliament", "election", "minister"],
+        "Health": ["caafimaad", "isbitaal", "covid", "virus", "dawo", "dhakhtar", "health", "medical"],
+        "Technology": ["teknooloji", "internet", "app", "phone", "social media", "computer", "digital"],
+        "Sports": ["ciyaaraha", "kubadda", "football", "goal", "fifa", "match", "team"],
+        "Economy": ["dhaqaale", "lacag", "shilin", "dollar", "bangiga", "suuq", "business", "market"]
+    }
+    for sub, keys in mapping.items():
+        if any(k in t for k in keys): return sub
+    return "General"
+
 @app.route("/api/analyze_deep", methods=["POST"])
 def analyze():
     try:
@@ -318,8 +331,23 @@ def save_ds():
 @admin_req
 def retrain():
     import subprocess, sys
-    subprocess.Popen([sys.executable, os.path.join(BASE_DIR, "Model_trains.py")])
+    flag = os.path.join(DATA_DIR, "training.flag")
+    with open(flag, "w") as f: f.write("1")
+    subprocess.Popen([sys.executable, os.path.join(BASE_DIR, "Model_trains.py"), "--flag", flag])
     return jsonify({"success": True})
+
+@app.route("/api/admin/retrain_status")
+@admin_req
+def retrain_status():
+    return jsonify({"is_training": os.path.exists(os.path.join(DATA_DIR, "training.flag"))})
+
+@app.route("/api/admin/reload_models", methods=["POST"])
+@admin_req
+def reload_models():
+    try:
+        load_resources(force=True)
+        return jsonify({"success": True, "message": "Models reloaded"})
+    except Exception as e: return jsonify({"success": False, "message": str(e)})
 
 @app.route("/api/admin/logs")
 @admin_req
