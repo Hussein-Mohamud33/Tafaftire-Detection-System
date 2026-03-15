@@ -225,10 +225,20 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
 
-        resultContainer.style.display = "flex"; // Changed from grid to flex for better vertical stacking
-        [aiResultCard, fcResultCard, unifiedVerdictCard].forEach(card => card.classList.remove("hidden"));
-        [aiResult, fcResult, unifiedVerdict].forEach(el => el.innerText = "⏳...");
-        [aiConfidence, fcConfidence, unifiedConfidence].forEach(el => el.innerText = "Loading...");
+        if (resultContainer) resultContainer.style.display = "flex"; // Changed from grid to flex for better vertical stacking
+        
+        [aiResultCard, fcResultCard, unifiedVerdictCard].forEach(card => {
+            if (card) card.classList.remove("hidden");
+        });
+
+        [aiResult, fcResult, unifiedVerdict].forEach(el => {
+            if (el) el.innerText = "⏳...";
+        });
+
+        [aiConfidence, fcConfidence, unifiedConfidence].forEach(el => {
+            if (el) el.innerText = "Loading...";
+        });
+
         if (winnerSource) winnerSource.innerText = "Processing...";
         if (fcReasons) fcReasons.innerHTML = "";
 
@@ -248,13 +258,15 @@ document.addEventListener('DOMContentLoaded', () => {
             let aiConfVal = 0;
             if (aiSuccess) {
                 const aiIsTrusted = aiRes.prediction.includes("Trusted");
-                aiResult.innerText = aiIsTrusted ? "REAL" : "FAKE";
-                aiResult.style.color = aiIsTrusted ? "#2ecc71" : "#ff4757";
-                aiConfidence.innerText = `Confidence: ${aiRes.confidence}`;
+                if (aiResult) {
+                    aiResult.innerText = aiIsTrusted ? "REAL" : "FAKE";
+                    aiResult.style.color = aiIsTrusted ? "#2ecc71" : "#ff4757";
+                }
+                if (aiConfidence) aiConfidence.innerText = `Confidence: ${aiRes.confidence}`;
                 aiConfVal = parseFloat(aiRes.confidence.replace('%', '')) || 0;
             } else {
-                aiResult.innerText = "Error";
-                aiConfidence.innerText = "Check Failed";
+                if (aiResult) aiResult.innerText = "Error";
+                if (aiConfidence) aiConfidence.innerText = "Check Failed";
             }
 
             // 2. Expert Result Process
@@ -262,9 +274,11 @@ document.addEventListener('DOMContentLoaded', () => {
             let fcConfVal = 0;
             if (fcSuccess) {
                 const fcIsTrusted = fcRes.rating.toLowerCase().includes("trusted");
-                fcResult.innerText = fcIsTrusted ? "TRUSTED" : "UNVERIFIED";
-                fcResult.style.color = fcIsTrusted ? "#2ecc71" : "#ff4757";
-                fcConfidence.innerText = `Expert Score: ${fcRes.confidence}`;
+                if (fcResult) {
+                    fcResult.innerText = fcIsTrusted ? "TRUSTED" : "UNVERIFIED";
+                    fcResult.style.color = fcIsTrusted ? "#2ecc71" : "#ff4757";
+                }
+                if (fcConfidence) fcConfidence.innerText = `Expert Score: ${fcRes.confidence}`;
                 fcConfVal = parseFloat(fcRes.confidence.replace('%', '')) || 0;
 
                 /* 
@@ -288,19 +302,23 @@ document.addEventListener('DOMContentLoaded', () => {
             // Pick the source with the highest confidence
             if (aiSuccess || fcSuccess) {
                 if (aiConfVal >= fcConfVal) {
-                    unifiedVerdict.innerText = aiResult.innerText;
-                    unifiedVerdict.style.color = aiResult.style.color;
-                    unifiedConfidence.innerText = `Confidence: ${aiRes.confidence}`;
-                    winnerSource.innerText = "Source: AI Model Analysis";
+                    if (unifiedVerdict) {
+                        unifiedVerdict.innerText = aiResult ? aiResult.innerText : (aiIsTrusted ? "REAL" : "FAKE");
+                        unifiedVerdict.style.color = aiResult ? aiResult.style.color : (aiIsTrusted ? "#2ecc71" : "#ff4757");
+                    }
+                    if (unifiedConfidence) unifiedConfidence.innerText = `Confidence: ${aiRes.confidence}`;
+                    if (winnerSource) winnerSource.innerText = "Source: AI Model Analysis";
                 } else {
-                    unifiedVerdict.innerText = fcResult.innerText;
-                    unifiedVerdict.style.color = fcResult.style.color;
-                    unifiedConfidence.innerText = `Expert Score: ${fcRes.confidence}`;
-                    winnerSource.innerText = "Source: Expert Fact-Check";
+                    if (unifiedVerdict) {
+                        unifiedVerdict.innerText = fcResult ? fcResult.innerText : (fcIsTrusted ? "TRUSTED" : "UNVERIFIED");
+                        unifiedVerdict.style.color = fcResult ? fcResult.style.color : (fcIsTrusted ? "#2ecc71" : "#ff4757");
+                    }
+                    if (unifiedConfidence) unifiedConfidence.innerText = `Expert Score: ${fcRes.confidence}`;
+                    if (winnerSource) winnerSource.innerText = "Source: Expert Fact-Check";
                 }
             } else {
-                unifiedVerdict.innerText = "N/A";
-                winnerSource.innerText = "No Result";
+                if (unifiedVerdict) unifiedVerdict.innerText = "N/A";
+                if (winnerSource) winnerSource.innerText = "No Result";
             }
 
             // 4. Save history
@@ -373,8 +391,10 @@ document.addEventListener('DOMContentLoaded', () => {
             e.preventDefault();
             if (newsText) newsText.value = "";
             if (newsURL) newsURL.value = "";
-            resultContainer.style.display = "none";
-            [aiResultCard, fcResultCard, unifiedVerdictCard].forEach(card => card.classList.add("hidden"));
+            if (resultContainer) resultContainer.style.display = "none";
+            [aiResultCard, fcResultCard, unifiedVerdictCard].forEach(card => {
+                if (card) card.classList.add("hidden");
+            });
             if (unifiedVerdict) unifiedVerdict.innerText = "";
             if (fcReasons) fcReasons.innerHTML = "";
             clearError();
