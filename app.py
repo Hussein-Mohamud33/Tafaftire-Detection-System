@@ -13,20 +13,25 @@ from nltk.stem import WordNetLemmatizer
 import subprocess
 import json
 import time
-from bs4 import BeautifulSoup
-import pandas as pd
+import random
+import csv
 import smtplib
 import imaplib
 import email
 from email.header import decode_header
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
+from bs4 import BeautifulSoup
+import pandas as pd
+from scipy.sparse import issparse
 
 # ================= FLASK INIT =================
 app = Flask(__name__, static_folder='Front_End', static_url_path='')
 app.config['SEND_FILE_MAX_AGE_DEFAULT'] = 0  # Disable caching
-app.secret_key = os.environ.get("SECRET_KEY") # No hardcoded default
+app.secret_key = os.environ.get("SECRET_KEY", "tafaftire-fallback-secret-key")
 CORS(app, resources={r"/*": {"origins": "*"}}, supports_credentials=True)
+
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
 # Define DATA_DIR outside the workspace to prevent Live Server reloads
 # We store it in the user's home directory
@@ -80,7 +85,6 @@ def save_analysis_result(original_input, confidence, label, extracted_text=None,
                 return True # Return true because it's already "saved" from the user perspective
                 
         # Create unique ID
-        import random
         item_id = int(time.time() * 1000) + random.randint(1, 999)
         
         # Auto-detect link if not provided
@@ -172,10 +176,10 @@ def add_to_dataset(text, label, link="N/A", title="N/A", subject="General"):
         # Create new record structure
         # Ensure values are not too long for the CSV preview
         new_data = {
-            "link": str(link)[:500],
-            "title": str(title)[:200],
-            "Text": str(text),
-            "Subject": str(subject)[:100],
+            "link": f"{link}"[:500],
+            "title": f"{title}"[:200],
+            "Text": f"{text}",
+            "Subject": f"{subject}"[:100],
             "label": numerical_label
         }
         
@@ -268,6 +272,7 @@ def preprocess_text(text):
 
 def is_url(text):
     """Fast URL detection."""
+    if not isinstance(text, str): return False
     return bool(URL_PATTERN.match(text.strip()))
 
 def guess_subject(text):
@@ -330,11 +335,9 @@ def extract_text_from_url(url):
         print(f"URL Extracted {len(extracted_text)} chars from {url}")
         return extracted_text.strip(), page_title.strip()
     except Exception as e:
-        print(f"Error extracting from {url}: {e}")
-        return "", "Error Extracting Title"
-    except Exception as e:
         print(f"URL Extract Error: {e}")
-        raise Exception(f"Kahortaga Nidaamka: {str(e)}")
+        # Return empty values rather than raising to allow the system to handle it gracefully
+        return "", "Error Extracting Title"
 
 # ================= EXTRA FEATURES =================
 def is_extreme_claim(text):
@@ -356,7 +359,6 @@ def get_model_assets():
     global _model, _vectorizer, _label_encoder
     if _model is None:
         try:
-            BASE_DIR = os.path.dirname(os.path.abspath(__file__))
             MODEL_PATH = os.path.join(BASE_DIR, "saved_model", "svm_high_confidence.pkl")
             VECTORIZER_PATH = os.path.join(BASE_DIR, "saved_model", "fake_real_TF_IDF_vectorizer.pkl")
             ENCODER_PATH = os.path.join(BASE_DIR, "saved_model", "fake_real_label_encoder.pkl")
@@ -507,6 +509,7 @@ def dashboard_page():
 
 @app.route("/api/predict", methods=["POST"])
 def predict():
+    global global_stats
     try:
         global_stats["requests_handled"] = global_stats.get("requests_handled", 0) + 1
         save_stats(global_stats)
@@ -549,7 +552,11 @@ def predict():
 
         else:
             # Use a snippet of text as title for text inputs
-            page_title = content[:60] + "..." if len(content) > 60 else content
+            snippet_text = str(content)
+            if len(snippet_text) > 60:
+                page_title = f"{snippet_text[:60]}..."
+            else:
+                page_title = snippet_text
         
         # Guess subject
         news_subject = guess_subject(content)
@@ -563,11 +570,13 @@ def predict():
             return jsonify({"error": "AI model is currently unavailable"}), 503
 
         # Vectorize
-        X = vectorizer.transform([clean_input])
+        # Ensure clean_input is a list for transform
+        X = vectorizer.transform([str(clean_input)])
         ext = is_extreme_claim(content)
         vague = is_vague_source(content)
         
-        X_dense = X.toarray()
+        # Convert to array for stacking if it's sparse
+        X_dense = X.toarray() if hasattr(X, "toarray") else X
         X = np.hstack([X_dense, np.array([[ext, vague]])])
 
         # ================= Hybrid Decision Logic =================
@@ -625,6 +634,7 @@ def predict():
 
 @app.route("/api/fact-check", methods=["POST"])
 def fact_check():
+    global global_stats
     try:
         global_stats["requests_handled"] = global_stats.get("requests_handled", 0) + 1
         save_stats(global_stats)
@@ -636,6 +646,9 @@ def fact_check():
         content = data.get("text") or data.get("data")
         if not content:
             return jsonify({"error": "No data provided"}), 400
+        
+        # Ensure content is string and clean
+        content = str(content).strip()
 
 
         input_url = None
@@ -656,7 +669,12 @@ def fact_check():
                 # Returns the specific extraction error to the user
                 return jsonify({"error": str(e)}), 400
         else:
-            page_title = content[:60] + "..." if len(content) > 60 else content
+            # Use a snippet of text as title for text inputs
+            snippet_text = content
+            if len(snippet_text) > 60:
+                page_title = f"{snippet_text[:60]}..."
+            else:
+                page_title = snippet_text
 
         if not content or len(str(content).strip()) < 5:
             return jsonify({"error": "The text found from the URL is unavailable or too small"}), 400
@@ -711,8 +729,8 @@ def contact():
 
 # ================= ADMIN PANEL API =================
 ADMIN_CREDENTIALS = {
-    "username": os.getenv("ADMIN_USER"),
-    "password": os.getenv("ADMIN_PASS")
+    "username": os.getenv("ADMIN_USER", ""),
+    "password": os.getenv("ADMIN_PASS", "")
 }
 ADMIN_TOKEN = os.environ.get("ADMIN_TOKEN")
 
@@ -1100,11 +1118,9 @@ def add_dataset_entry():
         
     try:
         path = os.path.join(BASE_DIR, "Dataset", filename)
-        import csv
         
         # Prevent manual duplicates
         if os.path.exists(path):
-            import pandas as pd
             try:
                 df_temp = pd.read_csv(path, usecols=['Text'], encoding='utf-8-sig')
                 existing = df_temp['Text'].dropna().astype(str).str.strip().str.lower().tolist()
@@ -1153,8 +1169,8 @@ def admin_reply():
     if not all([recipient_email, subject, body]):
         return jsonify({"success": False, "message": "Xogta ma dhameystirna"}), 400
 
-    sender_email = os.environ.get("SMTP_EMAIL")
-    sender_password = os.environ.get("SMTP_PASSWORD")
+    sender_email = os.environ.get("SMTP_EMAIL", "")
+    sender_password = os.environ.get("SMTP_PASSWORD", "")
 
     try:
         msg = MIMEMultipart()
@@ -1184,8 +1200,8 @@ def admin_reply():
 @app.route("/api/admin/sync_emails", methods=["POST"])
 def sync_emails():
     try:
-        sender_email = os.environ.get("SMTP_EMAIL")
-        sender_password = os.environ.get("SMTP_PASSWORD")
+        sender_email = os.environ.get("SMTP_EMAIL", "")
+        sender_password = os.environ.get("SMTP_PASSWORD", "")
         
         mail = imaplib.IMAP4_SSL('imap.gmail.com')
         mail.login(sender_email, sender_password)
