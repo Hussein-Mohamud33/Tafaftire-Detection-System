@@ -39,12 +39,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
 
     async function safeJson(response) {
-        if (response.status === 401) {
-            alert("Session expired. Please login again.");
-            localStorage.removeItem('adminToken');
-            window.location.href = 'index.html';
-            return null;
-        }
         const text = await response.text();
         try {
             return JSON.parse(text);
@@ -52,15 +46,7 @@ document.addEventListener('DOMContentLoaded', () => {
             console.error("JSON Parse Error:", text);
             throw new Error(`Server did not return JSON (HTML may be returned). Check API.`);
         }
-    }
 
-    async function authFetch(url, options = {}) {
-        const token = localStorage.getItem('adminToken');
-        const headers = {
-            'Authorization': token || '',
-            ...(options.headers || {})
-        };
-        return fetch(url, { ...options, headers });
     }
 
     // ----------------------------
@@ -80,6 +66,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const target = document.getElementById(sectionId);
         if (target) {
             target.style.display = 'block';
+            // Scroll completely disabled as per user request
         }
         mainNavLinks.forEach(link => {
             link.classList.remove('active');
@@ -102,8 +89,6 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         }
     }));
-
-
 
     if (hamburger) hamburger.addEventListener('click', () => navMenu.classList.toggle('active'));
 
@@ -206,9 +191,15 @@ document.addEventListener('DOMContentLoaded', () => {
     const fcResult = document.getElementById("fcResult");
     const aiConfidence = document.getElementById("aiConfidence");
     const fcConfidence = document.getElementById("fcConfidence");
+    const fcReasons = document.getElementById("fcReasons");
+    const factCheckBtn = document.getElementById("factCheckBtn");
 
-    // Single Button
-    // analyzeBtn is already declared at the top, reusing it.
+    // New Winner Elements
+    const unifiedVerdictCard = document.getElementById("unifiedVerdictCard");
+    const unifiedVerdict = document.getElementById("unifiedVerdict");
+    const unifiedConfidence = document.getElementById("unifiedConfidence");
+    const winnerSource = document.getElementById("winnerSource");
+
 
     const textInput = document.getElementById("textInput");
     const urlInput = document.getElementById("urlInput");
@@ -221,142 +212,131 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     });
 
-    const finalVerdictCard = document.getElementById("finalVerdictCard");
-    const finalVerdict = document.getElementById("finalVerdict");
-    const finalConfidence = document.getElementById("finalConfidence");
-    const finalSource = document.getElementById("finalSource");
-
     async function performDeepAnalysis(payload) {
         if (!payload) return;
+
+        console.log("[*] Performing Combined Analysis:", payload);
         window.isAnalyzing = true;
 
+        // UI Prep: Disable button and show container
         if (analyzeBtn) {
             analyzeBtn.disabled = true;
-            analyzeBtn.innerHTML = '<i class="fas fa-bolt fa-beat"></i> FAST SCANNING...';
+            analyzeBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Analyzing...';
         }
 
-        resultContainer.style.display = "flex";
-        [finalVerdictCard, aiResultCard, fcResultCard].forEach(card => card.classList.remove("hidden"));
 
-        [finalVerdict, aiResult, fcResult].forEach(el => el.innerText = "⏳...");
-        [aiConfidence, fcConfidence].forEach(el => el.innerText = "Processing...");
-        finalConfidence.innerText = "System validation in progress...";
+        resultContainer.style.display = "flex"; // Changed from grid to flex for better vertical stacking
+        [aiResultCard, fcResultCard, unifiedVerdictCard].forEach(card => card.classList.remove("hidden"));
+        [aiResult, fcResult, unifiedVerdict].forEach(el => el.innerText = "⏳...");
+        [aiConfidence, fcConfidence, unifiedConfidence].forEach(el => el.innerText = "Loading...");
+        if (winnerSource) winnerSource.innerText = "Processing...";
+        if (fcReasons) fcReasons.innerHTML = "";
 
         try {
-            const controller = new AbortController();
-            const timeoutId = setTimeout(() => controller.abort(), 90000); // 90s for Render
+            const aiPromise = fetch(`${API_BASE_URL}/api/predict`, {
+                method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload)
+            }).then(r => r.json());
 
-            const response = await fetch(`${API_BASE_URL}/api/analyze_deep`, {
+            const fcPromise = fetch(`${API_BASE_URL}/api/fact-check`, {
+                method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload)
+            }).then(r => r.json());
+
+            const [aiRes, fcRes] = await Promise.all([aiPromise, fcPromise]);
+
+            // 1. AI Result Process
+            const aiSuccess = !aiRes.error;
+            let aiConfVal = 0;
+            if (aiSuccess) {
+                const aiIsTrusted = aiRes.prediction.includes("Trusted");
+                aiResult.innerText = aiIsTrusted ? "REAL" : "FAKE";
+                aiResult.style.color = aiIsTrusted ? "#2ecc71" : "#ff4757";
+                aiConfidence.innerText = `Confidence: ${aiRes.confidence}`;
+                aiConfVal = parseFloat(aiRes.confidence.replace('%', '')) || 0;
+            } else {
+                aiResult.innerText = "Error";
+                aiConfidence.innerText = "Check Failed";
+            }
+
+            // 2. Expert Result Process
+            const fcSuccess = !fcRes.error;
+            let fcConfVal = 0;
+            if (fcSuccess) {
+                const fcIsTrusted = fcRes.rating.toLowerCase().includes("trusted");
+                fcResult.innerText = fcIsTrusted ? "TRUSTED" : "UNVERIFIED";
+                fcResult.style.color = fcIsTrusted ? "#2ecc71" : "#ff4757";
+                fcConfidence.innerText = `Expert Score: ${fcRes.confidence}`;
+                fcConfVal = parseFloat(fcRes.confidence.replace('%', '')) || 0;
+
+                /* 
+                // 2. Expert Result Process (Reasons hidden as per user request)
+                if (fcRes.reasons && fcReasons) {
+                    fcReasons.innerHTML = `<h5 style="font-size: 0.75rem; color:rgba(255,255,255,0.4); margin-bottom:15px; letter-spacing:2px;">EVIDENCE:</h5>`;
+                    fcRes.reasons.forEach(reason => {
+                        const div = document.createElement("div");
+                        div.className = "reason-item";
+                        div.innerHTML = `<i class="fas fa-check-circle"></i> <span>${reason}</span>`;
+                        fcReasons.appendChild(div);
+                    });
+                }
+                */
+            } else {
+                fcResult.innerText = "Error";
+                fcConfidence.innerText = "Search Failed";
+            }
+
+            // 3. WINNER / UNIFIED VERDICT LOGIC
+            // Pick the source with the highest confidence
+            if (aiSuccess || fcSuccess) {
+                if (aiConfVal >= fcConfVal) {
+                    unifiedVerdict.innerText = aiResult.innerText;
+                    unifiedVerdict.style.color = aiResult.style.color;
+                    unifiedConfidence.innerText = `Confidence: ${aiRes.confidence}`;
+                    winnerSource.innerText = "Source: AI Model Analysis";
+                } else {
+                    unifiedVerdict.innerText = fcResult.innerText;
+                    unifiedVerdict.style.color = fcResult.style.color;
+                    unifiedConfidence.innerText = `Expert Score: ${fcRes.confidence}`;
+                    winnerSource.innerText = "Source: Expert Fact-Check";
+                }
+            } else {
+                unifiedVerdict.innerText = "N/A";
+                winnerSource.innerText = "No Result";
+            }
+
+            // 4. Save history
+            const finalVerdict = aiConfVal >= fcConfVal ? (aiSuccess ? aiResult.innerText : "Error") : (fcSuccess ? fcResult.innerText : "Error");
+            const finalConfidence = aiConfVal >= fcConfVal ? (aiSuccess ? aiRes.confidence : "0%") : (fcSuccess ? fcRes.confidence : "0%");
+
+            fetch(`${API_BASE_URL}/api/admin/save_history`, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify(payload),
-                signal: controller.signal
+                body: JSON.stringify({
+                    type: "Deep Analysis",
+                    original_input: payload.data,
+                    label: finalVerdict,
+                    confidence: finalConfidence,
+                    extracted_text: fcRes.raw_text || aiRes.raw_text || payload.data,
+                    ai_score: aiSuccess ? aiRes.confidence : null,
+                    expert_score: fcSuccess ? fcRes.confidence : null,
+                    title: fcRes.title || aiRes.title || "News Article",
+                    link: fcRes.link || aiRes.link || "N/A",
+                    subject: fcRes.subject || aiRes.subject || "General"
+                })
             });
 
-            if (!response.ok) {
-                const errorData = await safeJson(response);
-                throw new Error(errorData.error || `Server Error: ${response.status}`);
-            }
-
-            const data = await safeJson(response);
-            clearTimeout(timeoutId);
-
-            const aiRes = data.ai_res;
-            const fcRes = data.fc_res;
-
-            // Handle AI Result
-            let aiText = aiRes.prediction.includes("Real News") ? "REAL NEWS" : "FAKE NEWS";
-            aiResult.innerText = aiText;
-            aiResult.style.color = aiRes.prediction.includes("Real News") ? "#2ecc71" : "#ff4757";
-            aiConfidence.innerText = `Confidence: ${aiRes.confidence}`;
-
-            // Handle Expert Result
-            let fcText = "UNVERIFIED";
-            const fcRatingLower = (fcRes.rating || "").toLowerCase();
-
-            if (fcRatingLower.includes("trusted")) {
-                fcText = "TRUSTED";
-                fcResult.innerText = "TRUSTED";
-                fcResult.style.color = "#2ecc71";
-                fcConfidence.innerHTML = `Confidence: ${fcRes.confidence}`;
-            } else if (fcRatingLower.includes("fake")) {
-                fcText = "FAKE INFO";
-                fcResult.innerText = "FAKE INFO";
-                fcResult.style.color = "#ff4757";
-                fcConfidence.innerText = `Expert Score: ${fcRes.confidence}`;
-            } else if (fcRatingLower.includes("unverified-clean")) {
-                // Expert found NO objections, deferred to AI
-                fcText = "NO ISSUES";
-                fcResult.innerText = "NO ISSUES FOUND";
-                fcResult.style.color = "#9ca3af";
-                fcResult.style.fontSize = "1.4rem";
-                fcConfidence.innerHTML = `<i class="fas fa-shield-alt" style="color:#9ca3af; margin-right:5px;"></i> <span style="color:#9ca3af;">No fake signals detected</span>`;
-            } else {
-                // Genuine Unverified (Expert found some concerns but not enough to judge)
-                fcResult.innerText = "UNVERIFIED";
-                fcResult.style.color = "#f39c12";
-                fcConfidence.innerText = `Confidence: ${fcRes.confidence}`;
-            }
-
-            // === FINAL VERDICT: Use Server's Calculated Winning Confidence ===
-            const finalLabelToDisplay = data.final_verdict || "UNVERIFIED";
-
-            // Priority: Server-calculated winning_confidence, then fallback
-            let finalConfToDisplay = data.winning_confidence || aiRes.confidence;
-            let finalSourceToDisplay = data.winning_source ? `${data.winning_source}` : "Unified Verification Engine";
-
-            finalVerdict.innerText = finalLabelToDisplay;
-            finalConfidence.innerText = `Confidence: ${finalConfToDisplay}`;
-            finalSource.innerText = `Source: ${finalSourceToDisplay}`;
-
-            // Populate Reasons (Reliability Enhancement)
-            const reasonsBox = document.getElementById("reasonsContainer");
-            const reasonsList = document.getElementById("reasonsList");
-            if (reasonsBox && reasonsList) {
-                reasonsList.innerHTML = "";
-                const reasons = data.reasons || [];
-                if (reasons.length > 0) {
-                    reasonsBox.classList.remove("hidden");
-                    reasons.forEach(r => {
-                        const li = document.createElement("li");
-                        li.style.cssText = "color: rgba(255,255,255,0.7); font-size: 0.85rem; line-height: 1.6; display: flex; align-items: flex-start; gap: 10px; background: rgba(255,165,0,0.05); padding: 12px; border-radius: 10px; border-left: 3px solid var(--accent-orange);";
-                        li.innerHTML = `<i class="fas fa-info-circle" style="color: var(--accent-orange); margin-top: 3px;"></i> <span>${r}</span>`;
-                        reasonsList.appendChild(li);
-                    });
-                } else {
-                    reasonsBox.classList.add("hidden");
-                }
-            }
-
-            // Apply premium colors
-            if (finalLabelToDisplay === "TRUSTED" || finalLabelToDisplay === "REAL NEWS") {
-                finalVerdict.style.color = "#2ecc71";
-                finalVerdictCard.style.borderColor = "rgba(46,204,113,0.25)";
-                finalVerdictCard.style.boxShadow = "0 0 30px rgba(46,204,113,0.1)";
-            } else if (finalLabelToDisplay === "FAKE INFO" || finalLabelToDisplay === "FAKE NEWS") {
-                finalVerdict.style.color = "#ff4757";
-                finalVerdictCard.style.borderColor = "rgba(255,71,87,0.25)";
-                finalVerdictCard.style.boxShadow = "0 0 30px rgba(255,71,87,0.1)";
-            } else {
-                finalVerdict.style.color = "#f39c12"; // Yellow for Unverified
-                finalVerdictCard.style.borderColor = "rgba(243,156,18,0.25)";
-                finalVerdictCard.style.boxShadow = "0 0 30px rgba(243,156,18,0.1)";
-            }
-
         } catch (err) {
-            console.error("Analysis Failed:", err);
-            const displayMsg = err.message || "Verification request timed out or failed. Please try again.";
-            showError(displayMsg, "newsText");
-            [finalVerdict, aiResult, fcResult].forEach(el => el.innerText = "FAILED");
-            [aiConfidence, fcConfidence].forEach(el => el.innerText = "Error during scan");
+            console.error("Analysis Failure:", err);
+            showError("Server Connection Error!", "");
         } finally {
+
             window.isAnalyzing = false;
             if (analyzeBtn) {
                 analyzeBtn.disabled = false;
-                analyzeBtn.innerHTML = '<i class="fas fa-bolt"></i> FASTEST ANALYSIS';
+                analyzeBtn.innerHTML = '<i class="fas fa-search-plus"></i> DEEP ANALYSIS';
             }
         }
     }
+
 
     function getPayload() {
         const selected = document.querySelector('input[name="inputType"]:checked');
@@ -366,23 +346,27 @@ document.addEventListener('DOMContentLoaded', () => {
         if (inputType === "text") {
             if (!newsText) return null;
             data = newsText.value.trim();
-            if (data.length < 10) { showError("Please enter at least 10 characters.", "newsText"); return null; }
+            if (data.length < 20) { showError("Please enter at least 20 characters.", "newsText"); return null; }
         } else {
             if (!newsURL) return null;
             data = newsURL.value.trim();
             if (!data) { showError("Please enter the news URL.", "newsURL"); return null; }
         }
+
         return { type: inputType, data: data };
+
     }
 
     // --- [ Event Listeners ] ---
-    if (analyzeBtn) {
-        analyzeBtn.addEventListener('click', (e) => {
-            e.preventDefault();
-            const payload = getPayload();
-            if (payload) performDeepAnalysis(payload);
-        });
-    }
+    [analyzeBtn, factCheckBtn].forEach(btn => {
+        if (btn) {
+            btn.addEventListener('click', (e) => {
+                e.preventDefault();
+                const payload = getPayload();
+                if (payload) performDeepAnalysis(payload);
+            });
+        }
+    });
 
     if (refreshBtn) {
         refreshBtn.addEventListener('click', (e) => {
@@ -390,15 +374,11 @@ document.addEventListener('DOMContentLoaded', () => {
             if (newsText) newsText.value = "";
             if (newsURL) newsURL.value = "";
             resultContainer.style.display = "none";
-            [aiResultCard, fcResultCard].forEach(card => card.classList.add("hidden"));
-
-            // Clear reasons
-            const reasonsBox = document.getElementById("reasonsContainer");
-            const reasonsList = document.getElementById("reasonsList");
-            if (reasonsBox) reasonsBox.classList.add("hidden");
-            if (reasonsList) reasonsList.innerHTML = "";
-
+            [aiResultCard, fcResultCard, unifiedVerdictCard].forEach(card => card.classList.add("hidden"));
+            if (unifiedVerdict) unifiedVerdict.innerText = "";
+            if (fcReasons) fcReasons.innerHTML = "";
             clearError();
+
         });
     }
 
@@ -512,27 +492,16 @@ document.addEventListener('DOMContentLoaded', () => {
     };
 
     window.switchAdminTab = (tabId) => {
-        // Map tab IDs to the section IDs in Admin.html
-        const sectionMap = {
-            'overview': 'dashboardSection',
-            'datasets': 'datasetsSection',
-            'retrain': 'retrainSection',
-            'logs': 'logsSection',
-            'history': 'historySection',
-            'editor': 'editorSection'
-        };
-
-        Object.values(sectionMap).forEach(id => {
-            const el = document.getElementById(id);
+        const tabs = ['overview', 'datasets', 'retrain', 'logs', 'history', 'editor'];
+        tabs.forEach(t => {
+            const el = document.getElementById(`admin${t.charAt(0).toUpperCase() + t.slice(1)}Tab`);
             if (el) el.classList.add('hidden');
         });
-
-        const targetId = sectionMap[tabId];
-        const target = document.getElementById(targetId);
+        const target = document.getElementById(`admin${tabId.charAt(0).toUpperCase() + tabId.slice(1)}Tab`);
         if (target) target.classList.remove('hidden');
 
         // Style active menu
-        document.querySelectorAll('.nav-item').forEach(item => {
+        document.querySelectorAll('.admin-nav-item').forEach(item => {
             item.classList.remove('active');
             if (item.innerText.toLowerCase().includes(tabId)) item.classList.add('active');
         });
@@ -542,46 +511,21 @@ document.addEventListener('DOMContentLoaded', () => {
         if (tabId === 'history') loadAdminHistory();
     };
 
-    window.syncEmails = async () => {
-        const btn = document.getElementById('syncEmailsBtnAdmin');
-        const btnSmall = document.getElementById('syncEmailsBtnAdminSmall');
-        [btn, btnSmall].forEach(b => { if (b) { b.disabled = true; b.innerHTML = '<i class="fas fa-sync fa-spin"></i> Syncing...'; } });
-
-        try {
-            const res = await authFetch(`${API_BASE_URL}/api/admin/sync_emails`, { method: 'POST' });
-            const data = await res.json();
-            if (data.success) {
-                showToast(data.message || "Email-shii waa la soo dejiyey!");
-                loadAdminLogs();
-                loadDashNotifications();
-            } else {
-                showToast("Khalad: " + (data.message || "Lama heli karo fariimo"), "error");
-            }
-        } catch (err) {
-            showToast("Connection Error!", "error");
-        } finally {
-            if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fas fa-sync-alt"></i> Check Email Messages'; }
-            if (btnSmall) { btnSmall.disabled = false; btnSmall.innerHTML = '<i class="fas fa-sync-alt"></i>'; }
-        }
-    };
-
     async function loadAdminStats() {
         try {
-            const res = await authFetch(`${API_BASE_URL}/api/admin/stats`);
+            const res = await fetch(`${API_BASE_URL}/api/admin/stats`);
             const data = await res.json();
+            const statDs = document.getElementById('statDatasets');
+            const statAcc = document.getElementById('statAccuracy');
+            if (statDs) statDs.innerText = data.total_datasets;
+            if (statAcc) statAcc.innerText = data.model_accuracy;
 
-            const statDs = document.getElementById('stat-datasets');
-            const statAcc = document.getElementById('stat-accuracy');
-            const statMessages = document.getElementById('stat-messages');
-            const statHistoryCount = document.getElementById('stat-history-count');
+            const statMessages = document.getElementById('statMessages');
+            if (statMessages) statMessages.innerText = data.messages_count;
+            const statHistory = document.getElementById('statHistory');
+            if (statHistory) statHistory.innerText = data.history_count || 0;
             const statRequests = document.getElementById('statRequests');
-
-            if (statDs) statDs.innerText = data.total_datasets || 0;
-            if (statAcc) statAcc.innerText = data.model_accuracy || "0%";
-            if (statMessages) statMessages.innerText = data.messages_count || 0;
-            if (statHistoryCount) statHistoryCount.innerText = data.history_count || 0;
-            if (statRequests) statRequests.innerText = data.requests_handled || 0;
-
+            if (statRequests) statRequests.innerText = data.requests_handled;
             loadDashNotifications();
         } catch (err) {
             console.error("Stats Error:", err);
@@ -590,17 +534,16 @@ document.addEventListener('DOMContentLoaded', () => {
 
     async function loadAdminDatasets() {
         try {
-            const res = await authFetch(`${API_BASE_URL}/api/admin/datasets`);
+            const res = await fetch(`${API_BASE_URL}/api/admin/datasets`);
             const data = await res.json();
-            const body = document.getElementById('datasetsTable');
+            const body = document.getElementById('datasetsBody');
             if (body) {
                 body.innerHTML = data.map(f => `
                     <tr>
                         <td>${f.name}</td>
                         <td>${f.size} (${f.rows} entries)</td>
-                        <td>${f.modified || '-'}</td>
-                        <td style="text-align:center;">
-                            <button class="admin-btn-login" style="width:auto; padding:5px 15px; background:#10b981; border:none; border-radius:4px; color:white; cursor:pointer;" 
+                        <td>
+                            <button class="admin-btn-login" style="width:auto; padding:5px 15px; background:#10b981;" 
                                 onclick="downloadDataset('${f.name}')"><i class="fas fa-download"></i> Download</button>
                         </td>
                     </tr>
@@ -613,7 +556,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!confirm(`Are you sure you want to delete the dataset '${filename}'? This cannot be undone.`)) return;
 
         try {
-            const res = await authFetch(`${API_BASE_URL}/api/admin/dataset/delete`, {
+            const res = await fetch(`${API_BASE_URL}/api/admin/dataset/delete`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ filename })
@@ -653,7 +596,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
 
         try {
-            const res = await authFetch(`${API_BASE_URL}/api/admin/dataset/add_entry`, {
+            const res = await fetch(`${API_BASE_URL}/api/admin/dataset/add_entry`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ filename, entry })
@@ -682,7 +625,7 @@ document.addEventListener('DOMContentLoaded', () => {
         currentEditorData.filename = filename;
 
         try {
-            const res = await authFetch(`${API_BASE_URL}/api/admin/dataset/get?filename=${filename}`);
+            const res = await fetch(`${API_BASE_URL}/api/admin/dataset/get?filename=${filename}`);
             const data = await safeJson(res);
 
             if (!res.ok) throw new Error(data.error || `Server error: ${res.status}`);
@@ -744,7 +687,7 @@ document.addEventListener('DOMContentLoaded', () => {
             saveBtn.disabled = true;
             saveBtn.innerText = "Saving...";
             try {
-                const res = await authFetch(`${API_BASE_URL}/api/admin/dataset/save`, {
+                const res = await fetch(`${API_BASE_URL}/api/admin/dataset/save`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
@@ -766,19 +709,19 @@ document.addEventListener('DOMContentLoaded', () => {
 
     async function loadAdminLogs() {
         try {
-            const res = await authFetch(`${API_BASE_URL}/api/admin/logs`);
+            const res = await fetch(`${API_BASE_URL}/api/admin/logs`);
             const data = await res.json();
-            const body = document.getElementById('logsTable');
+            const body = document.getElementById('logsBody');
             if (body) {
                 body.innerHTML = data.map(l => `
                     <tr>
-                        <td style="padding:15px;">${l.name}</td>
-                        <td style="padding:15px;">${l.email}</td>
-                        <td style="padding:15px;">${l.message}</td>
-                        <td style="padding:15px; text-align:center;">
-                            <button class="admin-btn-login" style="width:auto; padding:5px 15px; margin-right:5px; background:#10b981; border:none; border-radius:4px; color:white; cursor:pointer;" 
+                        <td>${l.name}</td>
+                        <td>${l.email}</td>
+                        <td>${l.message}</td>
+                        <td>
+                            <button class="admin-btn-login" style="width:auto; padding:5px 15px; margin-right:5px; background:#10b981;" 
                                 onclick="openReplyModal('${l.email}', '${l.name.replace(/'/g, "\\'")}')"><i class="fas fa-reply"></i> Reply</button>
-                            <button class="admin-btn-login" style="width:auto; padding:5px 15px; background:#ef4444; border:none; border-radius:4px; color:white; cursor:pointer;" 
+                            <button class="admin-btn-login" style="width:auto; padding:5px 15px; background:#ef4444;" 
                                 onclick="deleteAdminLog(${l.id})"><i class="fas fa-trash"></i> Delete</button>
                         </td>
                     </tr>
@@ -790,17 +733,12 @@ document.addEventListener('DOMContentLoaded', () => {
     let historyData = [];
 
     window.loadAdminHistory = async () => {
-        // Alias for HTML compatibility
-        loadAdminHistory();
-    };
-
-    async function loadAdminHistory() {
         try {
-            const body = document.getElementById('historyTable');
+            const body = document.getElementById('historyBody');
             if (!body) return;
-            body.innerHTML = '<tr><td colspan="5" style="text-align: center; padding: 40px; color: var(--text-muted);"><i class="fas fa-spinner fa-spin"></i> Loading...</td></tr>';
+            body.innerHTML = '<tr><td colspan="5" style="text-align: center; padding: 20px;"><i class="fas fa-spinner fa-spin"></i> Loading...</td></tr>';
 
-            const res = await authFetch(`${API_BASE_URL}/api/admin/analysis_history?t=${Date.now()}`);
+            const res = await fetch(`${API_BASE_URL}/api/admin/analysis_history?t=${Date.now()}`);
             historyData = await res.json();
 
             if (historyData.error) throw new Error(historyData.error);
@@ -830,14 +768,10 @@ document.addEventListener('DOMContentLoaded', () => {
             `}).join('');
         } catch (err) {
             console.error("History Error:", err);
-            const b = document.getElementById('historyTable');
+            const b = document.getElementById('historyBody');
             if (b) b.innerHTML = `<tr><td colspan="5" style="text-align: center; color: #ef4444; padding: 20px;">Error loading history</td></tr>`;
         }
-    }
-
-    // Alias functions for HTML buttons
-    window.loadAnalysisHistory = () => loadAdminHistory();
-    window.clearAnalysisHistory = () => clearAllHistory();
+    };
 
     window.viewHistoryItem = (id) => {
         const item = historyData.find(i => i.id === id);
@@ -868,7 +802,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!confirm("Are you sure you want to delete this analysis?")) return;
 
         try {
-            const res = await authFetch(`${API_BASE_URL}/api/admin/analysis_history/delete`, {
+            const res = await fetch(`${API_BASE_URL}/api/admin/analysis_history/delete`, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ id: id })
@@ -880,15 +814,10 @@ document.addEventListener('DOMContentLoaded', () => {
     };
 
     window.clearAllHistory = async () => {
-        // This function is defined as clearAllHistory for modularity
-        await clearAllHistory();
-    };
-
-    async function clearAllHistory() {
         if (!confirm("Are you sure you want to delete ALL analysis history?")) return;
 
         try {
-            const res = await authFetch(`${API_BASE_URL}/api/admin/analysis_history/clear`, {
+            const res = await fetch(`${API_BASE_URL}/api/admin/analysis_history/clear`, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" }
             });
@@ -902,7 +831,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const listDiv = document.getElementById('dashNotificationList');
         if (!listDiv) return;
         try {
-            const res = await authFetch(`${API_BASE_URL}/api/admin/logs`);
+            const res = await fetch(`${API_BASE_URL}/api/admin/logs`);
             const data = await res.json();
             if (data.length === 0) {
                 listDiv.innerHTML = '<div style="padding: 20px; color: #9ca3af; font-size: 0.9rem; text-align: center;">No notifications</div>';
@@ -950,21 +879,16 @@ document.addEventListener('DOMContentLoaded', () => {
             startRetrainBtn.disabled = true;
             status.innerHTML = '<i class="fas fa-sync fa-spin"></i> Tababarku waa billowday...';
             try {
-                const res = await authFetch(`${API_BASE_URL}/api/admin/retrain`, { method: 'POST' });
+                const res = await fetch(`${API_BASE_URL}/api/admin/retrain`, { method: 'POST' });
                 const data = await res.json();
                 if (!data.success) { status.innerText = "Error: " + data.message; startRetrainBtn.disabled = false; return; }
 
                 const poll = setInterval(async () => {
-                    const sRes = await authFetch(`${API_BASE_URL}/api/admin/retrain_status`);
+                    const sRes = await fetch(`${API_BASE_URL}/api/admin/retrain_status`);
                     const sData = await sRes.json();
                     if (!sData.is_training) {
                         clearInterval(poll);
-                        
-                        // Automatic reload of models after retraining
-                        const reloadRes = await authFetch(`${API_BASE_URL}/api/admin/reload_models`, { method: 'POST' });
-                        const reloadData = await reloadRes.json();
-                        
-                        status.innerHTML = `<i class="fas fa-check-circle"></i> Tababarkii waa dhamaaday! (${reloadData.message})`;
+                        status.innerHTML = '<i class="fas fa-check-circle"></i> Tababarkii waa dhamaaday!';
                         startRetrainBtn.disabled = false;
                         loadAdminStats();
                     }
