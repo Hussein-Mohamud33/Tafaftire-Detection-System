@@ -6,21 +6,8 @@ import json
 import time
 import random
 import csv
-import smtplib
-import imaplib
-import email
-import requests
-import nltk
-import numpy as np
-from flask import Flask, request, jsonify
-from flask_cors import CORS
-from nltk.corpus import stopwords
-from nltk.tokenize import word_tokenize
-from nltk.stem import WordNetLemmatizer
-from bs4 import BeautifulSoup
-from email.header import decode_header
-from email.mime.text import MIMEText
-from email.mime.multipart import MIMEMultipart
+import sys
+# Heavy imports moved to lazy loading functions
 
 # Ensure terminal printing works on Windows for all characters
 import sys
@@ -30,6 +17,9 @@ if sys.platform == 'win32':
     sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding='utf-8')
 
 # ================= FLASK INIT =================
+from flask import Flask, request, jsonify
+from flask_cors import CORS
+
 app = Flask(__name__, static_folder='Front_End', static_url_path='')
 app.config['SEND_FILE_MAX_AGE_DEFAULT'] = 0  # Disable caching
 app.secret_key = os.environ.get("SECRET_KEY", "tafaftire-default-key-123")
@@ -149,19 +139,39 @@ def save_stats(stats):
 
 global_stats = load_stats()
 
-# ================= NLTK SETUP =================
-for pkg in ["punkt", "punkt_tab", "stopwords", "wordnet"]:
-    try: nltk.data.find(pkg)
-    except: nltk.download(pkg)
+# ================= NLTK & TEXT HELPERS =================
+_nlp_tools = None
 
-stop_words = set(stopwords.words("english"))
-stop_words.update(["waa", "iyo", "in", "uu", "ay", "ka", "u", "ee", "oo", "ah"]) # Somalis simplified
-lemmatizer = WordNetLemmatizer()
+def get_nlp_tools():
+    global _nlp_tools
+    if _nlp_tools is None:
+        try:
+            import nltk
+            from nltk.corpus import stopwords
+            from nltk.tokenize import word_tokenize
+            from nltk.stem import WordNetLemmatizer
+            
+            # Point to where we download in build.sh
+            nltk_data_path = os.path.join(HOME_DIR, "nltk_data")
+            if nltk_data_path not in nltk.data.path:
+                nltk.data.path.append(nltk_data_path)
+            
+            stop_words = set(stopwords.words("english"))
+            stop_words.update(["waa", "iyo", "in", "uu", "ay", "ka", "u", "ee", "oo", "ah"])
+            lemmatizer = WordNetLemmatizer()
+            _nlp_tools = (word_tokenize, stop_words, lemmatizer)
+        except Exception as e:
+            print(f"NLP error: {e}")
+            return None, None, None
+    return _nlp_tools
 
 # PRE-COMPILED REGEX
 URL_PATTERN = re.compile(r'^(https?://|www\.)', re.I)
 
 def preprocess_text(text):
+    word_tokenize, stop_words, lemmatizer = get_nlp_tools()
+    if not word_tokenize: return str(text) # Fallback
+    
     text = re.sub(r"[^a-z' ]", " ", str(text).lower())
     tokens = word_tokenize(text)
     return " ".join([lemmatizer.lemmatize(w) for w in tokens if w not in stop_words and len(w) > 2])
@@ -178,6 +188,8 @@ def guess_subject(text):
 
 def extract_text_from_url(url):
     try:
+        import requests
+        from bs4 import BeautifulSoup
         resp = requests.get(url, headers={"User-Agent": "Mozilla/5.0"}, timeout=12)
         if resp.status_code != 200: return "", f"Error {resp.status_code}"
         soup = BeautifulSoup(resp.content, "html.parser")
@@ -238,6 +250,7 @@ def predict():
             content, page_title = extract_text_from_url(input_url)
             if not content: return jsonify({"error": "Failed to extract from URL"}), 400
 
+        import numpy as np
         model, vectorizer, _ = get_ml_resources()
         
         final_score = 0
