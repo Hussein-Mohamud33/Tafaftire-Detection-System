@@ -1,4 +1,4 @@
-const API_BASE_URL = "https://tafaftire-detection-system.onrender.com";
+const API_BASE_URL = "window.location.origin";
 
 window.isAnalyzing = false;
 
