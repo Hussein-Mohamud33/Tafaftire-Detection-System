@@ -39,6 +39,12 @@ document.addEventListener('DOMContentLoaded', () => {
 
 
     async function safeJson(response) {
+        if (response.status === 401) {
+            alert("Session expired. Please login again.");
+            localStorage.removeItem('adminToken');
+            window.location.href = 'index.html';
+            return null;
+        }
         const text = await response.text();
         try {
             return JSON.parse(text);
@@ -46,7 +52,15 @@ document.addEventListener('DOMContentLoaded', () => {
             console.error("JSON Parse Error:", text);
             throw new Error(`Server did not return JSON (HTML may be returned). Check API.`);
         }
+    }
 
+    async function authFetch(url, options = {}) {
+        const token = localStorage.getItem('adminToken');
+        const headers = {
+            'Authorization': token || '',
+            ...(options.headers || {})
+        };
+        return fetch(url, { ...options, headers });
     }
 
     // ----------------------------
@@ -286,14 +300,15 @@ document.addEventListener('DOMContentLoaded', () => {
 
             // === FINAL VERDICT: Use Server's Calculated Winning Confidence ===
             const finalLabelToDisplay = data.final_verdict || "UNVERIFIED";
+            const labelSo = data.label_so || "";
 
             // Priority: Server-calculated winning_confidence, then fallback
             let finalConfToDisplay = data.winning_confidence || aiRes.confidence;
-            let finalSourceToDisplay = data.winning_source ? `${data.winning_source}: ${finalConfToDisplay}` : "Unified Verification Engine";
+            let finalSourceToDisplay = data.winning_source ? `${data.winning_source}` : "Unified Verification Engine";
 
-            finalVerdict.innerText = finalLabelToDisplay;
+            finalVerdict.innerText = `${finalLabelToDisplay} \n (${labelSo})`;
             finalConfidence.innerText = `Confidence: ${finalConfToDisplay}`;
-            finalSource.innerText = finalSourceToDisplay;
+            finalSource.innerText = `Source: ${finalSourceToDisplay}`;
 
             // Populate Reasons (Reliability Enhancement)
             const reasonsBox = document.getElementById("reasonsContainer");
@@ -534,7 +549,7 @@ document.addEventListener('DOMContentLoaded', () => {
         [btn, btnSmall].forEach(b => { if (b) { b.disabled = true; b.innerHTML = '<i class="fas fa-sync fa-spin"></i> Syncing...'; } });
 
         try {
-            const res = await fetch(`${API_BASE_URL}/api/admin/sync_emails`, { method: 'POST' });
+            const res = await authFetch(`${API_BASE_URL}/api/admin/sync_emails`, { method: 'POST' });
             const data = await res.json();
             if (data.success) {
                 showToast(data.message || "Email-shii waa la soo dejiyey!");
@@ -553,7 +568,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     async function loadAdminStats() {
         try {
-            const res = await fetch(`${API_BASE_URL}/api/admin/stats`);
+            const res = await authFetch(`${API_BASE_URL}/api/admin/stats`);
             const data = await res.json();
 
             const statDs = document.getElementById('stat-datasets');
@@ -576,7 +591,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     async function loadAdminDatasets() {
         try {
-            const res = await fetch(`${API_BASE_URL}/api/admin/datasets`);
+            const res = await authFetch(`${API_BASE_URL}/api/admin/datasets`);
             const data = await res.json();
             const body = document.getElementById('datasetsTable');
             if (body) {
@@ -599,7 +614,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!confirm(`Are you sure you want to delete the dataset '${filename}'? This cannot be undone.`)) return;
 
         try {
-            const res = await fetch(`${API_BASE_URL}/api/admin/dataset/delete`, {
+            const res = await authFetch(`${API_BASE_URL}/api/admin/dataset/delete`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ filename })
@@ -639,7 +654,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
 
         try {
-            const res = await fetch(`${API_BASE_URL}/api/admin/dataset/add_entry`, {
+            const res = await authFetch(`${API_BASE_URL}/api/admin/dataset/add_entry`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ filename, entry })
@@ -668,7 +683,7 @@ document.addEventListener('DOMContentLoaded', () => {
         currentEditorData.filename = filename;
 
         try {
-            const res = await fetch(`${API_BASE_URL}/api/admin/dataset/get?filename=${filename}`);
+            const res = await authFetch(`${API_BASE_URL}/api/admin/dataset/get?filename=${filename}`);
             const data = await safeJson(res);
 
             if (!res.ok) throw new Error(data.error || `Server error: ${res.status}`);
@@ -730,7 +745,7 @@ document.addEventListener('DOMContentLoaded', () => {
             saveBtn.disabled = true;
             saveBtn.innerText = "Saving...";
             try {
-                const res = await fetch(`${API_BASE_URL}/api/admin/dataset/save`, {
+                const res = await authFetch(`${API_BASE_URL}/api/admin/dataset/save`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
@@ -752,7 +767,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     async function loadAdminLogs() {
         try {
-            const res = await fetch(`${API_BASE_URL}/api/admin/logs`);
+            const res = await authFetch(`${API_BASE_URL}/api/admin/logs`);
             const data = await res.json();
             const body = document.getElementById('logsTable');
             if (body) {
@@ -786,7 +801,7 @@ document.addEventListener('DOMContentLoaded', () => {
             if (!body) return;
             body.innerHTML = '<tr><td colspan="5" style="text-align: center; padding: 40px; color: var(--text-muted);"><i class="fas fa-spinner fa-spin"></i> Loading...</td></tr>';
 
-            const res = await fetch(`${API_BASE_URL}/api/admin/analysis_history?t=${Date.now()}`);
+            const res = await authFetch(`${API_BASE_URL}/api/admin/analysis_history?t=${Date.now()}`);
             historyData = await res.json();
 
             if (historyData.error) throw new Error(historyData.error);
@@ -854,7 +869,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!confirm("Are you sure you want to delete this analysis?")) return;
 
         try {
-            const res = await fetch(`${API_BASE_URL}/api/admin/analysis_history/delete`, {
+            const res = await authFetch(`${API_BASE_URL}/api/admin/analysis_history/delete`, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ id: id })
@@ -874,7 +889,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!confirm("Are you sure you want to delete ALL analysis history?")) return;
 
         try {
-            const res = await fetch(`${API_BASE_URL}/api/admin/analysis_history/clear`, {
+            const res = await authFetch(`${API_BASE_URL}/api/admin/analysis_history/clear`, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" }
             });
@@ -888,7 +903,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const listDiv = document.getElementById('dashNotificationList');
         if (!listDiv) return;
         try {
-            const res = await fetch(`${API_BASE_URL}/api/admin/logs`);
+            const res = await authFetch(`${API_BASE_URL}/api/admin/logs`);
             const data = await res.json();
             if (data.length === 0) {
                 listDiv.innerHTML = '<div style="padding: 20px; color: #9ca3af; font-size: 0.9rem; text-align: center;">No notifications</div>';
@@ -936,16 +951,21 @@ document.addEventListener('DOMContentLoaded', () => {
             startRetrainBtn.disabled = true;
             status.innerHTML = '<i class="fas fa-sync fa-spin"></i> Tababarku waa billowday...';
             try {
-                const res = await fetch(`${API_BASE_URL}/api/admin/retrain`, { method: 'POST' });
+                const res = await authFetch(`${API_BASE_URL}/api/admin/retrain`, { method: 'POST' });
                 const data = await res.json();
                 if (!data.success) { status.innerText = "Error: " + data.message; startRetrainBtn.disabled = false; return; }
 
                 const poll = setInterval(async () => {
-                    const sRes = await fetch(`${API_BASE_URL}/api/admin/retrain_status`);
+                    const sRes = await authFetch(`${API_BASE_URL}/api/admin/retrain_status`);
                     const sData = await sRes.json();
                     if (!sData.is_training) {
                         clearInterval(poll);
-                        status.innerHTML = '<i class="fas fa-check-circle"></i> Tababarkii waa dhamaaday!';
+                        
+                        // Automatic reload of models after retraining
+                        const reloadRes = await authFetch(`${API_BASE_URL}/api/admin/reload_models`, { method: 'POST' });
+                        const reloadData = await reloadRes.json();
+                        
+                        status.innerHTML = `<i class="fas fa-check-circle"></i> Tababarkii waa dhamaaday! (${reloadData.message})`;
                         startRetrainBtn.disabled = false;
                         loadAdminStats();
                     }
