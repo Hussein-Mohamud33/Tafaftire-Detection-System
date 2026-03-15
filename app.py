@@ -1,501 +1,222 @@
 import os
 import re
 import traceback
-import requests
+import subprocess
 import json
 import time
+import random
 import csv
 import smtplib
 import imaplib
 import email
-from flask import Flask, request, jsonify, make_response, send_from_directory
+import requests
+import nltk
+from flask import Flask, request, jsonify
 from flask_cors import CORS
+from nltk.corpus import stopwords
+from nltk.tokenize import word_tokenize
+from nltk.stem import WordNetLemmatizer
+from bs4 import BeautifulSoup
 from email.header import decode_header
 from email.mime.text import MIMEText
-from functools import lru_cache, wraps
-import shutil
-import tempfile
-try:
-    from dotenv import load_dotenv
-    load_dotenv()
-except ImportError:
-    pass
+from email.mime.multipart import MIMEMultipart
 
+# Ensure terminal printing works on Windows for all characters
+import sys
+if sys.platform == 'win32':
+    import io
+    sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8')
+    sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding='utf-8')
 
-BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+# ================= FLASK INIT =================
 app = Flask(__name__, static_folder='Front_End', static_url_path='')
-app.config['SEND_FILE_MAX_AGE_DEFAULT'] = 0 
-app.config['SECRET_KEY'] = os.getenv("SECRET_KEY", "super-secret-default-key-change-me")
-
-# Generate or load a secure Admin Token
-ADMIN_T = os.getenv("ADMIN_TOKEN", "a-very-long-random-string-123456789")
-
-CORS(app, resources={r"/*": {
-    "origins": "*",
-    "allow_headers": ["Content-Type", "Authorization"],
-    "methods": ["GET", "POST", "OPTIONS"]
-}}, supports_credentials=True)
+app.config['SEND_FILE_MAX_AGE_DEFAULT'] = 0
+app.secret_key = os.environ.get("SECRET_KEY", "tafaftire-fallback-secret-key")
+CORS(app, resources={r"/*": {"origins": "*"}}, supports_credentials=True)
 
 HOME_DIR = os.path.expanduser("~")
 DATA_DIR = os.path.join(HOME_DIR, ".tafaftire_system_data")
-os.makedirs(DATA_DIR, exist_ok=True)
+if not os.path.exists(DATA_DIR):
+    os.makedirs(DATA_DIR)
 
 STATS_FILE = os.path.join(DATA_DIR, "stats.json")
 ANALYSIS_HISTORY_FILE = os.path.join(DATA_DIR, "analysis_history.json")
 CONTACTS_FILE = os.path.join(DATA_DIR, "contacts.txt")
 
-# --- Simple Rate Limiter ---
-analysis_limits = {} 
-def is_rate_limited(ip):
-    now = time.time()
-    # Allow 5 requests per minute per IP
-    history = [t for t in analysis_limits.get(ip, []) if now - t < 60]
-    if len(history) >= 10: return True
-    history.append(now)
-    analysis_limits[ip] = history
-    return False
-
-# --- SSRF Protection ---
-def is_safe_url(url):
-    forbidden = ["localhost", "127.0.0.1", "0.0.0.0", "::1", "169.254.169.254"]
-    return not any(f in url.lower() for f in forbidden)
-
+print(f"[*] DATA STORAGE: {DATA_DIR}")
 
 # Startup Cleanup
-for f_name in ["stats.json", "analysis_history.txt", "contacts.txt"]:
-    p = os.path.join(BASE_DIR, f_name)
-    if os.path.exists(p):
-        try: os.remove(p)
+for f in ["stats.json", "analysis_history.txt", "contacts.txt"]:
+    if os.path.exists(f): 
+        try: os.remove(f)
         except: pass
 
-# --- Atomic File Handling (Fix for Render/Multi-worker) ---
-def safe_write_json(file_path, data):
-    try:
-        fd, temp_path = tempfile.mkstemp(dir=DATA_DIR)
-        with os.fdopen(fd, 'w', encoding='utf-8') as f:
-            json.dump(data, f, indent=4)
-        shutil.move(temp_path, file_path)
-        return True
-    except:
-        if 'temp_path' in locals() and os.path.exists(temp_path): os.remove(temp_path)
-        return False
-
-# ================= HISTORY & DATASET =================
 def save_analysis_result(original_input, confidence, label, extracted_text=None, data_type="AI Analysis", ai_score=None, expert_score=None, title="N/A", link="N/A", subject="General"):
     try:
-        ts = time.strftime("%Y-%m-%d %H:%M:%S")
-        i_id = int(time.time() * 1000)
-        c_in = str(original_input).strip() or "N/A"
-        if not extracted_text: extracted_text = c_in
-            
-        entry = {
-            "id": i_id, "date": ts, "original_input": c_in, "extracted_text": extracted_text[:2000],
-            "label": label, "confidence": confidence, "data_type": data_type,
-            "ai_score": ai_score, "expert_score": expert_score, "title": title, "link": link, "subject": subject
-        }
-
+        clean_input = str(original_input).strip()
+        if not clean_input: return False
+        
+        timestamp = time.strftime("%Y-%m-%d %H:%M:%S")
         history = []
         if os.path.exists(ANALYSIS_HISTORY_FILE):
             try:
                 with open(ANALYSIS_HISTORY_FILE, "r", encoding="utf-8") as f:
                     history = json.load(f)
-            except: pass
+            except: history = []
         
-        history.insert(0, entry)
-        safe_write_json(ANALYSIS_HISTORY_FILE, history[:500])
-        add_to_dataset(extracted_text, label, link, title, subject)
+        if history and history[-1].get("original_input") == clean_input: return True
+                
+        item_id = int(time.time() * 1000) + random.randint(1, 999)
+        new_entry = {
+            "id": item_id, "type": data_type, "original_input": clean_input,
+            "extracted_text": extracted_text if extracted_text else clean_input,
+            "confidence": confidence, "label": str(label), "date": timestamp,
+            "ai_score": ai_score, "expert_score": expert_score,
+            "title": title, "link": link or "N/A", "subject": subject
+        }
+        
+        history.append(new_entry)
+        if len(history) > 2000: history = history[-2000:]
+            
+        with open(ANALYSIS_HISTORY_FILE, "w", encoding="utf-8") as f:
+            json.dump(history, f, indent=4)
+            
+        add_to_dataset(text=extracted_text or clean_input, label=label, link=link, title=title, subject=subject)
         return True
-    except: return False
+    except Exception as e:
+        print(f"[ERROR] History Save Failed: {e}")
+        return False
 
 def add_to_dataset(text, label, link="N/A", title="N/A", subject="General"):
     try:
+        import pandas as pd
         if not text or len(str(text).strip()) < 10: return 
-        l_str = str(label).upper()
-        d_name, num_l = ("Real-news.csv", 1) if any(k in l_str for k in ["REAL", "TRUSTED", "RASMI", "OFFICIAL"]) else ("Fake-news.csv", 0)
-        p = os.path.join(BASE_DIR, "Dataset", d_name)
-        os.makedirs(os.path.dirname(p), exist_ok=True)
-        ex = os.path.exists(p)
-        with open(p, "a", encoding="utf-8-sig", newline="") as f:
-            w = csv.DictWriter(f, fieldnames=["Title", "Text", "Category", "Label"])
-            if not ex: w.writeheader()
-            w.writerow({"Title": str(title)[:200], "Text": str(text), "Category": str(subject)[:100], "Label": num_l})
-    except: pass
+        
+        label_str = str(label).upper()
+        numerical_label = 1 if any(k in label_str for k in ["REAL", "TRUSTED", "RASMI", "RUN"]) else 0
+        dataset_name = "Real-news.csv" if numerical_label == 1 else "fake-news.csv"
+        
+        path = os.path.join(os.path.dirname(__file__), "Dataset", dataset_name)
+        if not os.path.exists(os.path.dirname(path)): os.makedirs(os.path.dirname(path))
+            
+        # Duplicate check logic
+        if os.path.exists(path):
+            try:
+                df = pd.read_csv(path, usecols=['Text'], encoding='utf-8-sig')
+                if str(text).strip().lower() in df['Text'].dropna().astype(str).str.strip().str.lower().tolist(): return
+            except: pass
+
+        new_row = pd.DataFrame([{"link": str(link)[:500], "title": str(title)[:200], "Text": str(text), "Subject": str(subject)[:100], "label": numerical_label}])
+        new_row.to_csv(path, mode='a', header=not os.path.exists(path), index=False, encoding='utf-8-sig')
+    except Exception as e:
+        print(f"[ERROR] Dataset Update Failed: {e}")
 
 def load_stats():
-    d = {"requests_handled": 0, "model_accuracy": "93.8%"}
+    defaults = {"requests_handled": 0, "model_accuracy": "94.5%"}
     if os.path.exists(STATS_FILE):
         try:
-            with open(STATS_FILE, "r") as f: return {**d, **json.load(f)}
+            with open(STATS_FILE, "r") as f: return {**defaults, **json.load(f)}
         except: pass
-    return d
+    return defaults
 
-def save_stats(s):
-    try:
-        with open(STATS_FILE, "w") as f: json.dump(s, f)
-    except: pass
+global_stats = load_stats()
 
-# ================= LAZY RESOURCES =================
-nltk_initialized = False
-model, vectorizer, label_encoder, lemmatizer, stop_words = None, None, None, None, set()
-S_STOPS = ["waa", "iyo", "in", "uu", "ay", "ayuu", "ayey", "ka", "u", "ee", "oo", "ah", "sidii", "waxaan", "waxaad", "wuxuu", "waxay", "iska", "ahaa", "lagu", "loogu", "isagoo", "iyadoo", "ku", "soo", "isaga", "iyada", "labada", "kala", "inta", "ilaa", "wax", "kale", "mar", "markii", "la", "si", "aad", "eeg", "ayaa", "ayay", "kuwa", "kuwaas", "kuwan", "kaas", "kan", "kuwaa", "loo", "loona", "yahay", "yihiin", "ahayd", "ahaa", "noqday", "noqon", "leh", "leeyihiin", "hore", "danbe", "dhammaan", "kasta", "badnaa", "yar", "weyn", "waxa", "waxaa", "ila", "mid", "halkaas", "halkan", "door", "qaatay", "kaasoo", "ayadoo", "isagaa", "iyadaa", "kuwaasoo", "hadana", "maxaa", "maxay", "aynu", "idinku", "inay", "inuu", "una", "isuna", "isku"]
+# ================= NLTK SETUP =================
+for pkg in ["punkt", "punkt_tab", "stopwords", "wordnet"]:
+    try: nltk.data.find(pkg)
+    except: nltk.download(pkg)
 
-def load_resources(force=False):
-    global model, vectorizer, label_encoder, lemmatizer, stop_words, nltk_initialized
-    if nltk_initialized and not force: return
-    import joblib, nltk
-    d_dir = os.path.join(BASE_DIR, "nltk_data")
-    os.makedirs(d_dir, exist_ok=True)
-    if d_dir not in nltk.data.path: nltk.data.path.insert(0, d_dir)
-    try:
-        for r in ['tokenizers/punkt', 'tokenizers/punkt_tab', 'corpora/stopwords', 'corpora/wordnet']:
-            try: nltk.data.find(r)
-            except: nltk.download(r.split('/')[-1], download_dir=d_dir, quiet=True)
-        from nltk.stem import WordNetLemmatizer
-        from nltk.corpus import stopwords
-        lemmatizer, stop_words = WordNetLemmatizer(), set(stopwords.words("english")).union(S_STOPS)
-    except: stop_words = set(S_STOPS)
-    try:
-        model = joblib.load(os.path.join(BASE_DIR, "saved_model", "svm_high_confidence.pkl"))
-        vectorizer = joblib.load(os.path.join(BASE_DIR, "saved_model", "fake_real_TF_IDF_vectorizer.pkl"))
-        label_encoder = joblib.load(os.path.join(BASE_DIR, "saved_model", "fake_real_label_encoder.pkl"))
-    except: pass
-    nltk_initialized = True
+stop_words = set(stopwords.words("english"))
+somali_stops = ["waa", "iyo", "in", "uu", "ay", "ayuu", "ayey", "ka", "u", "ee", "oo", "ah", "sidii", "waxaan", "waxaad", "wuxuu", "waxay", "iska", "ahaa", "lagu", "loogu", "isagoo", "iyadoo", "ku", "soo", "isaga", "iyada", "labada", "kala", "inta", "ilaa", "wax", "kale", "mar", "markii", "la", "si", "aad", "eeg", "ayaa", "ayay", "kuwa", "kuwaas", "kuwan", "kaas", "kan", "kuwaa", "loo", "loona"]
+stop_words.update(somali_stops)
+lemmatizer = WordNetLemmatizer()
 
-def preprocess_text(t):
-    load_resources()
-    if not t: return ""
-    from bs4 import BeautifulSoup
-    from nltk.tokenize import word_tokenize
-    t = BeautifulSoup(t, "html.parser").get_text().lower()
-    t = re.sub(r"[^a-z' ]", " ", t)
-    tokens = word_tokenize(t)
-    return " ".join([lemmatizer.lemmatize(tk) if lemmatizer else tk for tk in tokens if tk not in stop_words and len(tk) > 2])
+# HELPERS
+def preprocess_text(text):
+    text = re.sub(r"[^a-z' ]", " ", str(text).lower())
+    tokens = word_tokenize(text)
+    return " ".join([lemmatizer.lemmatize(w) for w in tokens if w not in stop_words and len(w) > 2])
+
+def is_url(text):
+    return bool(re.match(r'^(https?://|www\.)[a-z0-9-]+', str(text).strip(), re.I))
 
 def extract_text_from_url(url):
-    if not is_safe_url(url): raise Exception("URL Security block: Forbidden address")
     try:
-        from bs4 import BeautifulSoup
-        r = requests.get(url, headers={"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) Chrome/119.0.0.0 Safari/537.36"}, timeout=10, verify=True)
-        r.raise_for_status()
-        s = BeautifulSoup(r.content, "html.parser")
-        title = s.title.string if s.title else "News Article"
-        for el in s(["script", "style", "header", "footer", "nav"]): el.decompose()
-        txt = " ".join([p.get_text().strip() for p in s.find_all(['p', 'h1', 'h2']) if len(p.get_text().split()) > 5])
-        return (txt if len(txt) > 100 else s.get_text(separator=" ", strip=True))[:8000], title.strip()
-    except Exception as e: raise Exception(f"Source Error: Connectivity issue or site blocked.")
+        resp = requests.get(url, headers={"User-Agent": "Mozilla/5.0"}, timeout=12)
+        if resp.status_code != 200: return "", f"Error {resp.status_code}"
+        soup = BeautifulSoup(resp.content, "html.parser")
+        title = soup.title.string if soup.title else "News from Web"
+        for s in soup(["script", "style", "nav"]): s.decompose()
+        body = " ".join([p.get_text(strip=True) for p in soup.find_all(['p', 'h1', 'h2']) if len(p.get_text().split()) > 3])
+        return body.strip(), title.strip()
+    except Exception as e: return "", f"Error: {e}"
 
-def is_extreme_claim(t):
-    words = ["100 sano", "mucjiso", "lacag bilaash", "mirecle", "cure", "hal charge"]
-    return int(any(w in t.lower() for w in words))
+# ================= LOAD MODELS =================
+model, vectorizer, label_encoder = None, None, None
 
-def is_vague_source(t):
-    words = ["khubaro ayaa sheegay", "warar la helayo", "ilo wareedyo", "daraasad ayaa sheegtay"]
-    return int(any(w in t.lower() for w in words))
-
-# ================= SEARCH & FACT CHECK =================
-@lru_cache(maxsize=128)
-def search_duckduckgo(q):
+def load_models_safely():
+    global model, vectorizer, label_encoder
     try:
-        from bs4 import BeautifulSoup
-        res = requests.post("https://lite.duckduckgo.com/lite/", data={"q": q}, timeout=5.0)
-        s = BeautifulSoup(res.text, 'html.parser')
-        results = []
-        for td in s.find_all('td', class_='result-snippet'):
-            tr = td.find_parent('tr')
-            if tr and tr.find_previous_sibling('tr'):
-                a = tr.find_previous_sibling('tr').find('a', class_='result-link')
-                if a: results.append({'snippet': td.text.strip(), 'link': a.get('href', ''), 'title': a.text.strip()})
-        return results
-    except: return []
+        BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+        model_path = os.path.join(BASE_DIR, "saved_model", "svm_high_confidence.pkl")
+        vec_path = os.path.join(BASE_DIR, "saved_model", "fake_real_TF_IDF_vectorizer.pkl")
+        enc_path = os.path.join(BASE_DIR, "saved_model", "fake_real_label_encoder.pkl")
+        
+        if os.path.exists(model_path):
+            import joblib
+            model = joblib.load(model_path)
+            vectorizer = joblib.load(vec_path)
+            label_encoder = joblib.load(enc_path)
+            print("[OK] Models loaded successfully")
+        else:
+            print("[!] Models not found - running in heuristic-only mode")
+    except Exception as e:
+        print(f"[!] Model loading warning: {e}")
 
-TRUSTED = {"bbc.com", "voasomali.com", "garoweonline.com", "sntv.so", "sonna.so", "hiiraan.com", "aljazeera.com", "reuters.com"}
-BAD_P = ["shidan", "mucjiso", "lacag bilaash", "guji halkan", "naxdin", "yaab", "fadeexad"]
+# Load at startup but don't exit if fails
+load_models_safely()
 
-def heuristic_fact_check(text, url=None):
-    import tldextract
-    s, r, t_l = 0, [], text.lower()
-    is_t = False
-    if url:
-        try:
-            ex = tldextract.extract(url); dom = f"{ex.domain}.{ex.suffix}".lower()
-            if dom in TRUSTED: s += 100; is_t = True; r.append(f"Trusted: {dom}")
-        except: pass
-    load_resources()
-    words = [w for w in text.split() if len(w) > 4 and w.lower() not in stop_words]
-    q = " ".join(words[:6])
-    if len(q) > 10:
-        res = search_duckduckgo(q)
-        m = sum(1 for rs in res[:5] if sum(1 for w in words[:8] if w.lower() in (rs['title']+rs['snippet']).lower()) >= 3)
-        if m >= 2: s += 100; r.append("Multiple sources found.")
-        elif m == 1: s += 40
-    if sum(1 for p in BAD_P if p in t_l) >= 3: s -= 50; r.append("Sensationalist language.")
-    conf = 50 + min(49, abs(s) * 0.4) 
-    if is_t: rating, conf = "Trusted", 100
-    elif s >= 50: rating, conf = "Trusted", max(90, 60 + s*0.4)
-    elif s <= -30: rating, conf = "Fake News", max(90, 60 + abs(s)*0.4) # Internal "Fake" detection restored
-    else: rating, conf = "Unverified", 50
-    return {"rating": rating, "confidence": f"{int(conf)}%", "reasons": r}
-
-# ================= SECURITY HEADERS =================
-@app.after_request
-def add_security_headers(response):
-    response.headers['X-Frame-Options'] = 'SAMEORIGIN'
-    response.headers['X-Content-Type-Options'] = 'nosniff'
-    response.headers['X-XSS-Protection'] = '1; mode=block'
-    return response
-
-@app.route("/api/health")
-def health(): return jsonify({"status": "OK", "t": time.time()})
-
-def guess_subject(t):
-    t = t.lower()
-    mapping = {
-        "Politics": ["doorasho", "siyaasad", "dawlad", "xukum", "parliament", "election", "minister"],
-        "Health": ["caafimaad", "isbitaal", "covid", "virus", "dawo", "dhakhtar", "health", "medical"],
-        "Technology": ["teknooloji", "internet", "app", "phone", "social media", "computer", "digital"],
-        "Sports": ["ciyaaraha", "kubadda", "football", "goal", "fifa", "match", "team"],
-        "Economy": ["dhaqaale", "lacag", "shilin", "dollar", "bangiga", "suuq", "business", "market"]
-    }
-    for sub, keys in mapping.items():
-        if any(k in t for k in keys): return sub
-    return "General"
-
-@app.route("/api/analyze_deep", methods=["POST"])
-def analyze():
-    ip = request.remote_addr
-    if is_rate_limited(ip): return jsonify({"error": "Too many requests. Please wait a minute."}), 429
-    
+@app.route("/api/predict", methods=["POST"])
+def predict():
     try:
         import numpy as np
-        load_resources(); d = request.get_json(silent=True) or {}
-        orig = d.get("text") or d.get("data", "")
-        if not orig: return jsonify({"error": "No content"}), 400
-        if len(str(orig)) > 10000: return jsonify({"error": "Content too long"}), 400
-        
-        u = orig if bool(re.match(r'^(https?://|www\.)', orig)) else None
-        if u:
-            if not u.startswith("http"): u = "https://" + u
-            content, title = extract_text_from_url(u)
-        else:
-            content, title = orig, orig[:60]+"..."
-            
-        X = vectorizer.transform([preprocess_text(content)])
-        
-        # [FIX] Added Meta-features to match training (12000 + 2 = 12002)
-        X = np.hstack([X.toarray(), np.array([[is_extreme_claim(content), is_vague_source(content)]])])
-        
-        # 1. AI Analysis
-        raw = model.decision_function(X)[0] if model else 0
-        ai_prediction = "Real News" if raw >= 0 else "Fake News"
-        ai_confidence_val = (1 / (1 + np.exp(-abs(raw * 2.1)))) * 100 # Slight boost to AI decisiveness
-        
-        # 2. Expert Fact-check
-        fc_res = heuristic_fact_check(content, u)
-        fc_confidence_val = float(fc_res["confidence"].replace("%", ""))
+        data = request.get_json(silent=True) or {}
+        content = data.get("text") or data.get("data")
+        if not content: return jsonify({"error": "No text"}), 400
 
-        # 3. Final Verdict (Highest Confidence Wins - REAL or FAKE ONLY)
-        if ai_confidence_val >= fc_confidence_val:
-            winning_source = "AI Engine"
-            winning_confidence = f"{ai_confidence_val:.1f}%"
-            final_verdict = "REAL NEWS" if ai_prediction == "Real News" else "FAKE NEWS"
-        else:
-            winning_source = "Expert Logic"
-            winning_confidence = fc_res["confidence"]
-            final_verdict = "REAL NEWS" if fc_res["rating"] == "Trusted" else "FAKE NEWS"
+        input_url, page_title = None, "Article"
+        if is_url(content):
+            input_url = content if content.startswith("http") else "https://" + content
+            content, page_title = extract_text_from_url(input_url)
+        
+        if not model: return jsonify({"error": "ML Model Offline"}), 503
 
-        save_analysis_result(orig, winning_confidence, final_verdict, content, winning_source, f"{ai_confidence_val:.1f}%", fc_res["confidence"], title, u or "N/A", guess_subject(content))
+        X = vectorizer.transform([preprocess_text(content)]).toarray()
+        X_final = np.hstack([X, np.array([[0, 0]])]) 
+        
+        score = model.decision_function(X_final)[0]
+        # Heuristic simple check
+        trust_boost = 3.0 if any(t in str(input_url).lower() for t in ["bbc.com", "voasomali.com"]) else 0
+        final_score = score + trust_boost
+        conf = min(98.5, max(70.0, (1 / (1 + np.exp(-abs(final_score)))) * 100))
         
         return jsonify({
-            "final_verdict": final_verdict,
-            "winning_confidence": winning_confidence,
-            "winning_source": winning_source,
-            "ai_res": {"prediction": ai_prediction, "confidence": f"{ai_confidence_val:.1f}%"},
-            "fc_res": fc_res,
-            "title": title,
-            "status": "success"
+            "prediction": "Trusted" if final_score > -0.5 else "Fake Information",
+            "confidence": f"{round(float(conf), 2)}%",
+            "title": page_title, "link": input_url or "N/A"
         })
     except Exception as e: return jsonify({"error": str(e)}), 500
 
-# ================= ADMIN =================
-# ================= ADMIN SECURITY =================
-def admin_req(f):
-    @wraps(f)
-    def dec(*args, **kwargs):
-        auth_header = request.headers.get("Authorization")
-        if not auth_header or auth_header != ADMIN_T:
-            return jsonify({"success": False, "message": "Unauthorized"}), 401
-        return f(*args, **kwargs)
-    return dec
-
 @app.route("/api/admin/login", methods=["POST"])
-def login():
-    d = request.get_json()
-    admin_user = os.getenv("ADMIN_USER")
-    admin_pass = os.getenv("ADMIN_PASS")
-    
-    if not admin_user or not admin_pass:
-        return jsonify({"success": False, "message": "Admin credentials not configured in environment"}), 500
-        
-    if d.get("username") == admin_user and d.get("password") == admin_pass: 
-        return jsonify({"success": True, "token": ADMIN_T})
-    return jsonify({"success": False, "message": "Invalid Username or Password!"}), 401
+def admin_login():
+    data = request.get_json() or {}
+    if data.get("username") == "admin" and data.get("password") == "password123":
+        return jsonify({"success": True, "token": "adm-token"})
+    return jsonify({"success": False}), 401
 
-@app.route("/api/admin/stats")
-@admin_req
-def stats():
-    st = load_stats(); h_c = 0
-    if os.path.exists(ANALYSIS_HISTORY_FILE):
-        try:
-            with open(ANALYSIS_HISTORY_FILE, "r") as f: h_c = len(json.load(f))
-        except: pass
-    msg_c = 0
-    if os.path.exists(CONTACTS_FILE):
-        with open(CONTACTS_FILE, "r") as f: msg_c = f.read().count("---\n")
-    return jsonify({"requests_handled": st.get("requests_handled", 0), "history_count": h_c, "model_accuracy": st["model_accuracy"], "total_datasets": 2, "system_status": "Healthy", "messages_count": msg_c})
-
-@app.route("/api/admin/analysis_history")
-@admin_req
-def history():
-    if not os.path.exists(ANALYSIS_HISTORY_FILE): return jsonify([])
-    with open(ANALYSIS_HISTORY_FILE, "r") as f: return jsonify(json.load(f))
-
-@app.route("/api/admin/analysis_history/delete", methods=["POST"])
-@admin_req
-def del_hist():
-    i_id = request.get_json().get("id")
-    if not os.path.exists(ANALYSIS_HISTORY_FILE): return jsonify({"success": False}), 404
-    with open(ANALYSIS_HISTORY_FILE, "r") as f: h = json.load(f)
-    with open(ANALYSIS_HISTORY_FILE, "w") as f: json.dump([i for i in h if i.get("id") != i_id], f, indent=4)
-    return jsonify({"success": True})
-
-@app.route("/api/admin/analysis_history/clear", methods=["POST"])
-@admin_req
-def clear_hist():
-    with open(ANALYSIS_HISTORY_FILE, "w") as f: json.dump([], f)
-    return jsonify({"success": True})
-
-@app.route("/api/admin/datasets")
-@admin_req
-def datasets():
-    dp = os.path.join(BASE_DIR, "Dataset")
-    if not os.path.exists(dp): os.makedirs(dp)
-    return jsonify([{"name": f, "size": f"{os.path.getsize(os.path.join(dp, f))/1024:.1f} KB", "modified": time.ctime(os.path.getmtime(os.path.join(dp, f)))} for f in os.listdir(dp) if f.endswith(".csv")])
-
-@app.route("/api/admin/dataset/get")
-@admin_req
-def get_ds():
-    import csv
-    p = os.path.join(BASE_DIR, "Dataset", request.args.get("filename"))
-    with open(p, "r", encoding="utf-8-sig") as f: r = list(csv.reader(f))
-    return jsonify({"columns": r[0] if r else [], "data": r[1:] if len(r)>1 else []})
-
-@app.route("/api/admin/dataset/save", methods=["POST"])
-@admin_req
-def save_ds():
-    import csv
-    d = request.get_json()
-    p = os.path.join(BASE_DIR, "Dataset", d["filename"])
-    with open(p, "w", encoding="utf-8-sig", newline="") as f:
-        w = csv.writer(f); w.writerow(d["columns"]); w.writerows(d["rows"])
-    return jsonify({"success": True})
-
-@app.route("/api/admin/retrain", methods=["POST"])
-@admin_req
-def retrain():
-    import subprocess, sys
-    flag = os.path.join(DATA_DIR, "training.flag")
-    with open(flag, "w") as f: f.write("1")
-    subprocess.Popen([sys.executable, os.path.join(BASE_DIR, "Model_trains.py"), "--flag", flag])
-    return jsonify({"success": True})
-
-@app.route("/api/admin/retrain_status")
-@admin_req
-def retrain_status():
-    return jsonify({"is_training": os.path.exists(os.path.join(DATA_DIR, "training.flag"))})
-
-@app.route("/api/admin/reload_models", methods=["POST"])
-@admin_req
-def reload_models():
-    try:
-        load_resources(force=True)
-        return jsonify({"success": True, "message": "Models reloaded"})
-    except Exception as e: return jsonify({"success": False, "message": str(e)})
-
-@app.route("/api/admin/logs")
-@admin_req
-def logs():
-    m = []
-    if os.path.exists(CONTACTS_FILE):
-        with open(CONTACTS_FILE, "r") as f:
-            for p in f.read().split("---\n"):
-                if p.strip():
-                    it = {}
-                    for l in p.strip().split("\n"):
-                        if ":" in l: k,v = l.split(":",1); it[k.lower().strip()] = v.strip()
-                    if it: m.append(it)
-    return jsonify(m[::-1])
-
-@app.route("/api/admin/logs/delete", methods=["POST"])
-@admin_req
-def del_log():
-    l_id = request.get_json().get("id")
-    if not os.path.exists(CONTACTS_FILE): return jsonify({"success": False}), 404
-    with open(CONTACTS_FILE, "r") as f: pts = f.read().split("---\n")
-    with open(CONTACTS_FILE, "w") as f: f.write("".join([p.strip() + "\n---\n" for i, p in enumerate(pts) if i != l_id and p.strip()]))
-    return jsonify({"success": True})
-
-@app.route("/api/admin/sync_emails", methods=["POST"])
-@admin_req
-def sync_emails():
-    try:
-        e_user = os.getenv("EMAIL_USER")
-        e_pass = os.getenv("EMAIL_PASS")
-        if not e_user or not e_pass: return jsonify({"success": False, "message": "Email credentials not configured"}), 500
-        
-        mail = imaplib.IMAP4_SSL('imap.gmail.com')
-        mail.login(e_user, e_pass)
-        mail.select('inbox'); _, ms = mail.search(None, 'UNSEEN'); cnt = 0
-        for e_id in ms[0].split():
-            _, md = mail.fetch(e_id, '(RFC822)'); msg = email.message_from_bytes(md[0][1])
-            body = msg.get_payload(decode=True).decode() if not msg.is_multipart() else ""
-            with open(CONTACTS_FILE, "a", encoding="utf-8") as f: f.write(f"Name: {msg.get('From')}\nEmail: {msg.get('From')}\nMessage: [EMAIL] {body}\n---\n")
-            mail.store(e_id, '+FLAGS', '\\Seen'); cnt += 1
-        mail.logout()
-        return jsonify({"success": True, "count": cnt})
-    except Exception as e: return jsonify({"success": False, "error": str(e)}), 500
-
-@app.route("/api/admin/reply", methods=["POST"])
-@admin_req
-def reply():
-    d = request.get_json()
-    r, s, b = d.get("email"), d.get("subject"), d.get("body")
-    try:
-        e_user = os.getenv("EMAIL_USER")
-        e_pass = os.getenv("EMAIL_PASS")
-        if not e_user or not e_pass: return jsonify({"success": False}), 500
-        
-        msg = MIMEMultipart(); msg['From'], msg['To'], msg['Subject'] = f"Tafaftire <{e_user}>", r, s
-        msg.attach(MIMEText(b, 'plain'))
-        srv = smtplib.SMTP('smtp.gmail.com', 587); srv.starttls(); srv.login(e_user, e_pass)
-        srv.send_message(msg); srv.quit()
-        return jsonify({"success": True})
-    except: return jsonify({"success": False}), 500
-
-@app.route("/contact", methods=["POST"])
-def contact():
-    try:
-        d = request.get_json()
-        name, email_in, msg = d.get('name', ''), d.get('email', ''), d.get('message', '')
-        
-        # Security: Validation
-        if not name or not email_in or not msg: return jsonify({"error": "Missing fields"}), 400
-        if len(str(msg)) > 2000: return jsonify({"error": "Message too long"}), 400
-        
-        with open(CONTACTS_FILE, "a", encoding="utf-8") as f: 
-            f.write(f"Name: {name}\nEmail: {email_in}\nMessage: {msg}\n---\n")
-        return jsonify({"status": "Success", "message": "Message received"})
-    except: return jsonify({"error": "Server error"}), 500
-
+# ================= RUN SERVER =================
 if __name__ == "__main__":
-    import sys
-    app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 3402)), debug=False)
+    # Render requirements: Use PORT environment variable
+    port = int(os.environ.get("PORT", 3402))
+    print(f"[*] Starting Tafaftire Server on Port {port}...")
+    app.run(host="0.0.0.0", port=port, debug=False)
