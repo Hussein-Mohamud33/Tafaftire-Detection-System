@@ -10,3 +10,4 @@ scipy
 nltk>=3.9.1
 scikit-learn
 tldextract
+python-dotenv
