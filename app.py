@@ -14,10 +14,11 @@ from email.header import decode_header
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 from functools import lru_cache, wraps
-from dotenv import load_dotenv
-
-# Load environment variables from .env file
-load_dotenv()
+try:
+    from dotenv import load_dotenv
+    load_dotenv()
+except ImportError:
+    pass
 
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -217,11 +218,10 @@ def heuristic_fact_check(text, url=None):
         if m >= 2: s += 100; r.append("Multiple sources found.")
         elif m == 1: s += 40
     if sum(1 for p in BAD_P if p in t_l) >= 3: s -= 50; r.append("Sensationalist language.")
-    conf = 60 + min(39, abs(s) * 0.4)
+    conf = 50 + min(49, abs(s) * 0.4) 
     if is_t: rating, conf = "Trusted", max(95, conf)
     elif s >= 50: rating, conf = "Trusted", max(95, conf)
-    elif s <= -30: rating, conf = "Fake News", max(95, conf)
-    else: rating = "Unverified"
+    else: rating, conf = "Unverified", max(50, 50 + abs(s)*0.2) # Default or low-score unverified
     return {"rating": rating, "confidence": f"{int(conf)}%", "reasons": r}
 
 # ================= ROUTES =================
@@ -272,14 +272,44 @@ def analyze():
         # [FIX] Added Meta-features to match training (12000 + 2 = 12002)
         X = np.hstack([X.toarray(), np.array([[is_extreme_claim(content), is_vague_source(content)]])])
         
+        # 1. AI Analysis (Madax-bannaan)
         raw = model.decision_function(X)[0] if model else 0
-        ai_p, ai_c = ("Real News" if raw >= 0 else "Fake news"), (1 / (1 + np.exp(-abs(raw * 2.0)))) * 100
-        if len(content.split()) < 20 and -0.8 < raw < 0: ai_p = "Real News"
-        fc = heuristic_fact_check(content, u); fcn = float(fc["confidence"].replace("%", ""))
-        final, winning_c, src = (("OFFICIAL NEWS" if ai_p == "Real News" else "FAKE NEWS"), f"{ai_c:.1f}%", "AI Engine") if ai_c >= fcn else (fc["rating"].upper(), fc["confidence"], "Expert Logic")
-        if len(content.split()) < 30 and final == "FAKE NEWS" and max(ai_c, fcn) < 95: final = "SUSPICIOUS"
-        save_analysis_result(orig, winning_c, final, content, src, f"{ai_c:.1f}%", fc["confidence"], title, u or "N/A", guess_subject(content))
-        return jsonify({"final_verdict": final, "winning_confidence": winning_c, "winning_source": src, "ai_res": {"prediction": ai_p, "confidence": f"{ai_c:.1f}%"}, "fc_res": fc, "title": title, "status": "success"})
+        ai_prediction = "Real News" if raw >= 0 else "Fake News"
+        ai_confidence_val = (1 / (1 + np.exp(-abs(raw * 2.0)))) * 100
+        # Bias for short text
+        if len(content.split()) < 20 and -0.8 < raw < 0: ai_prediction = "Real News"
+        
+        # 2. Expert Fact-check (Madax-bannaan)
+        fc_res = heuristic_fact_check(content, u)
+        fc_confidence_val = float(fc_res["confidence"].replace("%", ""))
+
+        # 3. Final Verdict (Ku dhisnaan Confidence-ka ugu sarreeya)
+        if ai_confidence_val >= fc_confidence_val:
+            winning_source = "AI Engine"
+            winning_confidence = f"{ai_confidence_val:.1f}%"
+            final_verdict = ai_prediction.upper() # "REAL NEWS" or "FAKE NEWS"
+        else:
+            winning_source = "Expert Logic"
+            winning_confidence = fc_res["confidence"]
+            # Convert Expert rating to Final Labels
+            if fc_res["rating"] == "Trusted": final_verdict = "REAL NEWS"
+            else: final_verdict = "UNVERIFIED"
+
+        # Edge case: Very short text and low confidence
+        if len(content.split()) < 30 and final_verdict == "FAKE NEWS" and max(ai_confidence_val, fc_confidence_val) < 85:
+            final_verdict = "SUSPICIOUS"
+
+        save_analysis_result(orig, winning_confidence, final_verdict, content, winning_source, f"{ai_confidence_val:.1f}%", fc_res["confidence"], title, u or "N/A", guess_subject(content))
+        
+        return jsonify({
+            "final_verdict": final_verdict,
+            "winning_confidence": winning_confidence,
+            "winning_source": winning_source,
+            "ai_res": {"prediction": ai_prediction, "confidence": f"{ai_confidence_val:.1f}%"},
+            "fc_res": fc_res,
+            "title": title,
+            "status": "success"
+        })
     except Exception as e: return jsonify({"error": str(e)}), 500
 
 # ================= ADMIN =================
@@ -296,11 +326,15 @@ def admin_req(f):
 @app.route("/api/admin/login", methods=["POST"])
 def login():
     d = request.get_json()
-    admin_user = os.getenv("ADMIN_USER", "admin")
-    admin_pass = os.getenv("ADMIN_PASS", "password123")
+    admin_user = os.getenv("ADMIN_USER")
+    admin_pass = os.getenv("ADMIN_PASS")
+    
+    if not admin_user or not admin_pass:
+        return jsonify({"success": False, "message": "Admin credentials not configured in environment"}), 500
+        
     if d.get("username") == admin_user and d.get("password") == admin_pass: 
         return jsonify({"success": True, "token": ADMIN_T})
-    return jsonify({"success": False}), 401
+    return jsonify({"success": False, "message": "Invalid Username or Password!"}), 401
 
 @app.route("/api/admin/stats")
 @admin_req
