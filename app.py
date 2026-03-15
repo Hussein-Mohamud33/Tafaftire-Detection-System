@@ -14,18 +14,19 @@ from email.header import decode_header
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 from functools import lru_cache, wraps
+from dotenv import load_dotenv
 
-# ================= SYSTEM ARCHITECTURE (QAAB-DHISMEEDKA SYSTEM-KA) =================
-# 1. FRONTEND: (Front_End/index.html, script.js) - UI-ga uu isticmaalaha arko.
-# 2. BACKEND: (app.py) - Flask API oo xiriirisa AI iyo Fact-check-ka.
-# 3. AI ENGINE: (saved_model/) - SVM Model oo lagu tababaray kumanaan warar Somali/English ah.
-# 4. EXPERT LAYER: (heuristic_fact_check) - Baaritaan Live ah oo internet-ka ah (DuckDuckGo).
-# 5. DATA STORAGE: (~/.tafaftire_system_data) - Meesha ay ku kaydsan yihiin tariikhda iyo xogta.
-# ===================================================================================
+# Load environment variables from .env file
+load_dotenv()
+
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 app = Flask(__name__, static_folder='Front_End', static_url_path='')
 app.config['SEND_FILE_MAX_AGE_DEFAULT'] = 0 
+app.config['SECRET_KEY'] = os.getenv("SECRET_KEY", "super-secret-default-key-change-me")
+
+# Generate or load a secure Admin Token
+ADMIN_T = os.getenv("ADMIN_TOKEN", "a-very-long-random-string-123456789")
 
 CORS(app, resources={r"/*": {
     "origins": "*",
@@ -40,6 +41,23 @@ os.makedirs(DATA_DIR, exist_ok=True)
 STATS_FILE = os.path.join(DATA_DIR, "stats.json")
 ANALYSIS_HISTORY_FILE = os.path.join(DATA_DIR, "analysis_history.json")
 CONTACTS_FILE = os.path.join(DATA_DIR, "contacts.txt")
+
+# --- Simple Rate Limiter ---
+analysis_limits = {} 
+def is_rate_limited(ip):
+    now = time.time()
+    # Allow 5 requests per minute per IP
+    history = [t for t in analysis_limits.get(ip, []) if now - t < 60]
+    if len(history) >= 10: return True
+    history.append(now)
+    analysis_limits[ip] = history
+    return False
+
+# --- SSRF Protection ---
+def is_safe_url(url):
+    forbidden = ["localhost", "127.0.0.1", "0.0.0.0", "::1", "169.254.169.254"]
+    return not any(f in url.lower() for f in forbidden)
+
 
 # Startup Cleanup
 for f_name in ["stats.json", "analysis_history.txt", "contacts.txt"]:
@@ -142,15 +160,17 @@ def preprocess_text(t):
     return " ".join([lemmatizer.lemmatize(tk) if lemmatizer else tk for tk in tokens if tk not in stop_words and len(tk) > 2])
 
 def extract_text_from_url(url):
+    if not is_safe_url(url): raise Exception("URL Security block: Forbidden address")
     try:
         from bs4 import BeautifulSoup
-        r = requests.get(url, headers={"User-Agent": "Mozilla/5.0"}, timeout=5, verify=False)
+        r = requests.get(url, headers={"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) Chrome/119.0.0.0 Safari/537.36"}, timeout=10, verify=True)
+        r.raise_for_status()
         s = BeautifulSoup(r.content, "html.parser")
         title = s.title.string if s.title else "News Article"
         for el in s(["script", "style", "header", "footer", "nav"]): el.decompose()
         txt = " ".join([p.get_text().strip() for p in s.find_all(['p', 'h1', 'h2']) if len(p.get_text().split()) > 5])
         return (txt if len(txt) > 100 else s.get_text(separator=" ", strip=True))[:8000], title.strip()
-    except Exception as e: raise Exception(f"URL Error: {str(e)}")
+    except Exception as e: raise Exception(f"Source Error: Connectivity issue or site blocked.")
 
 def is_extreme_claim(t):
     words = ["100 sano", "mucjiso", "lacag bilaash", "mirecle", "cure", "hal charge"]
@@ -230,14 +250,23 @@ def guess_subject(t):
 
 @app.route("/api/analyze_deep", methods=["POST"])
 def analyze():
+    ip = request.remote_addr
+    if is_rate_limited(ip): return jsonify({"error": "Too many requests. Please wait a minute."}), 429
+    
     try:
         import numpy as np
         load_resources(); d = request.get_json(silent=True) or {}
         orig = d.get("text") or d.get("data", "")
         if not orig: return jsonify({"error": "No content"}), 400
+        if len(str(orig)) > 10000: return jsonify({"error": "Content too long"}), 400
+        
         u = orig if bool(re.match(r'^(https?://|www\.)', orig)) else None
-        if u and not u.startswith("http"): u = "https://" + u
-        content, title = extract_text_from_url(u) if u else (orig, orig[:60]+"...")
+        if u:
+            if not u.startswith("http"): u = "https://" + u
+            content, title = extract_text_from_url(u)
+        else:
+            content, title = orig, orig[:60]+"..."
+            
         X = vectorizer.transform([preprocess_text(content)])
         
         # [FIX] Added Meta-features to match training (12000 + 2 = 12002)
@@ -254,18 +283,23 @@ def analyze():
     except Exception as e: return jsonify({"error": str(e)}), 500
 
 # ================= ADMIN =================
-ADMIN_T = "admin-session-token-123"
+# ================= ADMIN SECURITY =================
 def admin_req(f):
     @wraps(f)
     def dec(*args, **kwargs):
-        if request.headers.get("Authorization") != ADMIN_T: return jsonify({"success": False}), 401
+        auth_header = request.headers.get("Authorization")
+        if not auth_header or auth_header != ADMIN_T:
+            return jsonify({"success": False, "message": "Unauthorized"}), 401
         return f(*args, **kwargs)
     return dec
 
 @app.route("/api/admin/login", methods=["POST"])
 def login():
     d = request.get_json()
-    if d.get("username") == "admin" and d.get("password") == "password123": return jsonify({"success": True, "token": ADMIN_T})
+    admin_user = os.getenv("ADMIN_USER", "admin")
+    admin_pass = os.getenv("ADMIN_PASS", "password123")
+    if d.get("username") == admin_user and d.get("password") == admin_pass: 
+        return jsonify({"success": True, "token": ADMIN_T})
     return jsonify({"success": False}), 401
 
 @app.route("/api/admin/stats")
@@ -376,8 +410,12 @@ def del_log():
 @admin_req
 def sync_emails():
     try:
+        e_user = os.getenv("EMAIL_USER")
+        e_pass = os.getenv("EMAIL_PASS")
+        if not e_user or not e_pass: return jsonify({"success": False, "message": "Email credentials not configured"}), 500
+        
         mail = imaplib.IMAP4_SSL('imap.gmail.com')
-        mail.login("tafaftiredetectionsystem@gmail.com", "qgzpeswwwgtgawuy")
+        mail.login(e_user, e_pass)
         mail.select('inbox'); _, ms = mail.search(None, 'UNSEEN'); cnt = 0
         for e_id in ms[0].split():
             _, md = mail.fetch(e_id, '(RFC822)'); msg = email.message_from_bytes(md[0][1])
@@ -386,7 +424,7 @@ def sync_emails():
             mail.store(e_id, '+FLAGS', '\\Seen'); cnt += 1
         mail.logout()
         return jsonify({"success": True, "count": cnt})
-    except: return jsonify({"success": False}), 500
+    except Exception as e: return jsonify({"success": False, "error": str(e)}), 500
 
 @app.route("/api/admin/reply", methods=["POST"])
 @admin_req
@@ -394,18 +432,31 @@ def reply():
     d = request.get_json()
     r, s, b = d.get("email"), d.get("subject"), d.get("body")
     try:
-        msg = MIMEMultipart(); msg['From'], msg['To'], msg['Subject'] = "Tafaftire <tafaftiredetectionsystem@gmail.com>", r, s
+        e_user = os.getenv("EMAIL_USER")
+        e_pass = os.getenv("EMAIL_PASS")
+        if not e_user or not e_pass: return jsonify({"success": False}), 500
+        
+        msg = MIMEMultipart(); msg['From'], msg['To'], msg['Subject'] = f"Tafaftire <{e_user}>", r, s
         msg.attach(MIMEText(b, 'plain'))
-        srv = smtplib.SMTP('smtp.gmail.com', 587); srv.starttls(); srv.login("tafaftiredetectionsystem@gmail.com", "qgzpeswwwgtgawuy")
+        srv = smtplib.SMTP('smtp.gmail.com', 587); srv.starttls(); srv.login(e_user, e_pass)
         srv.send_message(msg); srv.quit()
         return jsonify({"success": True})
     except: return jsonify({"success": False}), 500
 
 @app.route("/contact", methods=["POST"])
 def contact():
-    d = request.get_json()
-    with open(CONTACTS_FILE, "a") as f: f.write(f"Name: {d.get('name')}\nEmail: {d.get('email')}\nMessage: {d.get('message')}\n---\n")
-    return jsonify({"status": "Success"})
+    try:
+        d = request.get_json()
+        name, email_in, msg = d.get('name', ''), d.get('email', ''), d.get('message', '')
+        
+        # Security: Validation
+        if not name or not email_in or not msg: return jsonify({"error": "Missing fields"}), 400
+        if len(str(msg)) > 2000: return jsonify({"error": "Message too long"}), 400
+        
+        with open(CONTACTS_FILE, "a", encoding="utf-8") as f: 
+            f.write(f"Name: {name}\nEmail: {email_in}\nMessage: {msg}\n---\n")
+        return jsonify({"status": "Success", "message": "Message received"})
+    except: return jsonify({"error": "Server error"}), 500
 
 if __name__ == "__main__":
     import sys
