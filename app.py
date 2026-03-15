@@ -12,8 +12,9 @@ from flask import Flask, request, jsonify, make_response, send_from_directory
 from flask_cors import CORS
 from email.header import decode_header
 from email.mime.text import MIMEText
-from email.mime.multipart import MIMEMultipart
 from functools import lru_cache, wraps
+import shutil
+import tempfile
 try:
     from dotenv import load_dotenv
     load_dotenv()
@@ -67,6 +68,18 @@ for f_name in ["stats.json", "analysis_history.txt", "contacts.txt"]:
         try: os.remove(p)
         except: pass
 
+# --- Atomic File Handling (Fix for Render/Multi-worker) ---
+def safe_write_json(file_path, data):
+    try:
+        fd, temp_path = tempfile.mkstemp(dir=DATA_DIR)
+        with os.fdopen(fd, 'w', encoding='utf-8') as f:
+            json.dump(data, f, indent=4)
+        shutil.move(temp_path, file_path)
+        return True
+    except:
+        if 'temp_path' in locals() and os.path.exists(temp_path): os.remove(temp_path)
+        return False
+
 # ================= HISTORY & DATASET =================
 def save_analysis_result(original_input, confidence, label, extracted_text=None, data_type="AI Analysis", ai_score=None, expert_score=None, title="N/A", link="N/A", subject="General"):
     try:
@@ -85,13 +98,11 @@ def save_analysis_result(original_input, confidence, label, extracted_text=None,
         if os.path.exists(ANALYSIS_HISTORY_FILE):
             try:
                 with open(ANALYSIS_HISTORY_FILE, "r", encoding="utf-8") as f:
-                    content = f.read()
-                    if content: history = json.loads(content)
+                    history = json.load(f)
             except: pass
         
         history.insert(0, entry)
-        history = history[:500]
-        with open(ANALYSIS_HISTORY_FILE, "w", encoding="utf-8") as f: json.dump(history, f, indent=4)
+        safe_write_json(ANALYSIS_HISTORY_FILE, history[:500])
         add_to_dataset(extracted_text, label, link, title, subject)
         return True
     except: return False
@@ -219,18 +230,19 @@ def heuristic_fact_check(text, url=None):
         elif m == 1: s += 40
     if sum(1 for p in BAD_P if p in t_l) >= 3: s -= 50; r.append("Sensationalist language.")
     conf = 50 + min(49, abs(s) * 0.4) 
-    if is_t: rating, conf = "Trusted", max(95, conf)
-    elif s >= 50: rating, conf = "Trusted", max(95, conf)
-    else: rating, conf = "Unverified", max(50, 50 + abs(s)*0.2) # Default or low-score unverified
+    if is_t: rating, conf = "Trusted", 100
+    elif s >= 50: rating, conf = "Trusted", max(90, 60 + s*0.4)
+    elif s <= -30: rating, conf = "Fake News", max(90, 60 + abs(s)*0.4) # Internal "Fake" detection restored
+    else: rating, conf = "Unverified", 50
     return {"rating": rating, "confidence": f"{int(conf)}%", "reasons": r}
 
-# ================= ROUTES =================
-@app.route("/", methods=["GET"])
-@app.route("/admin", methods=["GET"])
-@app.route("/dashboard", methods=["GET"])
-def serve():
-    if 'admin' in request.path.lower(): return app.send_static_file('Admin.html')
-    return app.send_static_file('index.html')
+# ================= SECURITY HEADERS =================
+@app.after_request
+def add_security_headers(response):
+    response.headers['X-Frame-Options'] = 'SAMEORIGIN'
+    response.headers['X-Content-Type-Options'] = 'nosniff'
+    response.headers['X-XSS-Protection'] = '1; mode=block'
+    return response
 
 @app.route("/api/health")
 def health(): return jsonify({"status": "OK", "t": time.time()})
@@ -272,32 +284,24 @@ def analyze():
         # [FIX] Added Meta-features to match training (12000 + 2 = 12002)
         X = np.hstack([X.toarray(), np.array([[is_extreme_claim(content), is_vague_source(content)]])])
         
-        # 1. AI Analysis (Madax-bannaan)
+        # 1. AI Analysis
         raw = model.decision_function(X)[0] if model else 0
         ai_prediction = "Real News" if raw >= 0 else "Fake News"
-        ai_confidence_val = (1 / (1 + np.exp(-abs(raw * 2.0)))) * 100
-        # Bias for short text
-        if len(content.split()) < 20 and -0.8 < raw < 0: ai_prediction = "Real News"
+        ai_confidence_val = (1 / (1 + np.exp(-abs(raw * 2.1)))) * 100 # Slight boost to AI decisiveness
         
-        # 2. Expert Fact-check (Madax-bannaan)
+        # 2. Expert Fact-check
         fc_res = heuristic_fact_check(content, u)
         fc_confidence_val = float(fc_res["confidence"].replace("%", ""))
 
-        # 3. Final Verdict (Ku dhisnaan Confidence-ka ugu sarreeya)
+        # 3. Final Verdict (Highest Confidence Wins - REAL or FAKE ONLY)
         if ai_confidence_val >= fc_confidence_val:
             winning_source = "AI Engine"
             winning_confidence = f"{ai_confidence_val:.1f}%"
-            final_verdict = ai_prediction.upper() # "REAL NEWS" or "FAKE NEWS"
+            final_verdict = "REAL NEWS" if ai_prediction == "Real News" else "FAKE NEWS"
         else:
             winning_source = "Expert Logic"
             winning_confidence = fc_res["confidence"]
-            # Convert Expert rating to Final Labels
-            if fc_res["rating"] == "Trusted": final_verdict = "REAL NEWS"
-            else: final_verdict = "UNVERIFIED"
-
-        # Edge case: Very short text and low confidence
-        if len(content.split()) < 30 and final_verdict == "FAKE NEWS" and max(ai_confidence_val, fc_confidence_val) < 85:
-            final_verdict = "SUSPICIOUS"
+            final_verdict = "REAL NEWS" if fc_res["rating"] == "Trusted" else "FAKE NEWS"
 
         save_analysis_result(orig, winning_confidence, final_verdict, content, winning_source, f"{ai_confidence_val:.1f}%", fc_res["confidence"], title, u or "N/A", guess_subject(content))
         
