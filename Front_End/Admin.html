@@ -767,6 +767,21 @@
         console.log(`[*] Dashboard initialized. Backend: ${API_BASE}`);
 
         // Auth Logic
+        async function authFetch(url, options = {}) {
+            const token = localStorage.getItem('adminToken');
+            const headers = {
+                'Authorization': token || '',
+                ...(options.headers || {})
+            };
+            const response = await fetch(url, { ...options, headers });
+            if (response.status === 401) {
+                localStorage.removeItem('adminToken');
+                checkAuth();
+                return null;
+            }
+            return response;
+        }
+
         function checkAuth() {
             const loginSec = document.getElementById('loginSection');
             const dashWrap = document.getElementById('dashboardWrapper');
@@ -848,7 +863,8 @@
                     throw new Error("Local file access");
                 }
 
-                const res = await fetch(`${API_BASE}/stats?t=${Date.now()}`);
+                const res = await authFetch(`${API_BASE}/stats?t=${Date.now()}`);
+                if (!res) return;
                 if (!res.ok) throw new Error(`Server Response: ${res.status}`);
 
                 const data = await res.json();
@@ -888,7 +904,8 @@
 
         async function loadDatasets() {
             try {
-                const res = await fetch(`${API_BASE}/datasets`);
+                const res = await authFetch(`${API_BASE}/datasets`);
+                if (!res) return;
                 const data = await res.json();
                 document.getElementById('datasetsTable').innerHTML = data.map(f => `
                     <tr>
@@ -918,7 +935,8 @@
                 const tableBody = document.getElementById('historyTable');
                 tableBody.innerHTML = '<tr><td colspan="5" style="text-align: center; padding: 20px;"><i class="fas fa-spinner fa-spin"></i> Loading Database...</td></tr>';
 
-                const res = await fetch(`${API_BASE}/analysis_history?t=${Date.now()}`);
+                const res = await authFetch(`${API_BASE}/analysis_history?t=${Date.now()}`);
+                if (!res) return;
                 historyDataGlobal = await res.json();
 
                 if (historyDataGlobal.error) {
@@ -1049,11 +1067,12 @@
             if (!confirm("Ma hubtaa inaad tirtirto baaritaankan?")) return;
 
             try {
-                const res = await fetch(`${API_BASE}/analysis_history/delete`, {
+                const res = await authFetch(`${API_BASE}/analysis_history/delete`, {
                     method: "POST",
                     headers: { "Content-Type": "application/json" },
                     body: JSON.stringify({ id: id })
                 });
+                if (!res) return;
                 const data = await res.json();
                 if (data.success) {
                     loadAnalysisHistory(); // Refresh
@@ -1070,10 +1089,11 @@
             if (!confirm("Ma hubtaa inaad tirtirto DHAMAAN taariikhda?")) return;
 
             try {
-                const res = await fetch(`${API_BASE}/analysis_history/clear`, {
+                const res = await authFetch(`${API_BASE}/analysis_history/clear`, {
                     method: "POST",
                     headers: { "Content-Type": "application/json" }
                 });
+                if (!res) return;
                 const data = await res.json();
                 if (data.success) {
                     alert(data.message);
@@ -1099,7 +1119,8 @@
             currentEditorData.filename = filename;
 
             try {
-                const res = await fetch(`${API_BASE_URL}/api/admin/dataset/get?filename=${filename}`);
+                const res = await authFetch(`${API_BASE_URL}/api/admin/dataset/get?filename=${filename}`);
+                if (!res) return;
                 const data = await res.json();
 
                 if (!res.ok) throw new Error(data.error || `Server error: ${res.status}`);
@@ -1172,7 +1193,7 @@
             btn.disabled = true;
 
             try {
-                const res = await fetch(`${API_BASE_URL}/api/admin/dataset/save`, {
+                const res = await authFetch(`${API_BASE_URL}/api/admin/dataset/save`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
@@ -1181,6 +1202,7 @@
                         rows: currentEditorData.rows
                     })
                 });
+                if (!res) return;
                 const data = await res.json();
                 if (data.success) {
                     alert("Si guul leh ayaa loo kaydiyey!");
@@ -1214,10 +1236,11 @@
             formData.append('file', file);
 
             try {
-                const res = await fetch(`${API_BASE_URL}/api/admin/dataset/upload`, {
+                const res = await authFetch(`${API_BASE_URL}/api/admin/dataset/upload`, {
                     method: 'POST',
                     body: formData
                 });
+                if (!res) return;
                 const data = await res.json();
 
                 if (data.success) {
@@ -1244,10 +1267,11 @@
             btn.disabled = true;
 
             try {
-                const res = await fetch(`${API_BASE}/analysis_history/sync_all`, {
+                const res = await authFetch(`${API_BASE}/analysis_history/sync_all`, {
                     method: "POST",
                     headers: { "Content-Type": "application/json" }
                 });
+                if (!res) return;
                 const data = await res.json();
                 if (data.success) {
                     alert(data.message);
@@ -1265,7 +1289,8 @@
 
         async function loadLogs() {
             try {
-                const res = await fetch(`${API_BASE}/logs`);
+                const res = await authFetch(`${API_BASE}/logs`);
+                if (!res) return;
                 const data = await res.json();
                 document.getElementById('logsTable').innerHTML = data.map(l => `
                     <tr>
@@ -1289,7 +1314,8 @@
             btn.disabled = true;
 
             try {
-                const res = await fetch(`${API_BASE}/sync_emails`, { method: 'POST' });
+                const res = await authFetch(`${API_BASE}/sync_emails`, { method: 'POST' });
+                if (!res) return;
                 const data = await res.json();
                 if (data.success) {
                     if (data.count > 0) {
@@ -1313,11 +1339,12 @@
         window.deleteLog = async (id) => {
             if (!confirm("Ma hubtaa inaad tirtirto fariintan?")) return;
             try {
-                const res = await fetch(`${API_BASE}/logs/delete`, {
+                const res = await authFetch(`${API_BASE}/logs/delete`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ id })
                 });
+                if (!res) return;
                 const data = await res.json();
                 if (data.success) {
                     loadLogs();
@@ -1340,7 +1367,8 @@
             result.style.color = 'var(--accent-orange)';
 
             try {
-                const res = await fetch(`${API_BASE}/retrain`, { method: 'POST' });
+                const res = await authFetch(`${API_BASE}/retrain`, { method: 'POST' });
+                if (!res) return;
                 const data = await res.json();
 
                 if (!data.success) {
@@ -1355,7 +1383,8 @@
                 // Poll for completion
                 const pollInterval = setInterval(async () => {
                     try {
-                        const statusRes = await fetch(`${API_BASE}/retrain_status`);
+                        const statusRes = await authFetch(`${API_BASE}/retrain_status`);
+                        if (!statusRes) { clearInterval(pollInterval); return; }
                         const statusData = await statusRes.json();
 
                         if (!statusData.is_training) {
@@ -1514,11 +1543,12 @@
             btn.disabled = true;
 
             try {
-                const res = await fetch(`${API_BASE}/reply`, {
+                const res = await authFetch(`${API_BASE}/reply`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ email, subject, body })
                 });
+                if (!res) return;
                 const data = await res.json();
 
                 if (data.success) {
