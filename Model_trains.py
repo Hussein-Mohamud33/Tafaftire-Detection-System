@@ -5,11 +5,9 @@ import os
 import joblib
 import numpy as np
 import matplotlib.pyplot as plt
-
 from nltk.corpus import stopwords
 from nltk.tokenize import word_tokenize
 from nltk.stem import WordNetLemmatizer
-
 from sklearn.model_selection import train_test_split
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.naive_bayes import MultinomialNB
@@ -145,9 +143,9 @@ X_test_tfidf = hstack([X_test_tfidf, np.array([ext_test, vague_test]).T])
 
 
 models = {
-    "Naive_Bayes": MultinomialNB(),
-    "SVM": LinearSVC(max_iter=5000),
-    "Logistic_Regression": LogisticRegression(max_iter=2000),
+    "Naive_Bayes": MultinomialNB(alpha=0.1), # Lower alpha for better sensitivity
+    "SVM": LinearSVC(max_iter=10000, class_weight='balanced', C=0.5), # Balanced classes & regularized
+    "Logistic_Regression": LogisticRegression(max_iter=3000, class_weight='balanced'),
 }
 
 results = {}
@@ -156,7 +154,7 @@ trained_models = {}
 print("\n===== MODEL RESULTS =====")
 
 for name, model in models.items():
-    print(f"\nTraining {name}")
+    print(f"\nTraining {name}...")
     model.fit(X_train_tfidf, y_train)
     preds = model.predict(X_test_tfidf)
 
@@ -165,7 +163,7 @@ for name, model in models.items():
     trained_models[name] = model
 
     print(f"Accuracy: {acc:.4f}")
-    print(classification_report(y_test, preds))
+    print(classification_report(y_test, preds, target_names=["Fake", "Real"]))
 
 # ======================================
 # CREATE SAVE FOLDER
