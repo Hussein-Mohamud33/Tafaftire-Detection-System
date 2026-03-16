@@ -1,0 +1,15 @@
+# 1. Isticmaal Python 3.9
+FROM python:3.9
+
+# 2. Samee meesha koodhku gelayo server-ka dhexdiisa
+WORKDIR /code
+
+# 3. Nuqul ka samee requirements.txt oo rakib maktabadaha (libraries)
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
+
+# 4. Nuqul ka samee dhamaan koodhkaaga (app.py iyo folder-rada kale)
+COPY . .
+
+# 5. Kici barnaamijka adigoo isticmaalaya Port 7860
+CMD ["python", "app.py"]
