@@ -244,7 +244,7 @@ stop_words.update(somali_stopwords)
 lemmatizer = WordNetLemmatizer()
 
 # ================= PRE-COMPILED REGEX FOR SPEED =================
-# Extremely permissive URL detection to ensure no valid links are caught by length validation
+# Extremely robust URL detection to support subdomains and all common TLDs
 URL_PATTERN = re.compile(
     r'^((https?://|www\.)[a-z0-9-]+(\.[a-z0-9-]+)+|'
     r'([a-z0-9-]+\.)+[a-z]{2,10})'
@@ -276,9 +276,12 @@ def is_url(text):
     return bool(URL_PATTERN.match(text))
 
 def contains_url(text):
-    """Loose URL detection to skip validation."""
-    # Checks if there's any link-like structure anywhere in the text
-    pattern = re.compile(r'(https?://|www\.|[a-z0-9-]+\.(com|net|org|so|info|gov|edu|me|ly|tv|ai|news|online|site))', re.IGNORECASE)
+    """Loose URL detection to skip validation - supports subdomains and paths."""
+    # Matches http/www OR any string that looks like domain.tld (e.g. news.somali.so)
+    pattern = re.compile(
+        r'(https?://\S+|www\.\S+|([a-z0-9-]+\.)+[a-z]{2,10}(\/\S*)?)', 
+        re.IGNORECASE
+    )
     return bool(pattern.search(text))
 
 def guess_subject(text):
