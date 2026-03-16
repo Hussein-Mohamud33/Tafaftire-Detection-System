@@ -9,3 +9,4 @@ beautifulsoup4
 scipy
 nltk
 scikit-learn
+googlesearch
