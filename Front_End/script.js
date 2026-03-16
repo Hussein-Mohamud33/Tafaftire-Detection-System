@@ -158,7 +158,8 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function containsLink(text) {
-        const linkPattern = /(https?:\/\/[^\s]+|www\.[^\s]+|[a-z0-9-]+\.(com|net|org|so|info|gov|edu|me|ly|tv|ai|news|online|site))/i;
+        // Matches http/www OR any string that looks like domain.tld (supports subdomains like news.somali.so)
+        const linkPattern = /(https?:\/\/\S+|www\.\S+|([a-z0-9-]+\.)+[a-z]{2,10}(\/\S*)?)/i;
         return linkPattern.test(text);
     }
 
