@@ -151,13 +151,14 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     function isURL(text) {
-        const urlPattern = /^(https?:\/\/)?([\da-z.-]+)\.([a-z.]{2,6})([/\w .-]*)*\/?$/i;
-        const simpleDomainPattern = /[a-z0-9.-]+\.(com|net|org|io|gov|edu|info|so|me)/i;
-        return urlPattern.test(text.trim()) || simpleDomainPattern.test(text.trim());
+        text = text.trim();
+        // Consistently match the backend logic for extremely permissive URL detection
+        const urlPattern = /^((https?:\/\/|www\.)[a-z0-9-]+(\.[a-z0-9-]+)+|([a-z0-9-]+\.)+[a-z]{2,10})([/?#].*)?$/i;
+        return urlPattern.test(text);
     }
 
     function containsLink(text) {
-        const linkPattern = /(https?:\/\/[^\s]+|www\.[^\s]+|[a-z0-9.-]+\.(com|net|org|io|info|gov|edu|so|me))/i;
+        const linkPattern = /(https?:\/\/[^\s]+|www\.[^\s]+|[a-z0-9-]+\.(com|net|org|so|info|gov|edu|me|ly|tv|ai|news|online|site))/i;
         return linkPattern.test(text);
     }
 
@@ -381,8 +382,8 @@ document.addEventListener('DOMContentLoaded', () => {
         if (inputType === "text") {
             if (!newsText) return null;
             data = newsText.value.trim();
-            // Stricter validation matching backend - Skip if it's a URL
-            if (!isURL(data) && (data.split(/\s+/).length < 10 || data.length < 60)) { 
+            // Skip validation if input contains a link-like structure
+            if (!containsLink(data) && (data.split(/\s+/).length < 10 || data.length < 60)) { 
                 showError("Fadlan faafaahin badan soo geli si aan kuugu analyse gareeyo", "newsText"); 
                 return null; 
             }
