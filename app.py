@@ -245,6 +245,7 @@ lemmatizer = WordNetLemmatizer()
 
 # ================= PRE-COMPILED REGEX FOR SPEED =================
 URL_PATTERN = re.compile(r'^(https?://|www\.)[a-z0-9-]+(\.[a-z0-9-]+)+([/?#].*)?$', re.IGNORECASE)
+SIMPLE_DOMAIN_PATTERN = re.compile(r'^[a-z0-9.-]+\.(com|net|org|io|gov|edu|info|so|me|ly)$', re.IGNORECASE)
 CLEAN_TEXT_PATTERN = re.compile(r"[^a-z' ]")
 DOMAIN_CLEAN_PATTERN = re.compile(r'^https?://(www\.)?')
 SUSPICIOUS_EXT_PATTERN = re.compile(r"\.(tk|ga|ml|cf|icu|xyz)$")
@@ -268,7 +269,8 @@ def preprocess_text(text):
 
 def is_url(text):
     """Fast URL detection."""
-    return bool(URL_PATTERN.match(text.strip()))
+    text = text.strip()
+    return bool(URL_PATTERN.match(text)) or bool(SIMPLE_DOMAIN_PATTERN.match(text))
 
 def guess_subject(text):
     """Guess the news subject based on keywords."""
@@ -530,16 +532,19 @@ def predict():
 
         content = str(content).strip()
         
-        # Validation for very short/vague texts
-        if len(content.split()) < 10 or len(content) < 60:
-            return jsonify({"error": "Fadlan faafaahin badan soo geli si aan kuugu analyse gareeyo (Please provide more details for a proper analysis)"}), 400
-
         input_type = data.get("type", "text")
+        is_input_url = input_type == "url" or is_url(content)
+        
+        # Validation for very short/vague texts - Skip if it's a URL
+        if not is_input_url:
+            if len(content.split()) < 10 or len(content) < 60:
+                return jsonify({"error": "Fadlan faafaahin badan soo geli si aan kuugu analyse gareeyo (Please provide more details for a proper analysis)"}), 400
+
         input_url = None
         
         # Haddii input uu URL yahay ama ciddida u eg tahay URL
         page_title = "News Article"
-        if input_type == "url" or is_url(content):
+        if is_input_url:
             if not content.startswith(("http://", "https://")):
                 content = "https://" + content
             
@@ -617,15 +622,18 @@ def fact_check():
 
         content = str(content).strip()
         
-        # Validation for very short/vague texts
-        if len(content.split()) < 10 or len(content) < 60:
-            return jsonify({"error": "Fadlan faafaahin badan soo geli si aan kuugu analyse gareeyo (Please provide more details for accurate fact-checking)"}), 400
+        input_type = data.get("type", "text")
+        is_input_url = input_type == "url" or is_url(content)
+
+        # Validation for very short/vague texts - Skip if it's a URL
+        if not is_input_url:
+            if len(content.split()) < 10 or len(content) < 60:
+                return jsonify({"error": "Fadlan faafaahin badan soo geli si aan kuugu analyse gareeyo (Please provide more details for accurate fact-checking)"}), 400
 
 
         input_url = None
-        input_type = data.get("type", "text")
         page_title = "News Article"
-        if input_type == "url" or is_url(content):
+        if is_input_url:
             temp_content = content.strip()
             if not temp_content.startswith(("http://", "https://")):
                 temp_content = "https://" + temp_content
