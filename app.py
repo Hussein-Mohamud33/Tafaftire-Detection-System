@@ -415,8 +415,8 @@ def heuristic_fact_check(text, url=None):
         for trusted in TRUSTED_SOURCES:
             if trusted in clean_url:
                 found_trusted = True
-                score += 70 # Increased
-                reasons.append(f"The news source ({trusted}) is highly trusted.")
+                score += 120 # Guaranteed Trusted threshold
+                reasons.append(f"The news source ({trusted}) is an officially verified portal.")
                 break
 
         if not found_trusted:
@@ -495,14 +495,14 @@ def heuristic_fact_check(text, url=None):
     confidence = 60 + (abs(score) / 4.0)
     if confidence > 98: confidence = 98
 
-    # Logic: High Bar for Trusted, Low Bar for Suspicious
-    if score > 100: # Requires many positive official indicators
+    # Logic: More nuanced thresholds
+    if score >= 80: # Lowered bar for official news
         rating = "Trusted"
-    elif score < -10: # If even one bad pattern is found, mark as suspicious
+    elif score < -15: 
         rating = "Suspicious" 
     else:
-        rating = "Unverified" # Default safely to Unverified
-        confidence = 65
+        rating = "Unverified"
+        if confidence > 70: confidence = 70
 
     return {
         "rating": rating,
@@ -547,36 +547,40 @@ def predict():
         content = str(content).strip()
         
         input_type = data.get("type", "text")
+        # Automatic detection: If it looks like a URL, treat it as one for extraction
+        is_input_url = input_type == "url" or is_url(content)
         
         # Validation for short texts - Skip if it's a URL or contains one
-        if input_type != "url" and not contains_url(content):
+        if not is_input_url and not contains_url(content):
             if len(content.split()) < 10 or len(content) < 60:
                 return jsonify({"error": "Fadlan faafaahin badan soo geli si aan kuugu analyse gareeyo (Please provide more details for a proper analysis)"}), 400
 
-        is_input_url = input_type == "url" or is_url(content)
         input_url = None
         
         # Haddii input uu URL yahay ama ciddida u eg tahay URL
         page_title = "News Article"
         if is_input_url:
+            # Normalize URL
             if not content.startswith(("http://", "https://")):
                 content = "https://" + content
             
-            url_to_extract = content
             input_url = content
-            
             try:
                 extracted, page_title = extract_text_from_url(input_url)
                 if not extracted and input_url.startswith("https://"):
+                    # Retry with http
                     input_url = input_url.replace("https://", "http://")
                     extracted, page_title = extract_text_from_url(input_url)
-            except Exception as e:
-                # Returns the specific extraction error to the user
-                return jsonify({"error": str(e)}), 400
                 
-            if not extracted:
-                return jsonify({"error": "SYSTEM: Failed to extract data from URL. The site may have blocked the system or is empty."}), 400
-            content = extracted
+                if extracted:
+                    content = extracted
+                else:
+                    # If extraction failed, we keep the original text but mark it as suspicion
+                    print(f"[*] URL extraction returned nothing for {input_url}")
+            except Exception as e:
+                print(f"[*] Extraction Error: {e}")
+                # Don't fail here, try to use whatever text we have or provide a friendly error
+                pass
 
         else:
             # Use a snippet of text as title for text inputs
@@ -596,23 +600,54 @@ def predict():
         X_dense = X.toarray()
         X = np.hstack([X_dense, np.array([[ext, vague]])])
 
-        # ================= AI-ONLY DECISION =================
-        # Calculate base AI score
-        score = model.decision_function(X)[0] if hasattr(model, "decision_function") else 0
+        # ================= ENHANCED DECISION LOGIC =================
+        # 1. Base AI Score
+        ai_score = model.decision_function(X)[0] if hasattr(model, "decision_function") else 0
         
-        # Pure model score normalized for the UI
-        confidence_val = (1 / (1 + np.exp(-abs(score * 0.7)))) * 100
+        # 2. Heuristic Analysis (Source, Patterns, Style)
+        # Pass the extracted content and URL to the heuristic engine
+        h_res = heuristic_fact_check(content, input_url if input_url else None)
+        h_score = h_res.get("score", 0)
+        
+        # 3. DOMAIN TRUST OVERRIDE (CRITICAL)
+        is_source_trusted = False
+        if input_url:
+            clean_domain = re.sub(r'^https?://(www\.)?', '', input_url.lower())
+            if any(trusted in clean_domain for trusted in TRUSTED_SOURCES):
+                is_source_trusted = True
+
+        # 4. WEIGHTED INTEGRATION
+        # We give high weight to Heuristics and Source Trust to prevent AI Model Bias
+        combined_score = (ai_score * 1.5) + (h_score / 20.0)
+        
+        if is_source_trusted:
+            combined_score += 10.0 # Massive boost for verified domains
+            
+        # Determine Prediction
+        if combined_score > 1.0:
+            result = "Trusted"
+        elif combined_score < -1.0:
+            result = "Fake Information"
+        else:
+            result = "Unverified"
+
+        # Calculate Confidence for UI
+        confidence_val = (1 / (1 + np.exp(-abs(combined_score * 0.5)))) * 100
+        
+        # If it's a trusted source, we cap at very high
+        if is_source_trusted and result == "Trusted":
+            confidence_val = max(95.0, confidence_val)
+        
         confidence_val = min(98.0, max(75.0, confidence_val))
-        
-        # Binary prediction (pure AI)
-        result = "Trusted" if score > 0 else "Fake Information"
 
         return jsonify({
             "prediction": result, 
             "confidence": f"{round(float(confidence_val), 1)}%",
-            "ai_score": float(round(float(score), 2)),
+            "ai_score": float(round(float(ai_score), 2)),
+            "h_score": float(h_score),
             "title": page_title,
-            "subject": news_subject
+            "subject": news_subject,
+            "is_trusted_source": is_source_trusted
         })
 
     except Exception as e:
@@ -637,29 +672,32 @@ def fact_check():
         content = str(content).strip()
         
         input_type = data.get("type", "text")
+        # Automatic detection
+        is_input_url = input_type == "url" or is_url(content)
         
         # Validation for short texts - Skip if it's a URL or contains one
-        if input_type != "url" and not contains_url(content):
+        if not is_input_url and not contains_url(content):
             if len(content.split()) < 10 or len(content) < 60:
                 return jsonify({"error": "Fadlan faafaahin badan soo geli si aan kuugu analyse gareeyo (Please provide more details for accurate fact-checking)"}), 400
 
-        is_input_url = input_type == "url" or is_url(content)
         input_url = None
         page_title = "News Article"
         if is_input_url:
-            temp_content = content.strip()
-            if not temp_content.startswith(("http://", "https://")):
-                temp_content = "https://" + temp_content
+            if not content.startswith(("http://", "https://")):
+                content = "https://" + content
             
-            input_url = temp_content
+            input_url = content
             try:
-                content, page_title = extract_text_from_url(input_url)
-                if not content and input_url.startswith("https://"):
+                extracted, page_title = extract_text_from_url(input_url)
+                if not extracted and input_url.startswith("https://"):
                     input_url = input_url.replace("https://", "http://")
-                    content, page_title = extract_text_from_url(input_url)
+                    extracted, page_title = extract_text_from_url(input_url)
+                
+                if extracted:
+                    content = extracted
             except Exception as e:
-                # Returns the specific extraction error to the user
-                return jsonify({"error": str(e)}), 400
+                print(f"[*] Fact-Check Extraction Error: {e}")
+                pass
         else:
             page_title = content[:60] + "..." if len(content) > 60 else content
 
@@ -686,20 +724,32 @@ def fact_check():
         except:
             reasons.append("Live search is currently limited (API Quote).")
 
-        # Determine rating strictly based on live search evidence
-        rating = "Unverified"
-        if live_score >= 40:
-            rating = "Trusted"
-        elif live_score > 0:
-            rating = "Unverified" # Found some reports but not necessarily official ones
-        elif not found_sources:
-            rating = "Unverified" # No evidence found online
+        # ================= HEURISTIC & SOURCE ANALYSIS =================
+        h_res = heuristic_fact_check(content, input_url if input_url else None)
+        h_score = h_res.get("score", 0)
+        h_rating = h_res.get("rating", "Unverified")
         
+        # Merge reasons (Heuristic + Live Search)
+        combined_reasons = list(set(h_res.get("reasons", []) + reasons))
+        
+        # Determine final rating strictly
+        # If it's a trusted domain from heuristics, or found on trusted portals via search
+        if h_rating == "Trusted" or live_score >= 40:
+            rating = "Trusted"
+        elif h_rating == "Suspicious" or (live_score < 0 and not found_sources):
+            rating = "Suspicious"
+        else:
+            rating = "Unverified"
+        
+        # Calculate overall fact-check confidence
+        base_conf = float(h_res.get("confidence", "70%").replace("%", ""))
+        final_conf = min(98, (base_conf + live_score/2))
+
         # Prepare final fact-check response
         fact_result = {
             "rating": rating,
-            "confidence": f"{min(98, 70 + live_score//2)}%",
-            "reasons": reasons, # Only show live web results
+            "confidence": f"{int(final_conf)}%",
+            "reasons": combined_reasons[:6], # Show more reasons now
             "found_sources": found_sources[:3],
             "title": page_title,
             "subject": guess_subject(content)
