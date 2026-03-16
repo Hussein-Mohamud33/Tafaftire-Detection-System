@@ -244,8 +244,11 @@ stop_words.update(somali_stopwords)
 lemmatizer = WordNetLemmatizer()
 
 # ================= PRE-COMPILED REGEX FOR SPEED =================
-URL_PATTERN = re.compile(r'^(https?://|www\.)[a-z0-9-]+(\.[a-z0-9-]+)+([/?#].*)?$', re.IGNORECASE)
-SIMPLE_DOMAIN_PATTERN = re.compile(r'^[a-z0-9.-]+\.(com|net|org|io|gov|edu|info|so|me|ly)$', re.IGNORECASE)
+# Extremely permissive URL detection to ensure no valid links are caught by length validation
+URL_PATTERN = re.compile(
+    r'^((https?://|www\.)[a-z0-9-]+(\.[a-z0-9-]+)+|'
+    r'([a-z0-9-]+\.)+[a-z]{2,10})'
+    r'([/?#].*)?$', re.IGNORECASE)
 CLEAN_TEXT_PATTERN = re.compile(r"[^a-z' ]")
 DOMAIN_CLEAN_PATTERN = re.compile(r'^https?://(www\.)?')
 SUSPICIOUS_EXT_PATTERN = re.compile(r"\.(tk|ga|ml|cf|icu|xyz)$")
@@ -268,9 +271,15 @@ def preprocess_text(text):
     return " ".join(cleaned_tokens)
 
 def is_url(text):
-    """Fast URL detection."""
+    """Strict URL detection for extraction."""
     text = text.strip()
-    return bool(URL_PATTERN.match(text)) or bool(SIMPLE_DOMAIN_PATTERN.match(text))
+    return bool(URL_PATTERN.match(text))
+
+def contains_url(text):
+    """Loose URL detection to skip validation."""
+    # Checks if there's any link-like structure anywhere in the text
+    pattern = re.compile(r'(https?://|www\.|[a-z0-9-]+\.(com|net|org|so|info|gov|edu|me|ly|tv|ai|news|online|site))', re.IGNORECASE)
+    return bool(pattern.search(text))
 
 def guess_subject(text):
     """Guess the news subject based on keywords."""
@@ -289,11 +298,15 @@ def extract_text_from_url(url):
     """Ka soo saar qoraalka bogga webka URL si qoto dheer"""
     try:
         headers = {
-            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-            "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8",
-            "Accept-Language": "en-US,en;q=0.5"
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36",
+            "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8",
+            "Accept-Language": "en-US,en;q=0.9,so;q=0.8",
+            "Referer": "https://www.google.com/",
+            "DNT": "1",
+            "Connection": "keep-alive",
+            "Upgrade-Insecure-Requests": "1"
         }
-        resp = requests.get(url, headers=headers, timeout=12)
+        resp = requests.get(url, headers=headers, timeout=15, allow_redirects=True)
         if resp.status_code == 404:
             raise Exception("Boggan lama helin (404 Not Found). Fadlan hubi in link-gu sax yahay.")
         elif resp.status_code != 200:
@@ -332,11 +345,9 @@ def extract_text_from_url(url):
         print(f"URL Extracted {len(extracted_text)} chars from {url}")
         return extracted_text.strip(), page_title.strip()
     except Exception as e:
-        print(f"Error extracting from {url}: {e}")
-        return "", "Error Extracting Title"
-    except Exception as e:
         print(f"URL Extract Error: {e}")
-        raise Exception(f"Kahortaga Nidaamka: {str(e)}")
+        # Return empty text so the caller can decide whether to retry or fail
+        return "", "Error Extracting Title"
 
 # ================= EXTRA FEATURES =================
 def is_extreme_claim(text):
@@ -533,13 +544,13 @@ def predict():
         content = str(content).strip()
         
         input_type = data.get("type", "text")
-        is_input_url = input_type == "url" or is_url(content)
         
-        # Validation for very short/vague texts - Skip if it's a URL
-        if not is_input_url:
+        # Validation for short texts - Skip if it's a URL or contains one
+        if input_type != "url" and not contains_url(content):
             if len(content.split()) < 10 or len(content) < 60:
                 return jsonify({"error": "Fadlan faafaahin badan soo geli si aan kuugu analyse gareeyo (Please provide more details for a proper analysis)"}), 400
 
+        is_input_url = input_type == "url" or is_url(content)
         input_url = None
         
         # Haddii input uu URL yahay ama ciddida u eg tahay URL
@@ -623,14 +634,13 @@ def fact_check():
         content = str(content).strip()
         
         input_type = data.get("type", "text")
-        is_input_url = input_type == "url" or is_url(content)
-
-        # Validation for very short/vague texts - Skip if it's a URL
-        if not is_input_url:
+        
+        # Validation for short texts - Skip if it's a URL or contains one
+        if input_type != "url" and not contains_url(content):
             if len(content.split()) < 10 or len(content) < 60:
                 return jsonify({"error": "Fadlan faafaahin badan soo geli si aan kuugu analyse gareeyo (Please provide more details for accurate fact-checking)"}), 400
 
-
+        is_input_url = input_type == "url" or is_url(content)
         input_url = None
         page_title = "News Article"
         if is_input_url:
