@@ -1,4 +1,4 @@
-const API_BASE_URL = 'https://tafaftire-detection-system-scui.onrender.com';
+const API_BASE_URL = "https://tafaftire-detection-system-scui.onrender.com";
 
 window.isAnalyzing = false;
 
