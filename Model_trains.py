@@ -86,7 +86,7 @@ def find_file(filename):
 
 print("Loading datasets...")
 
-fake_path = find_file("fake-news.csv")
+fake_path = find_file("Fake-news.csv")
 real_path = find_file("Real-news.csv")
 
 if not fake_path or not real_path:
