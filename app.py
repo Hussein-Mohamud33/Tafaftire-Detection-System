@@ -1312,4 +1312,6 @@ def delete_log():
 # ================= RUN SERVER =================
 if __name__ == "__main__":
     print("[*] Flask server starting...")
-    app.run(host="0.0.0.0", port=3402, debug=False)
+    # Dynamic port for Render deployment
+    port = int(os.environ.get("PORT", 3402))
+    app.run(host="0.0.0.0", port=port, debug=False)
