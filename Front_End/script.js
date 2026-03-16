@@ -381,8 +381,8 @@ document.addEventListener('DOMContentLoaded', () => {
         if (inputType === "text") {
             if (!newsText) return null;
             data = newsText.value.trim();
-            // Stricter validation matching backend
-            if (data.split(/\s+/).length < 10 || data.length < 60) { 
+            // Stricter validation matching backend - Skip if it's a URL
+            if (!isURL(data) && (data.split(/\s+/).length < 10 || data.length < 60)) { 
                 showError("Fadlan faafaahin badan soo geli si aan kuugu analyse gareeyo", "newsText"); 
                 return null; 
             }
