@@ -258,18 +258,35 @@ document.addEventListener('DOMContentLoaded', () => {
             let aiConfVal = 0;
             if (aiSuccess) {
                 const aiStatus = aiRes.prediction; // "Trusted", "Fake Information", "Unverified"
-                aiResult.innerText = aiStatus === "Fake Information" ? "FAKE" : (aiStatus === "Trusted" ? "REAL" : "UNVERIFIED");
-                
-                // Color logic
-                if (aiStatus === "Trusted") aiResult.style.color = "#2ecc71"; // Green
-                else if (aiStatus === "Fake Information") aiResult.style.color = "#ff4757"; // Red
-                else aiResult.style.color = "#f39c12"; // Orange for Unverified
-                
+
+                if (aiStatus === "Fake Information") {
+                    aiResult.innerHTML = `<span style="font-size:1.5rem;">🚨</span><br>FAKE NEWS`;
+                    aiResult.style.color = "#ff4757";
+                    aiResult.style.background = "rgba(255,71,87,0.12)";
+                    aiResult.style.border = "2px solid #ff4757";
+                    aiResult.style.borderRadius = "12px";
+                    aiResult.style.padding = "10px 18px";
+                } else if (aiStatus === "Trusted") {
+                    aiResult.innerHTML = `<span style="font-size:1.5rem;">✅</span><br>REAL NEWS`;
+                    aiResult.style.color = "#2ecc71";
+                    aiResult.style.background = "rgba(46,204,113,0.12)";
+                    aiResult.style.border = "2px solid #2ecc71";
+                    aiResult.style.borderRadius = "12px";
+                    aiResult.style.padding = "10px 18px";
+                } else {
+                    aiResult.innerHTML = `<span style="font-size:1.5rem;">❓</span><br>UNVERIFIED`;
+                    aiResult.style.color = "#f39c12";
+                    aiResult.style.background = "rgba(243,156,18,0.12)";
+                    aiResult.style.border = "2px solid #f39c12";
+                    aiResult.style.borderRadius = "12px";
+                    aiResult.style.padding = "10px 18px";
+                }
+
                 aiConfidence.innerText = `Confidence: ${aiRes.confidence}`;
                 aiConfVal = parseFloat(aiRes.confidence.replace('%', '')) || 0;
             }
 
-            // 2. Expert Result Process
+            // 2. Expert / Fact-Check Result Process
             const fcSuccess = !fcRes.error;
             let fcConfVal = 0;
             if (fcSuccess) {
@@ -278,66 +295,76 @@ document.addEventListener('DOMContentLoaded', () => {
                 const fcIsSuspicious = fcRating.includes("suspicious");
 
                 if (fcIsTrusted) {
-                    fcResult.innerText = "TRUSTED";
+                    fcResult.innerHTML = `<span style="font-size:1.5rem;">✅</span><br>TRUSTED`;
                     fcResult.style.color = "#2ecc71";
+                    fcResult.style.background = "rgba(46,204,113,0.12)";
+                    fcResult.style.border = "2px solid #2ecc71";
+                    fcResult.style.borderRadius = "12px";
+                    fcResult.style.padding = "10px 18px";
                 } else if (fcIsSuspicious) {
-                    fcResult.innerText = "SUSPICIOUS";
+                    fcResult.innerHTML = `<span style="font-size:1.5rem;">🚨</span><br>FAKE NEWS`;
                     fcResult.style.color = "#ff4757";
+                    fcResult.style.background = "rgba(255,71,87,0.12)";
+                    fcResult.style.border = "2px solid #ff4757";
+                    fcResult.style.borderRadius = "12px";
+                    fcResult.style.padding = "10px 18px";
                 } else {
-                    fcResult.innerText = "UNVERIFIED";
-                    fcResult.style.color = "#f39c12"; // Orange
+                    fcResult.innerHTML = `<span style="font-size:1.5rem;">❓</span><br>UNVERIFIED`;
+                    fcResult.style.color = "#f39c12";
+                    fcResult.style.background = "rgba(243,156,18,0.12)";
+                    fcResult.style.border = "2px solid #f39c12";
+                    fcResult.style.borderRadius = "12px";
+                    fcResult.style.padding = "10px 18px";
                 }
 
                 fcConfidence.innerText = `Expert Score: ${fcRes.confidence || '0%'}`;
                 fcConfVal = parseFloat((fcRes.confidence || '0').replace('%', '')) || 0;
 
-                // Enhanced Reason Display
+                // Reason Display
                 if (fcReasons) {
                     let reasonsHTML = "";
                     if (fcRes.reasons && fcRes.reasons.length > 0) {
-                        reasonsHTML += fcRes.reasons.map(r => `<div class="reason-item"><i class="fas fa-check-shield"></i> <span>${r}</span></div>`).join('');
+                        reasonsHTML += fcRes.reasons.map(r => `<div class="reason-item"><i class="fas fa-check-circle" style="color:#2ecc71;"></i> <span>${r}</span></div>`).join('');
                     }
-                    
-                    // Add found sources (Live links)
                     if (fcRes.found_sources && fcRes.found_sources.length > 0) {
-                        reasonsHTML += `<div class="analysis-divider" style="margin: 10px 0;"><span>Live Evidence Found</span></div>`;
-                        reasonsHTML += fcRes.found_sources.map(src => 
-                            `<div class="reason-item source-link" style="border-left-color: #3498db;">
-                                <i class="fas fa-external-link-alt" style="color: #3498db;"></i> 
-                                <a href="${src}" target="_blank" style="color: #3498db; text-decoration: underline; font-size: 0.8rem; word-break: break-all;">${src}</a>
-                             </div>`
+                        reasonsHTML += `<div class="analysis-divider" style="margin:10px 0;"><span>🔗 Live Evidence Found</span></div>`;
+                        reasonsHTML += fcRes.found_sources.map(src =>
+                            `<div class="reason-item source-link" style="border-left-color:#3498db;">
+                                <i class="fas fa-external-link-alt" style="color:#3498db;"></i>
+                                <a href="${src}" target="_blank" style="color:#3498db;text-decoration:underline;font-size:0.8rem;word-break:break-all;">${src}</a>
+                            </div>`
                         ).join('');
-                    }
-
-                    if (reasonsHTML === "" && !fcIsTrusted) {
-                        reasonsHTML = ""; // Hidden if nothing found
                     }
                     fcReasons.innerHTML = reasonsHTML;
                 }
             }
 
-            // 3. WINNER / UNIFIED VERDICT LOGIC
+            // 3. FINAL / UNIFIED VERDICT
             if (aiSuccess || fcSuccess) {
-                // Determine winner based on confidence, but prioritize Expert "Trusted" if high enough
                 let winningSource = "AI Model Analysis";
-                let winningVerdict = aiResult.innerText;
+                let winningHTMLVerdict = aiResult.innerHTML;
                 let winningColor = aiResult.style.color;
                 let winningConfidence = aiRes.confidence;
 
-                // If Expert is trusted and has decent score, it often wins due to human-like heuristics
-                const expertIsStrong = fcConfVal > 85 && fcResult.innerText !== "UNVERIFIED";
-                const aiIsWeak = aiConfVal < 80;
-
-                if (fcConfVal > aiConfVal || expertIsStrong || (aiResult.innerText === "UNVERIFIED" && fcResult.innerText !== "UNVERIFIED")) {
+                const expertIsStrong = fcConfVal > 85 && !fcResult.innerHTML.includes("UNVERIFIED");
+                if (fcConfVal > aiConfVal || expertIsStrong || (aiResult.innerHTML.includes("UNVERIFIED") && !fcResult.innerHTML.includes("UNVERIFIED"))) {
                     winningSource = "Expert Fact-Check";
-                    winningVerdict = fcResult.innerText;
+                    winningHTMLVerdict = fcResult.innerHTML;
                     winningColor = fcResult.style.color;
                     winningConfidence = fcRes.confidence;
                 }
 
-                unifiedVerdict.innerText = winningVerdict;
+                unifiedVerdict.innerHTML = winningHTMLVerdict;
                 unifiedVerdict.style.color = winningColor;
-                unifiedConfidence.innerText = (winningSource.includes("AI")) ? `Confidence: ${winningConfidence}` : `Expert Score: ${winningConfidence}`;
+                unifiedVerdict.style.background = winningColor === "#ff4757"
+                    ? "rgba(255,71,87,0.12)"
+                    : winningColor === "#2ecc71"
+                    ? "rgba(46,204,113,0.12)"
+                    : "rgba(243,156,18,0.12)";
+                unifiedVerdict.style.border = `2px solid ${winningColor}`;
+                unifiedVerdict.style.borderRadius = "14px";
+                unifiedVerdict.style.padding = "12px 24px";
+                unifiedConfidence.innerText = winningSource.includes("AI") ? `Confidence: ${winningConfidence}` : `Expert Score: ${winningConfidence}`;
                 winnerSource.innerText = `Source: ${winningSource}`;
             }
 
