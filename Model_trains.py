@@ -13,7 +13,7 @@ from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.naive_bayes import MultinomialNB
 from sklearn.svm import LinearSVC
 from sklearn.linear_model import LogisticRegression
-from sklearn.metrics import accuracy_score, classification_report
+from sklearn.metrics import accuracy_score, classification_report, f1_score
 from sklearn.preprocessing import LabelEncoder
 
 # Define DATA_DIR outside the workspace to prevent Live Server reloads
@@ -159,10 +159,12 @@ for name, model in models.items():
     preds = model.predict(X_test_tfidf)
 
     acc = accuracy_score(y_test, preds)
-    results[name] = acc
+    f1 = f1_score(y_test, preds, average='weighted')
+    results[name] = f1
     trained_models[name] = model
 
     print(f"Accuracy: {acc:.4f}")
+    print(f"F1-Score: {f1:.4f}")
     print(classification_report(y_test, preds, target_names=["Fake", "Real"]))
 
 # ======================================
@@ -221,8 +223,8 @@ print(f"High confidence model saved as: {high_model_path}")
 # ======================================
 # ACCURACY TABLE IMAGE
 # ======================================
-df_results = pd.DataFrame(list(results.items()), columns=["Model", "Accuracy"])
-df_results = df_results.sort_values(by="Accuracy", ascending=False)
+df_results = pd.DataFrame(list(results.items()), columns=["Model", "F1-Score"])
+df_results = df_results.sort_values(by="F1-Score", ascending=False)
 
 fig, ax = plt.subplots(figsize=(7, 3))
 ax.axis('off')
@@ -242,7 +244,7 @@ for (row, col), cell in table.get_celld().items():
         cell.set_facecolor("#E3F2FD" if row % 2 == 0 else "#BBDEFB")
 
 table.scale(1, 1.5)
-plt.title("Model Accuracy Comparison", fontsize=12, fontweight="bold")
+plt.title("Model F1-Score Comparison", fontsize=12, fontweight="bold")
 plt.savefig("saved_model/model_accuracy_table.png", dpi=300, bbox_inches="tight")
 plt.close()
 
