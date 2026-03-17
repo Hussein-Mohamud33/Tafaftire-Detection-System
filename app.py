@@ -471,22 +471,21 @@ def heuristic_fact_check(text, url=None):
         "heshiis", "lagu dhawaaqay", "iskaashi", "musharax", "aqalka hoose",
         "aqalka sare", "guddiga", "howlgalka", "ciidammada", "nabad-sugidda"
     ]
-    found_consensus = [w for w in consensus_keywords if w in text_lower]
-    if len(found_consensus) >= 1:
-        score += 40 # Increased base boost
-        if len(found_consensus) >= 3:
-            score += 40 # Total 80 for very official looking text
+    # Use regex boundaries to match exact words and avoid false positives like "shirkadda" -> "shir"
+    found_consensus = [w for w in consensus_keywords if re.search(r'\b' + re.escape(w) + r'\b', text_lower)]
+    
+    if len(found_consensus) >= 2:
+        score += 15 # Lowered base boost to avoid overpowering the AI model
+        if len(found_consensus) >= 4:
+            score += 20 # Total 35 for very official looking text
         reasons.append("Nuxurka warku wuxuu u muuqdaa mid rasmi ah (Official news patterns detected).")
 
     # 6. Text Length & Quality (Anti-Bias Logic)
-    # Real news in our dataset is short (headlines), Fake is long.
-    # To fix this, we REWARD length if it has official keywords.
+    # Fake news can also be long. We must be careful not to blindly reward length.
     if len(words) > 60:
-        if len(found_consensus) >= 2:
-            score += 50 # Massive boost if long AND official
+        if len(found_consensus) >= 3:
+            score += 15 # Reduced boost
             reasons.append("Maqaal dheer oo nuxur rasmi ah leh (Detailed official report).")
-        else:
-            score += 20 # Standard depth boost
     elif len(words) < 15:
         # Don't penalize short news too much as real news often starts as headlines
         score += 5 
