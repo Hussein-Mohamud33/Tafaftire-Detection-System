@@ -155,10 +155,11 @@
 
                     <!-- Result Display -->
                     <div id="unifiedResultContainer" class="result-container" style="display: none;">
-                        <!-- Unified Verdict (Winner Card) - Now at the Top -->
+
+                        <!-- FINAL VERDICT at Top -->
                         <div id="unifiedVerdictCard" class="unified-verdict-card hidden">
-                            <div class="verdict-banner">FINAL VERDICT</div>
-                            <div id="unifiedVerdict" class="prediction-main" style="font-size: 3.5rem;">⏳...</div>
+                            <div class="verdict-banner">🏆 FINAL VERDICT</div>
+                            <div id="unifiedVerdict" class="prediction-main" style="font-size:2.8rem; letter-spacing:2px;">⏳</div>
                             <div class="verdict-meta">
                                 <span id="unifiedConfidence" class="prediction-sub">Confidence: --</span>
                                 <span class="divider">|</span>
@@ -166,27 +167,34 @@
                             </div>
                         </div>
 
+                        <!-- TWO CARDS: AI Analysis + Fact-Check -->
                         <div class="grid-12 results-grid-dual">
-                            <!-- AI Result Card -->
-                            <div id="aiResultCard" class="col-6 result-card-premium hidden">
-                                <h4>AI ANALYSIS</h4>
-                                <p class="tagline">Machine Learning Engine</p>
-                                <div id="aiResult" class="prediction-main"></div>
-                                <div id="aiConfidence" class="prediction-sub"></div>
-                            </div>
 
-                            <!-- Fact-Check Result Card -->
-                            <div id="fcResultCard" class="col-6 result-card-premium expert-card hidden">
-                                <div class="card-header-expert">
-                                    <i class="fas fa-user-shield"></i>
+                            <!-- AI ANALYSIS CARD -->
+                            <div id="aiResultCard" class="col-6 result-card-premium hidden">
+                                <div style="display:flex; align-items:center; gap:8px; margin-bottom:10px;">
+                                    <i class="fas fa-microchip" style="color:var(--accent-orange); font-size:1.2rem;"></i>
                                     <div>
-                                        <h4>EXPERT FACT-CHECK</h4>
-                                        <p class="tagline">GLOBAL INTELLIGENCE VERIFICATION</p>
+                                        <h4 style="margin:0; font-size:0.95rem; letter-spacing:2px;">AI ANALYSIS</h4>
+                                        <p class="tagline" style="margin:0; font-size:0.72rem;">Machine Learning Engine</p>
                                     </div>
                                 </div>
-                                <div id="fcResult" class="prediction-main status-badge"></div>
-                                <div id="fcConfidence" class="prediction-sub score-badge"></div>
-                                <div class="analysis-divider"><span>Expert Evidence</span></div>
+                                <div id="aiResult" class="prediction-main" style="font-size:1.8rem; font-weight:800; text-align:center; padding:14px 10px; border-radius:12px; margin:10px 0;">⏳</div>
+                                <div id="aiConfidence" class="prediction-sub" style="text-align:center; font-size:0.82rem; opacity:0.8;"></div>
+                            </div>
+
+                            <!-- FACT-CHECK CARD -->
+                            <div id="fcResultCard" class="col-6 result-card-premium expert-card hidden">
+                                <div style="display:flex; align-items:center; gap:8px; margin-bottom:10px;">
+                                    <i class="fas fa-user-shield" style="color:var(--accent-orange); font-size:1.2rem;"></i>
+                                    <div>
+                                        <h4 style="margin:0; font-size:0.95rem; letter-spacing:2px;">FACT-CHECK</h4>
+                                        <p class="tagline" style="margin:0; font-size:0.72rem;">Global Intelligence Verification</p>
+                                    </div>
+                                </div>
+                                <div id="fcResult" class="prediction-main status-badge" style="font-size:1.8rem; font-weight:800; text-align:center; padding:14px 10px; border-radius:12px; margin:10px 0;">⏳</div>
+                                <div id="fcConfidence" class="prediction-sub score-badge" style="text-align:center; font-size:0.82rem; opacity:0.8;"></div>
+                                <div class="analysis-divider" style="margin:10px 0;"><span>Evidence</span></div>
                                 <div id="fcReasons" class="reasons-list"></div>
                             </div>
                         </div>
