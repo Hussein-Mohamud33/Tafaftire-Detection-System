@@ -228,8 +228,17 @@ document.addEventListener('DOMContentLoaded', () => {
 
         resultContainer.style.display = "block"; 
         [aiResultCard, fcResultCard, unifiedVerdictCard].forEach(card => card.classList.remove("hidden"));
-        [aiResult, fcResult, unifiedVerdict].forEach(el => el.innerText = "⏳...");
-        [aiConfidence, fcConfidence, unifiedConfidence].forEach(el => el.innerText = "Loading...");
+        
+        // Reset result elements cleanly
+        [aiResult, fcResult, unifiedVerdict].forEach(el => {
+            el.innerHTML = "⏳";
+            el.style.color = "#888";
+            el.style.background = "rgba(136,136,136,0.08)";
+            el.style.border = "2px dashed #444";
+            el.style.borderRadius = "12px";
+            el.style.padding = "12px";
+        });
+        [aiConfidence, fcConfidence, unifiedConfidence].forEach(el => el.innerText = "Analyzing...");
         if (winnerSource) winnerSource.innerText = "Processing...";
         if (fcReasons) fcReasons.innerHTML = "";
         clearError();
