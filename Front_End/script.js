@@ -1,6 +1,4 @@
-const API_BASE_URL = window.location.hostname === '127.0.0.1' || window.location.hostname === 'localhost' 
-    ? 'http://127.0.0.1:3402' 
-    : window.location.origin;
+const API_BASE_URL = "https://tafaftire-detection-system-scui.onrender.com";
 
 window.isAnalyzing = false;
 
