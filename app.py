@@ -456,7 +456,10 @@ TRUSTED_SOURCES = [
     "bbc.com", "voasomali.com", "goobjoog.com", 
     "garoweonline.com", "somalistream.com", "somnn.com", 
     "somaliglobe.net", "sntv.so", "sonna.so", "aljazeera.com",
-    "reuters.com", "apnews.com", "hiiraan.com"
+    "reuters.com", "apnews.com", "hiiraan.com", "radiomuqdisho.net",
+    "horseedmedia.net", "puntlandpost.net", "daljir.com", "radioergo.org",
+    "villasomalia.gov.so", "parliament.gov.so", "caasimada.net", 
+    "allceel.com", "halgan.net", "jowhar.com", "dayniile.com"
 ]
 
 UNTRUSTED_PATTERNS = [
@@ -703,24 +706,30 @@ def predict():
             clean_domain = re.sub(r'^https?://(www\.)?', '', input_url.lower())
             if any(trusted in clean_domain for trusted in TRUSTED_SOURCES):
                 is_source_trusted = True
-
-        # 4. WEIGHTED INTEGRATION (AI Focused)
-        # AI Analysis should be about the MODEL's judgment.
-        # We only use source trust as a minor confirmation if it's a URL.
-        if is_source_trusted:
-             # If source is trusted, push AI towards Real if it's uncertain
-             if ai_pred == "Fake" and ai_conf < 0.7:
-                 ai_pred = "Unverified" # Neutralize if model says fake but site is trusted
-             elif ai_pred == "Real":
-                 ai_conf = min(0.99, ai_conf + 0.1)
-
-        # Determine Final Label for AI
-        if ai_pred == "Real" and ai_conf > 0.6:
+        # 4. WEIGHTED INTEGRATION (URL SAFETY & AI DECISION)
+        # Default state
+        result = "Fake News"
+        
+        # Rule 1: Trusted domains are ALWAYS "Real News" with high confidence
+        if input_url and is_source_trusted:
             result = "Real News"
-        elif ai_pred == "Fake" and ai_conf > 0.6:
-            result = "Fake News"
+            ai_conf = 0.95
+        
+        # Rule 2: If not trusted source, process based on AI and Tone
         else:
-            result = "Unverified"
+            if ai_pred == "Real" and ai_conf > 0.6:
+                result = "Real News"
+            elif ai_pred == "Fake" and ai_conf >= 0.75:
+                # If it's a URL, be even more careful: 
+                # Neutralize if Tone is professional or confident is not high enough for an alert
+                if input_url and (h_score >= 10 or ai_conf < 0.85):
+                    result = "Unverified"
+                    ai_conf = 0.65
+                else:
+                    result = "Fake News"
+            else:
+                result = "Fake News"
+                ai_conf = max(0.60, ai_conf) # Stay in 60-65% range for unverified
 
         # 5. GENERATE EXPLANATION
         explanation = generate_explanation(content, result)
@@ -1042,8 +1051,8 @@ def contact():
 
 # ================= ADMIN PANEL API =================
 ADMIN_CREDENTIALS = {
-    "username": os.environ.get("ADMIN_USER", "admin"),
-    "password": os.environ.get("ADMIN_PASSWORD", "password123")
+    "username": os.environ.get("ADMIN_USER"),
+    "password": os.environ.get("ADMIN_PASSWORD")
 }
 
 @app.route("/api/admin/debug/paths", methods=["GET"])
@@ -1503,8 +1512,8 @@ def admin_reply():
     if not all([recipient_email, subject, body]):
         return jsonify({"success": False, "message": "Xogta ma dhameystirna"}), 400
 
-    sender_email = os.environ.get("EMAIL_USER", "tafaftiredetectionsystem@gmail.com")
-    sender_password = os.environ.get("EMAIL_PASS", "qgzpeswwwgtgawuy")
+    sender_email = os.environ.get("EMAIL_USER")
+    sender_password = os.environ.get("EMAIL_PASS")
 
     try:
         msg = MIMEMultipart()
@@ -1534,8 +1543,8 @@ def admin_reply():
 @app.route("/api/admin/sync_emails", methods=["POST"])
 def sync_emails():
     try:
-        sender_email = os.environ.get("EMAIL_USER", "tafaftiredetectionsystem@gmail.com")
-        sender_password = os.environ.get("EMAIL_PASS", "qgzpeswwwgtgawuy")
+        sender_email = os.environ.get("EMAIL_USER")
+        sender_password = os.environ.get("EMAIL_PASS")
         
         mail = imaplib.IMAP4_SSL('imap.gmail.com')
         mail.login(sender_email, sender_password)
