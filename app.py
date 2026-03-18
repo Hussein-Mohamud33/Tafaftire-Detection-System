@@ -709,7 +709,7 @@ def predict():
                 is_source_trusted = True
         # 4. WEIGHTED INTEGRATION (URL SAFETY & AI DECISION)
         # Default state - Always neutral until proven otherwise
-        result = "Unverified"
+        result = "Fake News"
         
         # Rule 1: Trusted domains are ALWAYS "Real News"
         if input_url and is_source_trusted:
@@ -723,17 +723,17 @@ def predict():
             elif ai_pred == "Fake" and ai_conf >= 0.75:
                 # If it's a known URL, be very strict
                 if input_url and (h_score >= 10 or ai_conf < 0.85):
-                    result = "Unverified"
+                    result = "Fake News"
                     ai_conf = 0.65
                 # If it's Raw Text but Tone is professional, neutralize
                 elif not input_url and h_score >= 25:
-                    result = "Unverified"
+                    result = "Fake News"
                     ai_conf = 0.68
                 else:
                     result = "Fake News"
             else:
                 # If unsure, stay neutral (Unverified)
-                result = "Unverified"
+                result = "Fake News"
                 ai_conf = max(0.60, ai_conf)
 
         # 5. GENERATE EXPLANATION
