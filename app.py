@@ -276,7 +276,7 @@ URL_PATTERN = re.compile(
     r'^((https?://|www\.)[a-z0-9-]+(\.[a-z0-9-]+)+|'
     r'([a-z0-9-]+\.)+[a-z]{2,10})'
     r'([/?#].*)?$', re.IGNORECASE)
-CLEAN_TEXT_PATTERN = re.compile(r"[^a-z' ]")
+CLEAN_TEXT_PATTERN = re.compile(r"[^a-z0-9' ]") # Preserve numbers for context
 DOMAIN_CLEAN_PATTERN = re.compile(r'^https?://(www\.)?')
 SUSPICIOUS_EXT_PATTERN = re.compile(r"\.(tk|ga|ml|cf|icu|xyz)$")
 
@@ -294,7 +294,8 @@ def preprocess_text(text):
     text = text.lower()
     text = CLEAN_TEXT_PATTERN.sub(" ", text)
     tokens = word_tokenize(text) # AI-du tan ayay ku tababarantay
-    cleaned_tokens = [lemmatizer.lemmatize(w) for w in tokens if w not in stop_words and len(w) > 2]
+    # Adjusted for Somali: Keep 2-letter words as they are often important particles
+    cleaned_tokens = [lemmatizer.lemmatize(w) for w in tokens if w not in stop_words and len(w) >= 2]
     return " ".join(cleaned_tokens)
 
 def is_url(text):
@@ -707,29 +708,33 @@ def predict():
             if any(trusted in clean_domain for trusted in TRUSTED_SOURCES):
                 is_source_trusted = True
         # 4. WEIGHTED INTEGRATION (URL SAFETY & AI DECISION)
-        # Default state
-        result = "Fake News"
+        # Default state - Always neutral until proven otherwise
+        result = "Unverified"
         
-        # Rule 1: Trusted domains are ALWAYS "Real News" with high confidence
+        # Rule 1: Trusted domains are ALWAYS "Real News"
         if input_url and is_source_trusted:
             result = "Real News"
             ai_conf = 0.95
         
-        # Rule 2: If not trusted source, process based on AI and Tone
+        # Rule 2: General Analysis (URL or Raw Text)
         else:
             if ai_pred == "Real" and ai_conf > 0.6:
                 result = "Real News"
             elif ai_pred == "Fake" and ai_conf >= 0.75:
-                # If it's a URL, be even more careful: 
-                # Neutralize if Tone is professional or confident is not high enough for an alert
+                # If it's a known URL, be very strict
                 if input_url and (h_score >= 10 or ai_conf < 0.85):
                     result = "Unverified"
                     ai_conf = 0.65
+                # If it's Raw Text but Tone is professional, neutralize
+                elif not input_url and h_score >= 25:
+                    result = "Unverified"
+                    ai_conf = 0.68
                 else:
                     result = "Fake News"
             else:
-                result = "Fake News"
-                ai_conf = max(0.60, ai_conf) # Stay in 60-65% range for unverified
+                # If unsure, stay neutral (Unverified)
+                result = "Unverified"
+                ai_conf = max(0.60, ai_conf)
 
         # 5. GENERATE EXPLANATION
         explanation = generate_explanation(content, result)
