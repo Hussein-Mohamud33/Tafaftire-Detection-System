@@ -117,8 +117,7 @@ def save_analysis_result(original_input, confidence, label, extracted_text=None,
         }
         
         history.append(new_entry)
-        if len(history) > 2000: history = history[-2000:]
-            
+        
         with open(history_file, "w", encoding="utf-8") as f:
             json.dump(history, f, indent=4)
             
@@ -311,6 +310,32 @@ def contains_url(text):
         re.IGNORECASE
     )
     return bool(pattern.search(text))
+
+def is_gibberish(text):
+    """Detects nonsensical strings like 'fghhgfkjgkjh'."""
+    text = text.strip()
+    if not text:
+        return True
+    
+    # If it's a URL, it's not gibberish (it's a link to be extracted)
+    if is_url(text):
+        return False
+        
+    # Check for very low vowel density in the letters of the text
+    # Somali and English have high vowel counts (a, e, i, o, u, y)
+    letters_only = re.sub(r'[^a-zA-Z]', '', text)
+    if len(letters_only) > 10:
+        vowels = set("aeiouyAEIOUY")
+        v_count = sum(1 for c in letters_only if c in vowels)
+        if v_count / len(letters_only) < 0.15:
+            return True
+            
+    # Check if it's just one super long word that is not a URL
+    words = text.split()
+    if len(words) == 1 and len(words[0]) > 20:
+        return True
+    
+    return False
 
 def guess_subject(text):
     """Guess the news subject based on keywords."""
@@ -632,6 +657,10 @@ def predict():
 
         content = str(content).strip()
         
+        # Validation for gibberish/invalid letters (e.g. fghhgfkjgkjh)
+        if is_gibberish(content):
+            return jsonify({"error": "Waan ka xunnahay, ma akhri karno xogta ku jirta link-gan. Fadlan hubi inuu sax yahay ama soo nuqul qoraalka (Failed to extract content from URL)"}), 400
+        
         input_type = data.get("type", "text")
         # Automatic detection: If it looks like a URL, treat it as one for extraction
         is_input_url = input_type == "url" or is_url(content)
@@ -750,6 +779,18 @@ def predict():
         
         final_confidence_val = min(99.0, max(60.0, final_confidence_val))
 
+        # ================= SAVE TO HISTORY (Auto-log all analyses) =================
+        save_analysis_result(
+            original_input=data.get("text") or data.get("data"),
+            confidence=f"{round(float(final_confidence_val), 1)}%",
+            label=result,
+            extracted_text=content,
+            data_type="AI Analysis",
+            title=page_title,
+            link=input_url if input_url else "N/A",
+            subject=news_subject
+        )
+
         return jsonify({
             "prediction": result, 
             "confidence": f"{round(float(final_confidence_val), 1)}%",
@@ -781,6 +822,10 @@ def fact_check():
 
         content = str(content).strip()
         
+        # Validation for gibberish/invalid letters (e.g. fghhgfkjgkjh)
+        if is_gibberish(content):
+            return jsonify({"error": "Waan ka xunnahay, ma akhri karno xogta ku jirta link-gan. Fadlan hubi inuu sax yahay ama soo nuqul qoraalka (Failed to extract content from URL)"}), 400
+            
         input_type = data.get("type", "text")
         # Automatic detection
         is_input_url = input_type == "url" or is_url(content)
@@ -900,6 +945,18 @@ def fact_check():
             "subject": guess_subject(content)
         }
 
+        # ================= SAVE TO HISTORY (Auto-log all analyses) =================
+        save_analysis_result(
+            original_input=data.get("text") or data.get("data"),
+            confidence=fact_result["confidence"],
+            label=rating,
+            extracted_text=content,
+            data_type="Web Fact-Check",
+            title=page_title,
+            link=input_url if input_url else "N/A",
+            subject=fact_result["subject"]
+        )
+
         return jsonify(fact_result)
 
     except Exception as e:
@@ -1011,6 +1068,18 @@ def deep_fact_check():
             verdict = "PROBABLY TRUE"
         else:
             verdict = "UNVERIFIED"
+
+        # ================= SAVE TO HISTORY (Deep Analysis) =================
+        save_analysis_result(
+            original_input=text,
+            confidence="N/A",
+            label=verdict,
+            extracted_text=text,
+            data_type="Deep Fact-Check",
+            title=text[:60] + "...",
+            link="N/A",
+            subject="Fact Verification"
+        )
 
         return jsonify({
             "status": "success",
