@@ -13,7 +13,6 @@ window.addEventListener('beforeunload', (e) => {
 // ----------------------------
 // 0. QUICK PING (WAKE UP RENDER)
 // ----------------------------
-// We fire this immediately at the top of the script to wake up Render as fast as possible.
 let isServerOnline = false;
 const checkServerStatus = () => {
     fetch(`${API_BASE_URL}/api/health`)
@@ -21,21 +20,12 @@ const checkServerStatus = () => {
         .then(data => {
             if (data.status === "OK") {
                 isServerOnline = true;
-                console.log("🚀 Render Server Wakeup Successful");
+                console.log("🚀 Render Server Online");
                 const analyzeBtn = document.getElementById("analyzeBtn");
                 if (analyzeBtn) analyzeBtn.disabled = false;
-                
-                // If preloader is still visible, trigger its removal
-                const preloader = document.getElementById('preloader');
-                if (preloader && !preloader.classList.contains('fade-out')) {
-                    preloader.classList.add('fade-out');
-                    setTimeout(() => { preloader.remove(); }, 800);
-                }
             }
         })
-        .catch(err => {
-            console.warn("Waiting for server spin-up...");
-            // Retry every 3 seconds if not online yet
+        .catch(() => {
             if (!isServerOnline) setTimeout(checkServerStatus, 3000);
         });
 };
@@ -46,6 +36,7 @@ checkServerStatus();
 setInterval(() => {
     fetch(`${API_BASE_URL}/api/health`).catch(() => {});
 }, 300000);
+
 
 // ----------------------------
 // INITIAL RENDER OPTIMIZATION
@@ -131,32 +122,7 @@ function quickHeuristicCheck(text, url = null) {
     return { label: "Processing...", confidence: "--", source: "Analyzing..." };
 }
 
-window.addEventListener('load', () => {
-    const preloader = document.getElementById('preloader');
-    const loadText = preloader ? preloader.querySelector('.loader-text') : null;
-    
-    // Safety Timeout: Don't keep user stuck for more than 15s even if server is slow
-    const safetyTimeout = setTimeout(() => {
-        if (preloader && !preloader.classList.contains('fade-out')) {
-            if (loadText) loadText.innerText = "STARTING...";
-            preloader.classList.add('fade-out');
-            setTimeout(() => { preloader.remove(); }, 800);
-        }
-    }, 15000);
 
-    if (preloader) {
-        // Update text to show we are waiting for the backend
-        if (loadText) loadText.innerText = "CONNECTING TO SECURE SERVERS...";
-        
-        // The checkServerStatus function (defined at the top) handles removal
-        // but we add a small check here too in case it was already online
-        if (isServerOnline) {
-            clearTimeout(safetyTimeout);
-            preloader.classList.add('fade-out');
-            setTimeout(() => { preloader.remove(); }, 800);
-        }
-    }
-});
 
 document.addEventListener('DOMContentLoaded', () => {
 
