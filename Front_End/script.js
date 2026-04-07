@@ -15,31 +15,144 @@ window.addEventListener('beforeunload', (e) => {
 // ----------------------------
 // We fire this immediately at the top of the script to wake up Render as fast as possible.
 let isServerOnline = false;
-fetch(`${API_BASE_URL}/api/health`)
-    .then(res => res.json())
-    .then(data => {
-        if (data.status === "OK") {
-            isServerOnline = true;
-            console.log("🚀 Render Server Wakeup Successful");
-            const analyzeBtn = document.getElementById("analyzeBtn");
-            if (analyzeBtn) analyzeBtn.disabled = false;
-        }
-    })
-    .catch(err => console.warn("Waiting for server spin-up..."));
+const checkServerStatus = () => {
+    fetch(`${API_BASE_URL}/api/health`)
+        .then(res => res.json())
+        .then(data => {
+            if (data.status === "OK") {
+                isServerOnline = true;
+                console.log("🚀 Render Server Wakeup Successful");
+                const analyzeBtn = document.getElementById("analyzeBtn");
+                if (analyzeBtn) analyzeBtn.disabled = false;
+                
+                // If preloader is still visible, trigger its removal
+                const preloader = document.getElementById('preloader');
+                if (preloader && !preloader.classList.contains('fade-out')) {
+                    preloader.classList.add('fade-out');
+                    setTimeout(() => { preloader.remove(); }, 800);
+                }
+            }
+        })
+        .catch(err => {
+            console.warn("Waiting for server spin-up...");
+            // Retry every 3 seconds if not online yet
+            if (!isServerOnline) setTimeout(checkServerStatus, 3000);
+        });
+};
+
+checkServerStatus();
+
+// Keep-Alive every 5 mins
+setInterval(() => {
+    fetch(`${API_BASE_URL}/api/health`).catch(() => {});
+}, 300000);
 
 // ----------------------------
 // INITIAL RENDER OPTIMIZATION
 // ----------------------------
+const TRUSTED_DOMAINS = ["bbc.com", "voasomali.com", "goobjoog.com", "garoweonline.com", "sntv.so", "sonna.so", "aljazeera.com", "reuters.com", "hiiraan.com", "radiomuqdisho.net", "caasimada.net"];
+const FAKE_PATTERNS = ["mucjiso", "halkan riix", "waad yaabaysaa", "subxaanallaah", "nin yaaban", "abaalmarin", "guul iyo lacag", "gift"];
+
+const ANALYSIS_CACHE = new Map();
+
+function displayFinalResults(aiRes, fcRes, claimsRes) {
+    const aiResult = document.getElementById("aiResult");
+    const fcResult = document.getElementById("fcResult");
+    const aiConfidence = document.getElementById("aiConfidence");
+    const fcConfidence = document.getElementById("fcConfidence");
+    const unifiedVerdict = document.getElementById("unifiedVerdict");
+    const unifiedConfidence = document.getElementById("unifiedConfidence");
+    const winnerSource = document.getElementById("winnerSource");
+    const unifiedVerdictCard = document.getElementById("unifiedVerdictCard");
+    const aiResultCard = document.getElementById("aiResultCard");
+    const fcResultCard = document.getElementById("fcResultCard");
+
+    // AI Display
+    const aiSuccess = aiRes && !aiRes.error;
+    let aiConfVal = 0;
+    if (aiSuccess) {
+        const aiStatus = (aiRes.prediction || "unverified").toLowerCase();
+        aiResult.innerText = aiStatus.includes("real") ? "Real News" : (aiStatus.includes("fake") ? "Fake News" : "Unverified");
+        aiResult.className = "prediction-small " + (aiStatus.includes("real") ? "real" : (aiStatus.includes("fake") ? "fake" : ""));
+        aiConfidence.innerText = `Confidence: ${aiRes.confidence}`;
+        aiConfVal = parseFloat(aiRes.confidence.replace('%', '')) || 0;
+        aiResultCard.classList.remove("hidden");
+    }
+
+    // Fact Check Display
+    const fcSuccess = fcRes && !fcRes.error;
+    let fcConfVal = 0;
+    if (fcSuccess) {
+        const fcRating = (fcRes.rating || "unverified").toLowerCase();
+        fcResult.innerText = fcRating.includes("trusted") ? "Trusted News" : (fcRating.includes("suspicious") ? "Suspicious" : "Unverified");
+        fcResult.className = "prediction-small " + (fcRating.includes("trusted") ? "real" : (fcRating.includes("suspicious") ? "fake" : ""));
+        fcConfidence.innerText = `Web Score: ${fcRes.confidence || '0%'}`;
+        fcConfVal = parseFloat((fcRes.confidence || '0').replace('%', '')) || 0;
+        fcResultCard.classList.remove("hidden");
+    }
+
+    // Unified Result
+    if (aiSuccess || fcSuccess) {
+        let winningLabel = aiResult.innerText;
+        let winningConfidence = aiRes.confidence;
+        
+        if (fcConfVal > (aiConfVal + 10) || (aiResult.innerText === "Unverified" && fcSuccess)) {
+            winningLabel = fcResult.innerText;
+            winningConfidence = fcRes.confidence;
+        }
+
+        unifiedVerdict.innerText = winningLabel;
+        unifiedVerdict.className = "prediction-main " + (winningLabel.includes("Real") || winningLabel.includes("Trusted") ? "real" : "fake");
+        unifiedConfidence.innerText = `Final Verdict: ${winningConfidence}`;
+        if (winnerSource) winnerSource.innerText = "Deep AI Engine Verified";
+        unifiedVerdictCard.classList.remove("hidden");
+    }
+}
+
+function quickHeuristicCheck(text, url = null) {
+    let score = 50; // Neutral start
+    let reasons = [];
+    const textLower = text.toLowerCase();
+
+    if (url) {
+        if (TRUSTED_DOMAINS.some(d => url.toLowerCase().includes(d))) {
+            return { label: "Trusted News", confidence: "95%", source: "Verified Source" };
+        }
+    }
+
+    if (FAKE_PATTERNS.some(p => textLower.includes(p))) score -= 30;
+    if (text.length > 500) score += 10;
+    if ((text.match(/[A-Z]/g) || []).length / text.length > 0.3) score -= 15;
+
+    if (score > 60) return { label: "Likely Real", confidence: "70%", source: "Quick Pattern Check" };
+    if (score < 40) return { label: "Suspicious", confidence: "75%", source: "Quick Pattern Check" };
+    return { label: "Processing...", confidence: "--", source: "Analyzing..." };
+}
+
 window.addEventListener('load', () => {
     const preloader = document.getElementById('preloader');
-    if (preloader) {
-        setTimeout(() => {
+    const loadText = preloader ? preloader.querySelector('.loader-text') : null;
+    
+    // Safety Timeout: Don't keep user stuck for more than 15s even if server is slow
+    const safetyTimeout = setTimeout(() => {
+        if (preloader && !preloader.classList.contains('fade-out')) {
+            if (loadText) loadText.innerText = "STARTING...";
             preloader.classList.add('fade-out');
-            document.body.style.overflow = 'visible';
-            
-            // Remove from DOM after fade animation to keep things light
             setTimeout(() => { preloader.remove(); }, 800);
-        }, 500); // Small intentional delay for smooth premium feel
+        }
+    }, 15000);
+
+    if (preloader) {
+        // Update text to show we are waiting for the backend
+        if (loadText) loadText.innerText = "CONNECTING TO SECURE SERVERS...";
+        
+        // The checkServerStatus function (defined at the top) handles removal
+        // but we add a small check here too in case it was already online
+        if (isServerOnline) {
+            clearTimeout(safetyTimeout);
+            preloader.classList.add('fade-out');
+            setTimeout(() => { preloader.remove(); }, 800);
+        }
     }
 });
 
@@ -239,6 +352,24 @@ document.addEventListener('DOMContentLoaded', () => {
     async function performDeepAnalysis(payload) {
         if (!payload) return;
 
+        // 1. Check Local Cache for Instant Result
+        if (ANALYSIS_CACHE.has(payload.data)) {
+            const cached = ANALYSIS_CACHE.get(payload.data);
+            console.log("[*] Instant Cache Hit:", cached);
+            displayFinalResults(cached.ai, cached.fc, cached.claims);
+            return;
+        }
+
+        // 2. Quick Frontend Heuristic Check (Instant Feedback)
+        const quickRes = quickHeuristicCheck(payload.data, payload.type === "url" ? payload.data : null);
+        if (quickRes.label !== "Processing...") {
+            unifiedVerdict.innerText = quickRes.label;
+            unifiedVerdict.className = "prediction-main " + (quickRes.label.includes("Real") || quickRes.label.includes("Trusted") ? "real" : "fake");
+            unifiedConfidence.innerText = `Initial Insight: ${quickRes.confidence}`;
+            if (winnerSource) winnerSource.innerText = "Fast Heuristics Active";
+            unifiedVerdictCard.classList.remove("hidden");
+        }
+
         console.log("[*] Performing Combined Analysis:", payload);
         window.isAnalyzing = true;
 
@@ -257,132 +388,32 @@ document.addEventListener('DOMContentLoaded', () => {
         
         // Reset result elements cleanly
         [aiResult, fcResult, unifiedVerdict].forEach(el => {
-            el.innerHTML = "⏳";
-            el.style.color = "#888";
-            el.style.background = "rgba(136,136,136,0.08)";
-            el.style.border = "2px dashed #444";
-            el.style.borderRadius = "12px";
-            el.style.padding = "12px";
+            if (!el.innerText || el.innerText === "⏳") {
+                el.innerHTML = "⏳";
+                el.style.color = "#888";
+            }
         });
-        [aiConfidence, fcConfidence, unifiedConfidence].forEach(el => el.innerText = "Analyzing...");
-        if (winnerSource) winnerSource.innerText = "Processing...";
-        if (fcReasons) fcReasons.innerHTML = "";
-        clearError();
 
         try {
-            const aiPromise = fetch(`${API_BASE_URL}/api/predict`, {
+            const combinedRes = await fetch(`${API_BASE_URL}/api/analyze-deep`, {
                 method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload)
             }).then(r => r.json());
 
-            const fcPromise = fetch(`${API_BASE_URL}/api/fact-check`, {
-                method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload)
-            }).then(r => r.json());
-
-            // NEW: Deep Claims Fact-Check
-            const claimsPromise = fetch(`${API_BASE_URL}/api/deep-fact-check`, {
-                method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload)
-            }).then(r => r.json());
-
-            const [aiRes, fcRes, claimsRes] = await Promise.all([aiPromise, fcPromise, claimsPromise]);
-
-            // Handle specific error messages from backend (like short text)
-            if (aiRes.error || fcRes.error) {
-                const errorMsg = aiRes.error || fcRes.error;
-                showError(errorMsg, payload.type === "text" ? "newsText" : "newsURL");
+            if (combinedRes.error) {
+                showError(combinedRes.error, payload.type === "text" ? "newsText" : "newsURL");
                 resultContainer.style.display = "none";
                 return;
             }
 
+            const { ai: aiRes, fc: fcRes, deep: d_res } = combinedRes;
 
-            // ─── 1. AI ANALYSIS ──────────────────────────────────────────
-            const aiSuccess = !aiRes.error;
-            let aiConfVal = 0;
-            let aiLabelText = "Unverified";
+            // Save to Local Cache for Instant Response next time
+            ANALYSIS_CACHE.set(payload.data, { ai: aiRes, fc: fcRes, claims: d_res });
 
-            if (aiSuccess) {
-                const aiStatus = (aiRes.prediction || "unverified").toLowerCase();
-                let label = "Unverified";
-                aiResult.classList.remove("real", "fake");
-
-                if (aiStatus.includes("real")) { label = "Real News"; aiResult.classList.add("real"); }
-                else if (aiStatus.includes("fake")) { label = "Fake News"; aiResult.classList.add("fake"); }
-                
-                aiLabelText = label;
-                aiResult.innerText = label;
-                aiConfidence.innerText = `Confidence: ${aiRes.confidence}`;
-                aiConfVal = parseFloat(aiRes.confidence.replace('%', '')) || 0;
-                aiResultCard.classList.remove("hidden");
-            }
-
-            // ─── 2. FACT-CHECK ───────────────────────────────────────────
-            const fcSuccess = !fcRes.error;
-            let fcConfVal = 0;
-            let fcLabelText = "Unverified";
-
-            if (fcSuccess) {
-                const fcRating = (fcRes.rating || "unverified").toLowerCase();
-                let label = "Unverified";
-                fcResult.classList.remove("real", "fake");
-
-                if (fcRating.includes("trusted")) { label = "Trusted News"; fcResult.classList.add("real"); }
-                else if (fcRating.includes("suspicious")) { label = "Suspicious"; fcResult.classList.add("fake"); }
-                
-                fcLabelText = label;
-                fcResult.innerText = label;
-                fcConfidence.innerText = `Web Score: ${fcRes.confidence || '0%'}`;
-                fcConfVal = parseFloat((fcRes.confidence || '0').replace('%', '')) || 0;
-                fcResultCard.classList.remove("hidden");
-            }
-
-            // ─── 3. FINAL VERDICT ────────────────────────────────────────
-            if (aiSuccess || fcSuccess) {
-                let winningLabel = aiLabelText;
-                let winningConfidence = aiRes.confidence;
-                unifiedVerdict.classList.remove("real", "fake");
-
-                const expertIsStrong = fcConfVal > 80 && fcLabelText !== "Unverified";
-                if (fcConfVal > (aiConfVal + 10) || expertIsStrong || (aiLabelText === "Unverified" && fcLabelText !== "Unverified")) {
-                    winningLabel = fcLabelText;
-                    winningConfidence = fcRes.confidence;
-                }
-
-                if (winningLabel.toLowerCase().includes("real") || winningLabel.toLowerCase().includes("trusted")) {
-                    unifiedVerdict.classList.add("real");
-                } else if (winningLabel.toLowerCase().includes("fake") || winningLabel.toLowerCase().includes("suspicious")) {
-                    unifiedVerdict.classList.add("fake");
-                }
-
-                unifiedVerdict.innerText = winningLabel;
-                unifiedConfidence.innerText = `Confidence Level: ${winningConfidence}`;
-                if (winnerSource) winnerSource.innerText = ""; 
-                unifiedVerdictCard.classList.remove("hidden");
-            }
-
-            // ─── 4. CLAIMS ANALYSIS (HIDDEN) ──────────────────────────────
-            const claimsContainer = document.getElementById("claimsAnalysisContainer");
-            if (claimsContainer) claimsContainer.classList.add("hidden"); 
-
-
-            // 4. Save history
-            const finalVerdict = aiConfVal >= fcConfVal ? (aiSuccess ? aiResult.innerText : "Error") : (fcSuccess ? fcResult.innerText : "Error");
-            const finalConfidence = aiConfVal >= fcConfVal ? (aiSuccess ? aiRes.confidence : "0%") : (fcSuccess ? fcRes.confidence : "0%");
-
-            fetch(`${API_BASE_URL}/api/admin/save_history`, {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({
-                    type: "Deep Analysis",
-                    original_input: payload.data,
-                    label: finalVerdict,
-                    confidence: finalConfidence,
-                    extracted_text: fcRes.raw_text || aiRes.raw_text || payload.data,
-                    ai_score: aiSuccess ? aiRes.confidence : null,
-                    expert_score: fcSuccess ? fcRes.confidence : null,
-                    title: fcRes.title || aiRes.title || "News Article",
-                    link: fcRes.link || aiRes.link || "N/A",
-                    subject: fcRes.subject || aiRes.subject || "General"
-                })
-            });
+            displayFinalResults(aiRes, fcRes, d_res);
+            
+            // Backend now automatically handles history saving.
+            console.log("[✅] Analysis complete and synced.");
 
         } catch (err) {
             console.error("Analysis Failure:", err);
@@ -978,4 +1009,3 @@ document.addEventListener('DOMContentLoaded', () => {
     window.addEventListener('hashchange', handleRouting);
     handleRouting();
 });
-
