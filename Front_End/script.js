@@ -94,17 +94,19 @@ function displayFinalResults(aiRes, fcRes, claimsRes) {
     // Unified Result
     if (aiSuccess || fcSuccess) {
         let winningLabel = aiResult.innerText;
-        let winningConfidence = aiRes.confidence;
+        let winningConfidence = aiRes.confidence || "0%";
+        let sourceVer = "Deep AI Engine Verified";
         
-        if (fcConfVal > (aiConfVal + 10) || (aiResult.innerText === "Unverified" && fcSuccess)) {
+        if (fcConfVal > aiConfVal) {
             winningLabel = fcResult.innerText;
             winningConfidence = fcRes.confidence;
+            sourceVer = "Web Fact-Check Verified";
         }
 
         unifiedVerdict.innerText = winningLabel;
         unifiedVerdict.className = "prediction-main " + (winningLabel.includes("Real") || winningLabel.includes("Trusted") ? "real" : "fake");
         unifiedConfidence.innerText = `Final Verdict: ${winningConfidence}`;
-        if (winnerSource) winnerSource.innerText = "Deep AI Engine Verified";
+        if (winnerSource) winnerSource.innerText = sourceVer;
         unifiedVerdictCard.classList.remove("hidden");
     }
 }
@@ -393,14 +395,11 @@ document.addEventListener('DOMContentLoaded', () => {
             const { ai: aiRes, fc: fcRes, deep: d_res } = combinedRes;
 
             // Proper Display Sequence
-            // First show AI and Fact Check results...
-            [aiResultCard, fcResultCard].forEach(card => card.classList.remove("hidden"));
+            // Show all results at the exact same time
+            [aiResultCard, fcResultCard, unifiedVerdictCard].forEach(card => card.classList.remove("hidden"));
             
-            // Allow a small delay before showing the Unified Result to let the user see the analysis completed
-            setTimeout(() => {
-                displayFinalResults(aiRes, fcRes, d_res);
-                console.log("[✅] Analysis complete and synced.");
-            }, 800);
+            displayFinalResults(aiRes, fcRes, d_res);
+            console.log("[✅] Analysis complete and synced.");
 
 
         } catch (err) {
