@@ -8,7 +8,7 @@ import joblib
 import traceback
 import numpy as np
 import requests
-from flask import Flask, request, jsonify
+from flask import Flask, request, jsonify, make_response
 from flask_cors import CORS
 import nltk
 from nltk.corpus import stopwords
@@ -1043,11 +1043,16 @@ def analyze_deep():
         # Reuse prediction logic efficiently
         # Since we are combining them, we call predict first to get base results
         with app.test_request_context(json=data):
-            p_res = predict().get_json()
-            if "error" in p_res: return jsonify(p_res), 400
+            p_resp = make_response(predict())
+            p_res = p_resp.get_json() or {}
+            if "error" in p_res: return jsonify(p_res), p_resp.status_code
             
-            f_res = fact_check().get_json()
-            d_res = deep_fact_check().get_json()
+            f_resp = make_response(fact_check())
+            f_res = f_resp.get_json() or {}
+            if "error" in f_res: return jsonify(f_res), f_resp.status_code
+            
+            d_resp = make_response(deep_fact_check())
+            d_res = d_resp.get_json() or {}
             
         return jsonify({
             "ai": p_res,
@@ -1057,7 +1062,7 @@ def analyze_deep():
             "combined_at": time.time()
         })
     except Exception as e:
-        print(f"Deep Analysis Error: {e}")
+        print(f"Deep Analysis Error: {traceback.format_exc()}")
         return jsonify({"error": "Failed to run deep analysis"}), 500
 
 @app.route("/api/deep-fact-check", methods=["POST"])
