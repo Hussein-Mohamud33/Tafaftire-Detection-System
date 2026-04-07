@@ -352,24 +352,7 @@ document.addEventListener('DOMContentLoaded', () => {
     async function performDeepAnalysis(payload) {
         if (!payload) return;
 
-        // 1. Check Local Cache for Instant Result
-        if (ANALYSIS_CACHE.has(payload.data)) {
-            const cached = ANALYSIS_CACHE.get(payload.data);
-            console.log("[*] Instant Cache Hit:", cached);
-            displayFinalResults(cached.ai, cached.fc, cached.claims);
-            return;
-        }
-
-        // 2. Quick Frontend Heuristic Check (Instant Feedback)
-        const quickRes = quickHeuristicCheck(payload.data, payload.type === "url" ? payload.data : null);
-        if (quickRes.label !== "Processing...") {
-            unifiedVerdict.innerText = quickRes.label;
-            unifiedVerdict.className = "prediction-main " + (quickRes.label.includes("Real") || quickRes.label.includes("Trusted") ? "real" : "fake");
-            unifiedConfidence.innerText = `Initial Insight: ${quickRes.confidence}`;
-            if (winnerSource) winnerSource.innerText = "Fast Heuristics Active";
-            unifiedVerdictCard.classList.remove("hidden");
-        }
-
+        // Ensure we always show the loading state rather than an instant cache/heuristic hit to reassure the user
         console.log("[*] Performing Combined Analysis:", payload);
         window.isAnalyzing = true;
 
@@ -384,7 +367,9 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         resultContainer.style.display = "block"; 
-        [aiResultCard, fcResultCard, unifiedVerdictCard].forEach(card => card.classList.remove("hidden"));
+        
+        // Hide cards first for loading sequence
+        [aiResultCard, fcResultCard, unifiedVerdictCard].forEach(card => card.classList.add("hidden"));
         
         // Reset result elements cleanly
         [aiResult, fcResult, unifiedVerdict].forEach(el => {
@@ -407,13 +392,16 @@ document.addEventListener('DOMContentLoaded', () => {
 
             const { ai: aiRes, fc: fcRes, deep: d_res } = combinedRes;
 
-            // Save to Local Cache for Instant Response next time
-            ANALYSIS_CACHE.set(payload.data, { ai: aiRes, fc: fcRes, claims: d_res });
-
-            displayFinalResults(aiRes, fcRes, d_res);
+            // Proper Display Sequence
+            // First show AI and Fact Check results...
+            [aiResultCard, fcResultCard].forEach(card => card.classList.remove("hidden"));
             
-            // Backend now automatically handles history saving.
-            console.log("[✅] Analysis complete and synced.");
+            // Allow a small delay before showing the Unified Result to let the user see the analysis completed
+            setTimeout(() => {
+                displayFinalResults(aiRes, fcRes, d_res);
+                console.log("[✅] Analysis complete and synced.");
+            }, 800);
+
 
         } catch (err) {
             console.error("Analysis Failure:", err);
