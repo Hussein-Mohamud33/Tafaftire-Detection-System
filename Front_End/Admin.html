@@ -410,19 +410,7 @@
     </style>
 </head>
 
-<body style="overflow: hidden;">
-    <!-- Premium System Preloader -->
-    <div id="preloader">
-        <div class="loader-container">
-            <div class="loader-eye">
-                <i class="fas fa-eye"></i>
-            </div>
-            <div class="loader-text">TAFAFTIRE ADMIN</div>
-            <div class="loader-bar">
-                <div class="loader-progress"></div>
-            </div>
-        </div>
-    </div>
+<body>
 
     <!-- Login Section -->
     <div id="loginSection">
@@ -765,48 +753,10 @@
     </div>
 
     <script>
-        // ----------------------------
-        // INITIAL RENDER OPTIMIZATION (Updated for Backend Wake-up)
-        // ----------------------------
-        window.addEventListener('load', () => {
-            const preloader = document.getElementById('preloader');
-            const loadText = preloader ? preloader.querySelector('.loader-text') : null;
-            
-            // Safety Timeout
-            const safetyTimeout = setTimeout(() => {
-                if (preloader && !preloader.classList.contains('fade-out')) {
-                    preloader.classList.add('fade-out');
-                    document.body.style.overflow = 'visible';
-                    setTimeout(() => { preloader.remove(); }, 800);
-                }
-            }, 15000);
-
-            if (preloader) {
-                if (loadText) loadText.innerText = "ACCESSING ADMIN GATEWAY...";
-                
-                // Interval check for admin health
-                const checkAdmin = setInterval(() => {
-                    fetch("https://tafaftire-detection-system-scui.onrender.com" + '/api/health')
-                        .then(r => r.json())
-                        .then(data => {
-                            if (data.status === "OK") {
-                                clearInterval(checkAdmin);
-                                clearTimeout(safetyTimeout);
-                                preloader.classList.add('fade-out');
-                                document.body.style.overflow = 'visible';
-                                setTimeout(() => { preloader.remove(); }, 800);
-                            }
-                        }).catch(() => {});
-                }, 2000);
-            }
-        });
-
-        // Wake up Render Server immediately
-        fetch("https://tafaftire-detection-system-scui.onrender.com" + '/api/health').catch(() => {});
-
-        // Keep-Alive every 5 mins
+        // Wake up Render Server & Keep-Alive every 5 mins
+        fetch("https://tafaftire-detection-system-scui.onrender.com/api/health").catch(() => {});
         setInterval(() => {
-            fetch("https://tafaftire-detection-system-scui.onrender.com" + '/api/health').catch(() => {});
+            fetch("https://tafaftire-detection-system-scui.onrender.com/api/health").catch(() => {});
         }, 300000);
 
         const API_BASE = "https://tafaftire-detection-system-scui.onrender.com" + '/api/admin';
