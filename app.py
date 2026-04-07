@@ -90,12 +90,37 @@ def save_analysis_result(original_input, confidence, label, extracted_text=None,
 
         history = _history_cache["data"]
         
-        # 2. Fast Duplicate Check (Memory-based)
+        # 2. Duplicate & Best Confidence Check (Memory-based)
         search_text = clean_input.lower()
-        # Check only last 20 entries for instant duplicates (most common case in combined calls)
-        for h in history[-20:]:
-            if h.get("original_input", "").strip().lower() == search_text and h.get("type") == data_type:
-                return True
+        
+        try:
+            new_conf_val = float(str(confidence).replace('%', ''))
+        except:
+            new_conf_val = 0.0
+
+        for i, h in enumerate(reversed(history[-30:])):
+            if h.get("original_input", "").strip().lower() == search_text:
+                try:
+                    old_conf_val = float(str(h.get("confidence", "0%")).replace('%', ''))
+                except:
+                    old_conf_val = 0.0
+                    
+                if new_conf_val > old_conf_val:
+                    # Update existing record representing this content with higher confidence details
+                    real_idx = len(history) - 1 - i
+                    history[real_idx]["confidence"] = confidence
+                    history[real_idx]["label"] = str(label)
+                    history[real_idx]["type"] = data_type
+                    history[real_idx]["date"] = timestamp
+                    
+                    _history_cache["data"] = history
+                    with open(history_file, "w", encoding="utf-8") as f:
+                        json.dump(history, f, indent=4)
+                        
+                    if data_type not in ["Deep Fact-Check"] and "Verified" not in str(label):
+                        add_to_dataset(text=extracted_text if extracted_text else clean_input, label=label, link=link, title=title, subject=subject)
+                
+                return True # We either updated or skipped, in both cases we don't create a new entry
                 
         # Create unique ID
         import random
