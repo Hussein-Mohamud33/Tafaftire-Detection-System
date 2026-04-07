@@ -8,7 +8,39 @@ window.addEventListener('beforeunload', (e) => {
         e.returnValue = 'Analysis in progress...';
         return 'Analysis in progress...';
     }
+});
 
+// ----------------------------
+// 0. QUICK PING (WAKE UP RENDER)
+// ----------------------------
+// We fire this immediately at the top of the script to wake up Render as fast as possible.
+let isServerOnline = false;
+fetch(`${API_BASE_URL}/api/health`)
+    .then(res => res.json())
+    .then(data => {
+        if (data.status === "OK") {
+            isServerOnline = true;
+            console.log("🚀 Render Server Wakeup Successful");
+            const analyzeBtn = document.getElementById("analyzeBtn");
+            if (analyzeBtn) analyzeBtn.disabled = false;
+        }
+    })
+    .catch(err => console.warn("Waiting for server spin-up..."));
+
+// ----------------------------
+// INITIAL RENDER OPTIMIZATION
+// ----------------------------
+window.addEventListener('load', () => {
+    const preloader = document.getElementById('preloader');
+    if (preloader) {
+        setTimeout(() => {
+            preloader.classList.add('fade-out');
+            document.body.style.overflow = 'visible';
+            
+            // Remove from DOM after fade animation to keep things light
+            setTimeout(() => { preloader.remove(); }, 800);
+        }, 500); // Small intentional delay for smooth premium feel
+    }
 });
 
 document.addEventListener('DOMContentLoaded', () => {
@@ -22,20 +54,9 @@ document.addEventListener('DOMContentLoaded', () => {
     const submitBtn = document.querySelector('.submit-btn');
 
     // ----------------------------
-    // HEALTH CHECK
+    // HEALTH CHECK (Already handled by Quick Ping)
     // ----------------------------
-    fetch(`${API_BASE_URL}/api/health`)
-        .then(res => res.json())
-        .then(data => {
-            if (data.status === "OK") {
-                console.log("✅ Flask server online");
-                if (analyzeBtn) analyzeBtn.disabled = false;
-                if (submitBtn) submitBtn.disabled = false;
-            }
-        })
-        .catch(err => {
-            console.warn("⚠️ Fake News Detection server is offline.");
-        });
+    if (isServerOnline && analyzeBtn) analyzeBtn.disabled = false;
 
 
     async function safeJson(response) {
@@ -224,7 +245,11 @@ document.addEventListener('DOMContentLoaded', () => {
         // UI Prep: Disable button and show container
         if (analyzeBtn) {
             analyzeBtn.disabled = true;
-            analyzeBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Analyzing...';
+            if (!isServerOnline) {
+                analyzeBtn.innerHTML = '<i class="fas fa-bolt fa-spin"></i> Waking Up Engine...';
+            } else {
+                analyzeBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Analyzing...';
+            }
         }
 
         resultContainer.style.display = "block"; 
