@@ -628,6 +628,10 @@ def no_cache_response(file_path):
 def home():
     return no_cache_response('index.html')
 
+@app.route("/api/health", methods=["GET"])
+def health_check():
+    return jsonify({"status": "OK", "timestamp": time.time()})
+
 @app.route("/Admin", methods=["GET"])
 @app.route("/admin", methods=["GET"])
 def admin_page():
