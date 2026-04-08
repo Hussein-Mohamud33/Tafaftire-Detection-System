@@ -14,6 +14,9 @@ window.addEventListener('beforeunload', (e) => {
 // 0. QUICK PING (WAKE UP RENDER)
 // ----------------------------
 let isServerOnline = false;
+
+const pingHealth = () => fetch(`${API_BASE_URL}/api/health`).catch(() => {});
+
 const checkServerStatus = () => {
     fetch(`${API_BASE_URL}/api/health`)
         .then(res => res.json())
@@ -30,12 +33,20 @@ const checkServerStatus = () => {
         });
 };
 
+// 1) Wake-up ping on page load
 checkServerStatus();
 
-// Keep-Alive every 5 mins
-setInterval(() => {
-    fetch(`${API_BASE_URL}/api/health`).catch(() => {});
-}, 300000);
+// 2) Keep-Alive: ping every 1 minute (60,000 ms) — prevent Render sleep
+setInterval(pingHealth, 60000);
+
+// 3) Page Visibility API: re-ping instantly when tab becomes active
+//    (Browsers pause setInterval on hidden tabs — this catches the gap)
+document.addEventListener("visibilitychange", () => {
+    if (document.visibilityState === "visible") {
+        console.log("🔄 Tab active — sending keep-alive ping...");
+        pingHealth();
+    }
+});
 
 
 // ----------------------------
