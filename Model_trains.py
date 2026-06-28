@@ -113,12 +113,9 @@ real_df = real_df.dropna(subset=['Text'])
 fake_df["Text"] = fake_df["Text"].astype(str)
 real_df["Text"] = real_df["Text"].astype(str)
 
-# Balance dataset if one is much larger
-min_len = min(len(fake_df), len(real_df))
-fake_df = fake_df.sample(min_len, random_state=42)
-real_df = real_df.sample(min_len, random_state=42)
-
-print(f"Balanced Dataset: {min_len} Fake, {min_len} Real")
+print(f"Dataset Loaded: {len(fake_df)} Fake, {len(real_df)} Real")
+# We do not downsample anymore to avoid losing valuable fake news features.
+# We will handle the class imbalance using class_weight='balanced' in the models.
 
 # ======================================
 # PREPARE DATA
@@ -237,10 +234,10 @@ if os.path.exists(stats_file):
     except:
         pass
 
-stats["model_accuracy"] = "99.0%"
-stats["model_f1"] = "99.0%"
-stats["model_precision"] = "99.0%"
-stats["model_recall"] = "99.0%"
+stats["model_accuracy"] = f"{results[best_model_name]['Accuracy']*100:.1f}%"
+stats["model_f1"] = f"{results[best_model_name]['F1-Score']*100:.1f}%"
+stats["model_precision"] = f"{results[best_model_name]['Precision']*100:.1f}%"
+stats["model_recall"] = f"{results[best_model_name]['Recall']*100:.1f}%"
 
 with open(stats_file, "w") as f:
     json.dump(stats, f, indent=4)
