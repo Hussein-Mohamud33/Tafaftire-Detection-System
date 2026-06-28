@@ -14,6 +14,7 @@ import nltk
 from nltk.corpus import stopwords
 from nltk.tokenize import word_tokenize
 from nltk.stem import WordNetLemmatizer
+from scipy.sparse import hstack as sparse_hstack
 import subprocess
 import json
 import time
@@ -734,8 +735,8 @@ def predict():
         ext = is_extreme_claim(content)
         vague = is_vague_source(content)
         
-        X_dense = X.toarray()
-        X = np.hstack([X_dense, np.array([[ext, vague]])])
+        # Combine TF-IDF sparse matrix with heuristic features (using sparse_hstack just like in training)
+        X = sparse_hstack([X, np.array([[ext, vague]])])
 
         # ================= ENHANCED DECISION LOGIC =================
         # 1. Probabilistic AI Prediction
@@ -771,23 +772,12 @@ def predict():
         
         # Rule 2: General Analysis (URL or Raw Text)
         else:
-            if ai_pred == "Real" and ai_conf > 0.6:
-                result = "Real News"
-            elif ai_pred == "Fake" and ai_conf >= 0.75:
-                # If it's a known URL, be very strict
-                if input_url and (h_score >= 10 or ai_conf < 0.85):
-                    result = "Fake News"
-                    ai_conf = 0.65
-                # If it's Raw Text but Tone is professional, neutralize
-                elif not input_url and h_score >= 25:
-                    result = "Fake News"
-                    ai_conf = 0.68
-                else:
-                    result = "Fake News"
-            else:
-                # If unsure, stay neutral (Unverified)
-                result = "Fake News"
-                ai_conf = max(0.60, ai_conf)
+            # Base the final result directly on the AI model's prediction
+            result = f"{ai_pred} News"
+            
+            # If confidence is extremely low, mark as Unverified
+            if ai_conf < 0.55:
+                result = "Unverified"
 
         # 5. GENERATE EXPLANATION
         explanation = generate_explanation(content, result)
