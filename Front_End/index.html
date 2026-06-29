@@ -1,0 +1,1403 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tafaftire - AI Fake News Detection</title>
+
+    <!-- Bootstrap 5 CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
+    <!-- AOS Animation -->
+    <link href="https://unpkg.com/aos@2.3.1/dist/aos.css" rel="stylesheet">
+    <!-- Custom CSS -->
+    <link rel="stylesheet" href="styles.css">
+
+    <style>
+        .hero-section {
+            padding: 120px 0 80px;
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+        }
+
+        .hero-title {
+            font-size: 4rem;
+            line-height: 1.1;
+            background: linear-gradient(135deg, var(--primary-color), var(--accent-color));
+            -webkit-background-clip: text;
+            background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: 1.5rem;
+        }
+
+        .hero-subtitle {
+            font-size: 1.25rem;
+            color: var(--text-muted);
+            margin-bottom: 2.5rem;
+        }
+
+        .stat-card {
+            text-align: center;
+            padding: 1.5rem;
+            margin-bottom: 1rem;
+        }
+
+        .stat-card .icon {
+            font-size: 2.5rem;
+            color: var(--accent-color);
+            margin-bottom: 1rem;
+        }
+
+        .stat-card .number {
+            font-size: 2rem;
+            font-weight: 800;
+            color: var(--text-main);
+            font-family: var(--font-heading);
+        }
+
+        .stat-card .label {
+            color: var(--text-muted);
+            font-weight: 500;
+        }
+
+        .feature-icon-box {
+            width: 60px;
+            height: 60px;
+            border-radius: 16px;
+            background: rgba(37, 99, 235, 0.1);
+            color: var(--primary-color);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.75rem;
+            margin-bottom: 1.5rem;
+        }
+
+        .step-circle {
+            width: 80px;
+            height: 80px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, var(--primary-color), var(--accent-color));
+            color: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 2rem;
+            font-weight: 800;
+            margin: 0 auto 1.5rem;
+            box-shadow: 0 10px 20px rgba(37, 99, 235, 0.3);
+        }
+
+        .accordion-item {
+            background: transparent;
+            border: 1px solid var(--glass-border);
+            margin-bottom: 1rem;
+            border-radius: var(--border-radius-sm) !important;
+            overflow: hidden;
+        }
+
+        .accordion-button {
+            background: var(--glass-bg);
+            color: var(--text-main);
+            font-weight: 600;
+            box-shadow: none !important;
+        }
+
+        [data-theme="dark"] .accordion-button {
+            background: rgba(30, 41, 59, 0.7);
+            color: #fff;
+        }
+
+        .accordion-button:not(.collapsed) {
+            color: var(--primary-color);
+            background: rgba(37, 99, 235, 0.05);
+        }
+
+        .accordion-body {
+            background: var(--glass-bg);
+            color: var(--text-muted);
+        }
+
+        /* Mobile Responsiveness */
+        @media (max-width: 768px) {
+
+            html,
+            body {
+                overflow-x: hidden;
+                width: 100%;
+                position: relative;
+            }
+
+            body {
+                /* Extra safeguard for iOS */
+                -webkit-overflow-scrolling: touch;
+            }
+
+            .hero-section {
+                padding: 120px 0 40px;
+                min-height: auto;
+                text-align: center;
+            }
+
+            .hero-title {
+                font-size: 2.2rem;
+            }
+
+            .hero-subtitle {
+                font-size: 1.05rem;
+                margin-bottom: 2rem;
+            }
+
+            .hero-section .d-flex {
+                justify-content: center;
+            }
+
+            /* Shrink hero stat cards further on mobile */
+            .hero-stat-card-custom {
+                transform: none !important;
+                padding: 10px 4px;
+                border-radius: 12px;
+                margin-bottom: 0;
+            }
+
+            .hero-stat-value {
+                font-size: 1rem !important;
+                /* Force smaller text */
+            }
+
+            .hero-stat-label {
+                font-size: 0.65rem !important;
+                margin-top: 2px;
+            }
+
+            .hero-stat-icon {
+                font-size: 1rem !important;
+                width: 32px !important;
+                height: 32px !important;
+                display: flex !important;
+                align-items: center !important;
+                justify-content: center !important;
+                margin: 0 auto 6px auto !important;
+                border-radius: 8px !important;
+            }
+
+            /* Premium Navbar Mobile Menu Fix */
+            .navbar-collapse {
+                background: var(--card-bg) !important;
+                /* Solid background for readability */
+                border-radius: 16px;
+                padding: 20px !important;
+                margin-top: 15px;
+                box-shadow: 0 15px 40px rgba(0, 0, 0, 0.12);
+                border: 1px solid var(--glass-border);
+            }
+
+            [data-theme="dark"] .navbar-collapse {
+                background: var(--card-bg) !important;
+            }
+
+            .navbar-nav {
+                display: flex;
+                flex-direction: column;
+                gap: 8px;
+            }
+
+            .nav-item {
+                width: 100%;
+            }
+
+            .nav-link-new {
+                display: block !important;
+                padding: 12px 20px !important;
+                font-size: 1.05rem !important;
+                text-align: left;
+                border-radius: 12px !important;
+                width: 100%;
+            }
+
+            .nav-actions {
+                display: flex;
+                flex-direction: row;
+                justify-content: space-between;
+                align-items: center;
+                gap: 12px;
+                margin-top: 20px !important;
+                padding-top: 20px;
+                border-top: 1px solid rgba(0, 0, 0, 0.08);
+            }
+
+            [data-theme="dark"] .nav-actions {
+                border-top-color: rgba(255, 255, 255, 0.08);
+            }
+
+            .theme-toggle-new {
+                width: 48px !important;
+                height: 48px !important;
+                flex-shrink: 0;
+                margin: 0 !important;
+            }
+
+            .nav-cta-btn {
+                flex: 1;
+                justify-content: center;
+                padding: 12px !important;
+                margin: 0 !important;
+            }
+
+            /* Adjust section padding for mobile */
+            section {
+                padding: 60px 0 !important;
+            }
+
+            .row.g-4>div {
+                margin-bottom: 10px;
+            }
+
+            /* Horizontal Scroll for Cards on Mobile */
+            #how-it-works .row.g-4,
+            #fake-sources .row.g-4,
+            #features .row.g-4,
+            #testimonials .row.g-4 {
+                flex-wrap: nowrap;
+                overflow-x: auto;
+                padding-bottom: 25px;
+                scroll-snap-type: x mandatory;
+                scroll-behavior: smooth;
+                -webkit-overflow-scrolling: touch;
+                margin-left: 0;
+                margin-right: 0;
+                direction: rtl;
+                /* Sets scroll direction to left */
+                justify-content: flex-start !important;
+                /* Fixes missing/cut-off items caused by justify-content-center on overflow */
+                /* Hide scrollbar */
+                -ms-overflow-style: none;
+                scrollbar-width: none;
+            }
+
+            #how-it-works .row.g-4::-webkit-scrollbar,
+            #fake-sources .row.g-4::-webkit-scrollbar,
+            #features .row.g-4::-webkit-scrollbar,
+            #testimonials .row.g-4::-webkit-scrollbar {
+                display: none;
+            }
+
+            #how-it-works .col-md-3,
+            #fake-sources .col-md-6,
+            #features .col-md-4,
+            #testimonials .col-md-4 {
+                flex: 0 0 85%;
+                /* Reduced size as requested */
+                max-width: 85%;
+                scroll-snap-align: center;
+                transition: transform 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+                padding-left: 10px;
+                padding-right: 10px;
+                direction: ltr;
+                /* Keeps text direction normal */
+            }
+
+            /* Scale down inactive-looking cards slightly during scroll (CSS trick) */
+            #how-it-works .col-md-3:active,
+            #fake-sources .col-md-6:active,
+            #features .col-md-4:active,
+            #testimonials .col-md-4:active {
+                transform: scale(0.95);
+            }
+
+            /* Reduce internal padding and sizes of cards for a true mobile feel */
+
+            /* Features & Testimonials Cards */
+            #features .col-md-4>div,
+            #testimonials .col-md-4>div {
+                padding: 20px 16px !important;
+            }
+
+            #features .col-md-4 h4,
+            #testimonials .col-md-4 h6 {
+                font-size: 1.05rem !important;
+            }
+
+            #features .col-md-4 p,
+            #testimonials .col-md-4 p {
+                font-size: 0.85rem !important;
+            }
+
+            #features .col-md-4>div>div:first-child {
+                width: 45px !important;
+                height: 45px !important;
+                font-size: 1.2rem !important;
+                margin-bottom: 16px !important;
+            }
+
+            #testimonials .col-md-4 .d-flex>div:first-child {
+                width: 40px !important;
+                height: 40px !important;
+                font-size: 0.95rem !important;
+            }
+
+            /* Fake Sources Cards */
+            #fake-sources .col-md-6>div>div:first-child {
+                height: 150px !important;
+                /* Smaller images */
+            }
+
+            #fake-sources .col-md-6>div>div:last-child {
+                padding: 16px !important;
+            }
+
+            #fake-sources .col-md-6 h5 {
+                font-size: 1rem !important;
+            }
+
+            #fake-sources .col-md-6 p {
+                font-size: 0.85rem !important;
+            }
+
+            #fake-sources .col-md-6>div>div:last-child>div:first-child>div {
+                width: 35px !important;
+                height: 35px !important;
+                font-size: 1rem !important;
+            }
+
+            /* How it Works Steps */
+            #how-it-works .col-md-3>div>div:first-child {
+                width: 60px !important;
+                height: 60px !important;
+                font-size: 1.5rem !important;
+                margin-bottom: 16px !important;
+            }
+
+            #how-it-works .col-md-3 h5 {
+                font-size: 1.05rem !important;
+            }
+
+            #how-it-works .col-md-3 p {
+                font-size: 0.85rem !important;
+            }
+
+            /* About & Contact Sections Mobile Fix */
+            #about img {
+                height: 250px !important;
+                border-width: 4px !important;
+            }
+
+            #about h2,
+            #contact h2 {
+                font-size: 2rem !important;
+            }
+
+            #contact .col-lg-6:first-child>div {
+                padding: 24px !important;
+                border-radius: 16px !important;
+            }
+
+            #contact .col-lg-6:last-child>div {
+                min-height: 280px !important;
+                height: 280px !important;
+                border-radius: 16px !important;
+            }
+
+            #contact iframe {
+                min-height: 280px !important;
+                height: 280px !important;
+            }
+
+            /* Header Fixes for Mobile */
+            .navbar-brand-new .brand-icon {
+                width: 38px !important;
+                height: 38px !important;
+            }
+
+            .navbar-brand-new .brand-text {
+                font-size: 1.15rem !important;
+            }
+
+            .navbar-custom {
+                padding: 10px 0 !important;
+            }
+
+            /* Footer Fixes for Mobile */
+            footer {
+                padding: 40px 0 20px !important;
+                text-align: center !important;
+            }
+
+            footer .row.g-5 {
+                gap: 2rem !important;
+                margin-bottom: 2rem !important;
+            }
+
+            footer .col-lg-4>div:first-child,
+            footer .col-lg-4>div:last-child {
+                justify-content: center !important;
+            }
+
+            footer h6 {
+                margin-top: 10px;
+                margin-bottom: 15px !important;
+            }
+
+            footer nav {
+                align-items: center !important;
+            }
+
+            footer>.container>div:last-child {
+                justify-content: center !important;
+                flex-direction: column;
+                text-align: center;
+            }
+        }
+
+
+        /* Premium Card Styling */
+        .hero-stat-card-custom {
+            background: var(--glass-bg);
+            border: 1px solid var(--glass-border);
+            border-radius: 20px;
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.05);
+            text-align: center;
+            padding: 24px;
+            transition: transform 0.3s, box-shadow 0.3s;
+            height: 100%;
+        }
+
+        .hero-stat-card-custom:hover {
+            transform: translateY(-5px) !important;
+            box-shadow: 0 15px 35px rgba(0, 0, 0, 0.1);
+        }
+
+        [data-theme="dark"] .hero-stat-card-custom {
+            background: rgba(30, 41, 59, 0.6);
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+        }
+
+        .hero-stat-icon {
+            font-size: 2rem;
+            margin-bottom: 16px;
+            display: inline-block;
+            padding: 12px;
+            border-radius: 14px;
+        }
+
+        .icon-blue {
+            background: rgba(37, 99, 235, 0.1);
+            color: #2563EB;
+        }
+
+        .icon-red {
+            background: rgba(239, 68, 68, 0.1);
+            color: #ef4444;
+        }
+
+        .icon-green {
+            background: rgba(16, 185, 129, 0.1);
+            color: #10b981;
+        }
+
+        .hero-stat-value {
+            font-size: 2.2rem;
+            font-weight: 800;
+            color: var(--text-main);
+            line-height: 1.2;
+        }
+
+        .hero-stat-label {
+            color: var(--text-muted);
+            font-weight: 600;
+            font-size: 0.95rem;
+            margin-top: 4px;
+        }
+    </style>
+</head>
+
+<body>
+
+    <!-- Background Shapes -->
+    <div class="bg-shapes">
+        <div class="shape shape-1"></div>
+        <div class="shape shape-2"></div>
+        <div class="shape shape-3"></div>
+    </div>
+
+    <!-- Navbar -->
+    <nav class="navbar navbar-expand-lg navbar-custom fixed-top" id="mainNav">
+        <div class="container">
+            <!-- Brand -->
+            <a class="navbar-brand-new" href="index.html">
+                <div class="brand-icon">
+                    <img src="images/fake news.png" alt="Tafaftire Logo">
+                </div>
+                <span class="brand-text">Tafaftire</span>
+                <span class="brand-badge">AI</span>
+            </a>
+
+            <!-- Mobile Toggle -->
+            <button class="navbar-toggler-new" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav"
+                aria-label="Toggle navigation">
+                <span></span><span></span><span></span>
+            </button>
+
+            <!-- Nav Links -->
+            <div class="collapse navbar-collapse" id="navbarNav">
+                <ul class="navbar-nav mx-auto nav-pills-custom">
+                    <li class="nav-item"><a class="nav-link-new active" href="#home">Home</a></li>
+                    <li class="nav-item"><a class="nav-link-new" href="#features">Features</a></li>
+                    <li class="nav-item"><a class="nav-link-new" href="#how-it-works">How It Works</a></li>
+                    <li class="nav-item"><a class="nav-link-new" href="#about">About</a></li>
+                    <li class="nav-item"><a class="nav-link-new" href="#contact">Contact</a></li>
+                </ul>
+                <div class="nav-actions">
+                    <button id="theme-toggle" class="theme-toggle-new" title="Toggle theme">
+                        <i id="theme-icon" class="fa-solid fa-moon"></i>
+                    </button>
+                    <a href="analyze.html" class="nav-cta-btn"
+                        style="display: inline-block; background: linear-gradient(135deg, #2563EB, #1d4ed8); border-radius: 10px; padding: 10px 20px; font-weight: 600; box-shadow: 0 4px 10px rgba(37,99,235,0.2); color: white; text-decoration: none;">
+                        <i class="fa-solid fa-wand-magic-sparkles"></i>
+                        <span>Analyze News</span>
+                    </a>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Hero Section -->
+    <section id="home" class="hero-section">
+        <div class="container">
+            <div class="row align-items-center">
+                <div class="col-lg-6" data-aos="fade-right">
+                    <div class="glass-panel p-4 p-lg-5 border-0 bg-transparent shadow-none">
+                        <h1 class="hero-title">Detect Fake News Before It Spreads</h1>
+                        <p class="hero-subtitle">
+                            Equip yourself with an AI-powered verification system. Tafaftire analyzes text, checks
+                            links, and verifies accuracy instantly to protect you from misinformation.
+                        </p>
+                        <div class="d-flex flex-wrap gap-3 mt-4">
+                            <a href="analyze.html" class="btn btn-lg"
+                                style="background: linear-gradient(135deg, #2563EB, #1d4ed8); color: white; font-weight: 700; padding: 14px 28px; border-radius: 12px; border: none; box-shadow: 0 10px 20px rgba(37,99,235,0.2); transition: transform 0.2s; text-decoration: none;"
+                                onmouseover="this.style.transform='translateY(-3px)'"
+                                onmouseout="this.style.transform='translateY(0)'">
+                                <i class="fa-solid fa-magnifying-glass-chart" style="margin-right: 8px;"></i> Analyze
+                                News
+                            </a>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-lg-6 mt-5 mt-lg-0" data-aos="fade-left" data-aos-delay="200">
+                    <div class="row g-3 g-md-4">
+                        <div class="col-6 col-md-6">
+                            <div class="hero-stat-card-custom">
+                                <div class="hero-stat-icon icon-blue">
+                                    <i class="fa-solid fa-file-contract"></i>
+                                </div>
+                                <div id="hero-news-checked" class="hero-stat-value">...</div>
+                                <div class="hero-stat-label">News Checked</div>
+                            </div>
+                        </div>
+                        <div class="col-6 col-md-6">
+                            <div class="hero-stat-card-custom" style="transform: translateY(20px);">
+                                <div class="hero-stat-icon icon-red">
+                                    <i class="fa-solid fa-triangle-exclamation"></i>
+                                </div>
+                                <div id="hero-fake-news" class="hero-stat-value">...</div>
+                                <div class="hero-stat-label">Fake News</div>
+                            </div>
+                        </div>
+                        <div class="col-6 col-md-6">
+                            <div class="hero-stat-card-custom">
+                                <div class="hero-stat-icon icon-green">
+                                    <i class="fa-solid fa-bullseye"></i>
+                                </div>
+                                <div id="hero-accuracy-rate" class="hero-stat-value">99.0%</div>
+                                <div class="hero-stat-label">Accuracy Rate</div>
+                            </div>
+                        </div>
+                        <div class="col-6 col-md-6">
+                            <div class="hero-stat-card-custom" style="transform: translateY(20px);">
+                                <div class="hero-stat-icon icon-green">
+                                    <i class="fa-solid fa-circle-check"></i>
+                                </div>
+                                <div id="hero-real-news" class="hero-stat-value">...</div>
+                                <div class="hero-stat-label">Real News</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Fake News Sources Section -->
+    <section id="fake-sources"
+        style="padding: 100px 0; background-color: var(--bg-color); position: relative; border-top: 1px solid var(--glass-border);">
+        <div class="container" style="position:relative; z-index:1;">
+            <!-- Section Header -->
+            <div style="text-align:center; margin-bottom:64px;" data-aos="fade-up">
+                <span
+                    style="display:inline-block; background:rgba(239,68,68,0.1); color:#ef4444; font-size:0.8rem; font-weight:700; letter-spacing:1.5px; text-transform:uppercase; padding:6px 20px; border-radius:50px; margin-bottom:16px;">
+                    ⚠ Common Fake News Sources
+                </span>
+                <h2
+                    style="font-size:2.6rem; font-weight:800; color: var(--text-main); margin-bottom:16px; line-height:1.2;">
+                    Where Does <span style="color:#ef4444;">Misinformation</span> Come From?
+                </h2>
+                <p style="color: var(--text-muted); font-size:1.1rem; max-width:600px; margin:0 auto; line-height:1.7;">
+                    Understanding the sources of fake news helps protect yourself. Our AI detects misinformation from
+                    all these channels.
+                </p>
+            </div>
+
+            <!-- 3 Source Cards -->
+            <div class="row g-4 justify-content-center">
+
+                <!-- Card 1: Fake Documents -->
+                <div class="col-lg-4 col-md-6" data-aos="fade-up" data-aos-delay="100">
+                    <div style="background: var(--card-bg); border: 1px solid var(--glass-border); border-radius: 24px; overflow: hidden; box-shadow: 0 10px 30px rgba(15,23,42,0.08); transition: transform 0.3s, box-shadow 0.3s; height: 100%;"
+                        onmouseover="this.style.transform='translateY(-8px)';this.style.boxShadow='0 20px 40px rgba(15,23,42,0.12)'"
+                        onmouseout="this.style.transform='translateY(0)';this.style.boxShadow='0 10px 30px rgba(15,23,42,0.08)'">
+                        <div style="position:relative; overflow:hidden; height:240px;">
+                            <img src="images/img_fake_documents.png" alt="Fake Official Documents"
+                                style="width:100%; height:100%; object-fit:cover; transition: transform 0.4s;"
+                                onmouseover="this.style.transform='scale(1.05)'"
+                                onmouseout="this.style.transform='scale(1)'">
+                            <div
+                                style="position:absolute; top:16px; left:16px; background:rgba(239,68,68,0.9); color:#fff; font-size:0.75rem; font-weight:700; padding:4px 12px; border-radius:50px; letter-spacing:1px;">
+                                SOURCE #1</div>
+                        </div>
+                        <div style="padding: 28px;">
+                            <div style="display:flex; align-items:center; gap:12px; margin-bottom:14px;">
+                                <div
+                                    style="width:42px; height:42px; background:rgba(239,68,68,0.1); border-radius:12px; display:flex; align-items:center; justify-content:center;">
+                                    <i class="fa-solid fa-file-circle-xmark"
+                                        style="color:#ef4444; font-size:1.2rem;"></i>
+                                </div>
+                                <h5 style="font-weight:800; color:var(--text-main); font-size:1.15rem; margin:0;">Fake
+                                    Official Documents</h5>
+                            </div>
+                            <p style="color:var(--text-muted); font-size:0.95rem; line-height:1.7; margin:0;">
+                                Forged passports, certificates, and government papers used to spread false narratives
+                                and mislead the public.
+                            </p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Card 2: Social Media -->
+                <div class="col-lg-4 col-md-6" data-aos="fade-up" data-aos-delay="200">
+                    <div style="background: var(--card-bg); border: 1px solid var(--glass-border); border-radius: 24px; overflow: hidden; box-shadow: 0 10px 30px rgba(15,23,42,0.08); transition: transform 0.3s, box-shadow 0.3s; height: 100%;"
+                        onmouseover="this.style.transform='translateY(-8px)';this.style.boxShadow='0 20px 40px rgba(15,23,42,0.12)'"
+                        onmouseout="this.style.transform='translateY(0)';this.style.boxShadow='0 10px 30px rgba(15,23,42,0.08)'">
+                        <div style="position:relative; overflow:hidden; height:240px;">
+                            <img src="images/img_social_media.png" alt="Social Media Misinformation"
+                                style="width:100%; height:100%; object-fit:cover; transition: transform 0.4s;"
+                                onmouseover="this.style.transform='scale(1.05)'"
+                                onmouseout="this.style.transform='scale(1)'">
+                            <div
+                                style="position:absolute; top:16px; left:16px; background:rgba(239,68,68,0.9); color:#fff; font-size:0.75rem; font-weight:700; padding:4px 12px; border-radius:50px; letter-spacing:1px;">
+                                SOURCE #2</div>
+                        </div>
+                        <div style="padding: 28px;">
+                            <div style="display:flex; align-items:center; gap:12px; margin-bottom:14px;">
+                                <div
+                                    style="width:42px; height:42px; background:rgba(239,68,68,0.1); border-radius:12px; display:flex; align-items:center; justify-content:center;">
+                                    <i class="fa-solid fa-share-nodes" style="color:#ef4444; font-size:1.2rem;"></i>
+                                </div>
+                                <h5 style="font-weight:800; color:var(--text-main); font-size:1.15rem; margin:0;">Social
+                                    Media Misinformation</h5>
+                            </div>
+                            <p style="color:var(--text-muted); font-size:0.95rem; line-height:1.7; margin:0;">
+                                Viral posts, manipulated images, and fabricated stories spread rapidly across social
+                                platforms, reaching millions instantly.
+                            </p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Card 3: TV & Media -->
+                <div class="col-lg-4 col-md-6" data-aos="fade-up" data-aos-delay="300">
+                    <div style="background: var(--card-bg); border: 1px solid var(--glass-border); border-radius: 24px; overflow: hidden; box-shadow: 0 10px 30px rgba(15,23,42,0.08); transition: transform 0.3s, box-shadow 0.3s; height: 100%;"
+                        onmouseover="this.style.transform='translateY(-8px)';this.style.boxShadow='0 20px 40px rgba(15,23,42,0.12)'"
+                        onmouseout="this.style.transform='translateY(0)';this.style.boxShadow='0 10px 30px rgba(15,23,42,0.08)'">
+                        <div style="position:relative; overflow:hidden; height:240px;">
+                            <img src="images/img_tv_media.png" alt="TV and Media Fake News"
+                                style="width:100%; height:100%; object-fit:cover; transition: transform 0.4s;"
+                                onmouseover="this.style.transform='scale(1.05)'"
+                                onmouseout="this.style.transform='scale(1)'">
+                            <div
+                                style="position:absolute; top:16px; left:16px; background:rgba(239,68,68,0.9); color:#fff; font-size:0.75rem; font-weight:700; padding:4px 12px; border-radius:50px; letter-spacing:1px;">
+                                SOURCE #3</div>
+                        </div>
+                        <div style="padding: 28px;">
+                            <div style="display:flex; align-items:center; gap:12px; margin-bottom:14px;">
+                                <div
+                                    style="width:42px; height:42px; background:rgba(239,68,68,0.1); border-radius:12px; display:flex; align-items:center; justify-content:center;">
+                                    <i class="fa-solid fa-tv" style="color:#ef4444; font-size:1.2rem;"></i>
+                                </div>
+                                <h5 style="font-weight:800; color:var(--text-main); font-size:1.15rem; margin:0;">TV &
+                                    Broadcast Media</h5>
+                            </div>
+                            <p style="color:var(--text-muted); font-size:0.95rem; line-height:1.7; margin:0;">
+                                Misleading broadcasts, manipulated news segments, and biased reporting on television and
+                                online media channels.
+                            </p>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+    </section>
+
+    <!-- Features Section -->
+    <section id="features"
+        style="padding: 100px 0; background-color: var(--bg-color); position: relative; border-top: 1px solid var(--glass-border); border-bottom: 1px solid var(--glass-border);">
+
+        <!-- Decorative background circle -->
+        <div
+            style="position: absolute; top: -100px; right: -100px; width: 400px; height: 400px; border-radius: 50%; background: radial-gradient(circle, rgba(37,99,235,0.04) 0%, transparent 70%); pointer-events: none;">
+        </div>
+        <div
+            style="position: absolute; bottom: -100px; left: -100px; width: 400px; height: 400px; border-radius: 50%; background: radial-gradient(circle, rgba(37,99,235,0.04) 0%, transparent 70%); pointer-events: none;">
+        </div>
+
+        <div class="container" style="position:relative; z-index:1;">
+            <!-- Section Header -->
+            <div style="text-align:center; margin-bottom:64px;" data-aos="fade-up">
+                <span
+                    style="display:inline-block; background:rgba(37,99,235,0.1); color:#2563EB; font-size:0.8rem; font-weight:700; letter-spacing:1.5px; text-transform:uppercase; padding:6px 20px; border-radius:50px; margin-bottom:16px;">
+                    ✦ System Features
+                </span>
+                <h2
+                    style="font-size:2.6rem; font-weight:800; color: var(--text-main); margin-bottom:16px; line-height:1.2;">
+                    Everything you <span style="color:#2563EB;">need</span>
+                </h2>
+                <p style="color: var(--text-muted); font-size:1.1rem; max-width:600px; margin:0 auto; line-height:1.7;">
+                    Verify news and combat misinformation effectively using the power of artificial intelligence.
+                </p>
+            </div>
+
+            <!-- Feature Cards Grid -->
+            <div class="row g-4 justify-content-center">
+
+                <!-- Card 1 -->
+                <div class="col-md-4" data-aos="fade-up" data-aos-delay="100">
+                    <div style="background: var(--card-bg); border-radius:16px; padding:40px 32px; height:100%; transition:all 0.4s cubic-bezier(0.4, 0, 0.2, 1); box-shadow:0 10px 25px -5px rgba(37,99,235,0.03); border-bottom: 4px solid transparent; position:relative; overflow:hidden;"
+                        onmouseover="this.style.transform='translateY(-8px)'; this.style.boxShadow='0 20px 40px -5px rgba(37,99,235,0.1)'; this.style.borderColor='#2563EB';"
+                        onmouseout="this.style.transform='translateY(0)'; this.style.boxShadow='0 10px 25px -5px rgba(37,99,235,0.03)'; this.style.borderColor='transparent';">
+                        <div
+                            style="width:60px; height:60px; background:linear-gradient(135deg,#2563EB,#60a5fa); border-radius:14px; display:flex; align-items:center; justify-content:center; font-size:1.5rem; color:#ffffff; margin-bottom:24px; box-shadow:0 8px 16px rgba(37,99,235,0.25);">
+                            <i class="fa-solid fa-microchip"></i>
+                        </div>
+                        <h4 style="font-weight:700; color: var(--text-main); font-size:1.2rem; margin-bottom:14px;">AI
+                            Text Analysis</h4>
+                        <p style="color: var(--text-muted); line-height:1.7; font-size:0.95rem; margin:0;">NLP
+                            algorithms analyze the text's structure and tone to identify fabricated or misleading
+                            stories.</p>
+                    </div>
+                </div>
+
+                <!-- Card 2 -->
+                <div class="col-md-4" data-aos="fade-up" data-aos-delay="200">
+                    <div style="background: var(--card-bg); border-radius:16px; padding:40px 32px; height:100%; transition:all 0.4s cubic-bezier(0.4, 0, 0.2, 1); box-shadow:0 10px 25px -5px rgba(37,99,235,0.03); border-bottom: 4px solid transparent; position:relative; overflow:hidden;"
+                        onmouseover="this.style.transform='translateY(-8px)'; this.style.boxShadow='0 20px 40px -5px rgba(37,99,235,0.1)'; this.style.borderColor='#2563EB';"
+                        onmouseout="this.style.transform='translateY(0)'; this.style.boxShadow='0 10px 25px -5px rgba(37,99,235,0.03)'; this.style.borderColor='transparent';">
+                        <div
+                            style="width:60px; height:60px; background:linear-gradient(135deg,#2563EB,#60a5fa); border-radius:14px; display:flex; align-items:center; justify-content:center; font-size:1.5rem; color:#ffffff; margin-bottom:24px; box-shadow:0 8px 16px rgba(37,99,235,0.25);">
+                            <i class="fa-solid fa-link"></i>
+                        </div>
+                        <h4 style="font-weight:700; color: var(--text-main); font-size:1.2rem; margin-bottom:14px;">URL
+                            Link Verification</h4>
+                        <p style="color: var(--text-muted); line-height:1.7; font-size:0.95rem; margin:0;">Automatically
+                            scan links by cross-referencing them against trusted sources and known misinformation sites.
+                        </p>
+                    </div>
+                </div>
+
+                <!-- Card 3 -->
+                <div class="col-md-4" data-aos="fade-up" data-aos-delay="300">
+                    <div style="background: var(--card-bg); border-radius:16px; padding:40px 32px; height:100%; transition:all 0.4s cubic-bezier(0.4, 0, 0.2, 1); box-shadow:0 10px 25px -5px rgba(37,99,235,0.03); border-bottom: 4px solid transparent; position:relative; overflow:hidden;"
+                        onmouseover="this.style.transform='translateY(-8px)'; this.style.boxShadow='0 20px 40px -5px rgba(37,99,235,0.1)'; this.style.borderColor='#2563EB';"
+                        onmouseout="this.style.transform='translateY(0)'; this.style.boxShadow='0 10px 25px -5px rgba(37,99,235,0.03)'; this.style.borderColor='transparent';">
+                        <div
+                            style="width:60px; height:60px; background:linear-gradient(135deg,#2563EB,#60a5fa); border-radius:14px; display:flex; align-items:center; justify-content:center; font-size:1.5rem; color:#ffffff; margin-bottom:24px; box-shadow:0 8px 16px rgba(37,99,235,0.25);">
+                            <i class="fa-solid fa-database"></i>
+                        </div>
+                        <h4 style="font-weight:700; color: var(--text-main); font-size:1.2rem; margin-bottom:14px;">Fact
+                            Verification</h4>
+                        <p style="color: var(--text-muted); line-height:1.7; font-size:0.95rem; margin:0;">
+                            Cross-references
+                            content against trusted databases and known factual sources to ensure high reliability.</p>
+                    </div>
+                </div>
+
+                <!-- Card 4 -->
+                <div class="col-md-4" data-aos="fade-up" data-aos-delay="400">
+                    <div style="background: var(--card-bg); border-radius:16px; padding:40px 32px; height:100%; transition:all 0.4s cubic-bezier(0.4, 0, 0.2, 1); box-shadow:0 10px 25px -5px rgba(37,99,235,0.03); border-bottom: 4px solid transparent; position:relative; overflow:hidden;"
+                        onmouseover="this.style.transform='translateY(-8px)'; this.style.boxShadow='0 20px 40px -5px rgba(37,99,235,0.1)'; this.style.borderColor='#2563EB';"
+                        onmouseout="this.style.transform='translateY(0)'; this.style.boxShadow='0 10px 25px -5px rgba(37,99,235,0.03)'; this.style.borderColor='transparent';">
+                        <div
+                            style="width:60px; height:60px; background:linear-gradient(135deg,#2563EB,#60a5fa); border-radius:14px; display:flex; align-items:center; justify-content:center; font-size:1.5rem; color:#ffffff; margin-bottom:24px; box-shadow:0 8px 16px rgba(37,99,235,0.25);">
+                            <i class="fa-solid fa-globe"></i>
+                        </div>
+                        <h4 style="font-weight:700; color: var(--text-main); font-size:1.2rem; margin-bottom:14px;">
+                            Somali Language Only</h4>
+                        <p style="color: var(--text-muted); line-height:1.7; font-size:0.95rem; margin:0;">Built
+                            specifically for the Somali language and local news sources. The AI understands Somali text
+                            structure and context.</p>
+                    </div>
+                </div>
+
+                <!-- Card 5 -->
+                <div class="col-md-4" data-aos="fade-up" data-aos-delay="500">
+                    <div style="background: var(--card-bg); border-radius:16px; padding:40px 32px; height:100%; transition:all 0.4s cubic-bezier(0.4, 0, 0.2, 1); box-shadow:0 10px 25px -5px rgba(37,99,235,0.03); border-bottom: 4px solid transparent; position:relative; overflow:hidden;"
+                        onmouseover="this.style.transform='translateY(-8px)'; this.style.boxShadow='0 20px 40px -5px rgba(37,99,235,0.1)'; this.style.borderColor='#2563EB';"
+                        onmouseout="this.style.transform='translateY(0)'; this.style.boxShadow='0 10px 25px -5px rgba(37,99,235,0.03)'; this.style.borderColor='transparent';">
+                        <div
+                            style="width:60px; height:60px; background:linear-gradient(135deg,#2563EB,#60a5fa); border-radius:14px; display:flex; align-items:center; justify-content:center; font-size:1.5rem; color:#ffffff; margin-bottom:24px; box-shadow:0 8px 16px rgba(37,99,235,0.25);">
+                            <i class="fa-solid fa-bolt"></i>
+                        </div>
+                        <h4 style="font-weight:700; color: var(--text-main); font-size:1.2rem; margin-bottom:14px;">
+                            Instant Results</h4>
+                        <p style="color: var(--text-muted); line-height:1.7; font-size:0.95rem; margin:0;">Get results
+                            in seconds — fast enough for journalists and the public in breaking news situations.</p>
+                    </div>
+                </div>
+
+                <!-- Card 6 -->
+                <div class="col-md-4" data-aos="fade-up" data-aos-delay="600">
+                    <div style="background: var(--card-bg); border-radius:16px; padding:40px 32px; height:100%; transition:all 0.4s cubic-bezier(0.4, 0, 0.2, 1); box-shadow:0 10px 25px -5px rgba(37,99,235,0.03); border-bottom: 4px solid transparent; position:relative; overflow:hidden;"
+                        onmouseover="this.style.transform='translateY(-8px)'; this.style.boxShadow='0 20px 40px -5px rgba(37,99,235,0.1)'; this.style.borderColor='#2563EB';"
+                        onmouseout="this.style.transform='translateY(0)'; this.style.boxShadow='0 10px 25px -5px rgba(37,99,235,0.03)'; this.style.borderColor='transparent';">
+                        <div
+                            style="width:60px; height:60px; background:linear-gradient(135deg,#2563EB,#60a5fa); border-radius:14px; display:flex; align-items:center; justify-content:center; font-size:1.5rem; color:#ffffff; margin-bottom:24px; box-shadow:0 8px 16px rgba(37,99,235,0.25);">
+                            <i class="fa-solid fa-clock-rotate-left"></i>
+                        </div>
+                        <h4 style="font-weight:700; color: var(--text-main); font-size:1.2rem; margin-bottom:14px;">
+                            Analysis History</h4>
+                        <p style="color: var(--text-muted); line-height:1.7; font-size:0.95rem; margin:0;">Keep a record
+                            of previously analyzed news so you can revisit that data anytime.</p>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+    </section>
+
+    <!-- How It Works Section -->
+    <section id="how-it-works" style="padding: 100px 0; background-color: var(--card-bg); position: relative;">
+        <div class="container">
+            <!-- Section Header -->
+            <div style="text-align:center; margin-bottom:80px;" data-aos="fade-up">
+                <span
+                    style="display:inline-block; background:rgba(37,99,235,0.1); color:#2563EB; font-size:0.8rem; font-weight:700; letter-spacing:1.5px; text-transform:uppercase; padding:6px 20px; border-radius:50px; margin-bottom:16px;">
+                    ✦ How It Works
+                </span>
+                <h2
+                    style="font-size:2.6rem; font-weight:800; color: var(--text-main); margin-bottom:16px; line-height:1.2;">
+                    Verify in 4 <span style="color:#2563EB;">Simple Steps</span>
+                </h2>
+                <p style="color: var(--text-muted); font-size:1.1rem; max-width:600px; margin:0 auto; line-height:1.7;">
+                    Verify any news or information you have in four fast and simple steps.
+                </p>
+            </div>
+
+            <!-- Steps Row -->
+            <div class="row text-center position-relative g-4" style="z-index: 1;">
+
+                <!-- Connecting Line (Visible on Desktop) -->
+                <div class="d-none d-md-block"
+                    style="position: absolute; top: 40px; left: 50%; transform: translateX(-50%); width: 68%; height: 3px; background: repeating-linear-gradient(90deg, #cbd5e1, #cbd5e1 10px, transparent 10px, transparent 20px); z-index: -1;">
+                </div>
+
+                <!-- Step 1 -->
+                <div class="col-md-3" data-aos="fade-up" data-aos-delay="100">
+                    <div style="transition: transform 0.3s ease;" onmouseover="this.style.transform='translateY(-10px)'"
+                        onmouseout="this.style.transform='translateY(0)'">
+                        <div
+                            style="width: 80px; height: 80px; margin: 0 auto 24px; background: linear-gradient(135deg, #2563EB, #60a5fa); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 2.2rem; font-weight: 800; color: #ffffff; box-shadow: 0 12px 24px rgba(37,99,235,0.3); border: 4px solid var(--card-bg);">
+                            1
+                        </div>
+                        <h5 style="font-weight: 700; color: var(--text-main); font-size: 1.25rem; margin-bottom: 12px;">
+                            Upload Content</h5>
+                        <p style="color: var(--text-muted); font-size: 0.95rem; line-height: 1.6; padding: 0 10px;">
+                            Paste text, a URL, or upload a file you want to verify here.
+                        </p>
+                    </div>
+                </div>
+
+                <!-- Step 2 -->
+                <div class="col-md-3" data-aos="fade-up" data-aos-delay="200">
+                    <div style="transition: transform 0.3s ease;" onmouseover="this.style.transform='translateY(-10px)'"
+                        onmouseout="this.style.transform='translateY(0)'">
+                        <div
+                            style="width: 80px; height: 80px; margin: 0 auto 24px; background: linear-gradient(135deg, #2563EB, #60a5fa); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 2.2rem; font-weight: 800; color: #ffffff; box-shadow: 0 12px 24px rgba(37,99,235,0.3); border: 4px solid var(--card-bg);">
+                            2
+                        </div>
+                        <h5 style="font-weight: 700; color: var(--text-main); font-size: 1.25rem; margin-bottom: 12px;">
+                            AI Analysis</h5>
+                        <p style="color: var(--text-muted); font-size: 0.95rem; line-height: 1.6; padding: 0 10px;">
+                            The AI system quickly scans the content's structure, language patterns and credibility.
+                        </p>
+                    </div>
+                </div>
+
+                <!-- Step 3 -->
+                <div class="col-md-3" data-aos="fade-up" data-aos-delay="300">
+                    <div style="transition: transform 0.3s ease;" onmouseover="this.style.transform='translateY(-10px)'"
+                        onmouseout="this.style.transform='translateY(0)'">
+                        <div
+                            style="width: 80px; height: 80px; margin: 0 auto 24px; background: linear-gradient(135deg, #2563EB, #60a5fa); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 2.2rem; font-weight: 800; color: #ffffff; box-shadow: 0 12px 24px rgba(37,99,235,0.3); border: 4px solid var(--card-bg);">
+                            3
+                        </div>
+                        <h5 style="font-weight: 700; color: var(--text-main); font-size: 1.25rem; margin-bottom: 12px;">
+                            Fact Verification</h5>
+                        <p style="color: var(--text-muted); font-size: 0.95rem; line-height: 1.6; padding: 0 10px;">
+                            Content is cross-referenced against trusted databases and verified factual sources.
+                        </p>
+                    </div>
+                </div>
+
+                <!-- Step 4 -->
+                <div class="col-md-3" data-aos="fade-up" data-aos-delay="400">
+                    <div style="transition: transform 0.3s ease;" onmouseover="this.style.transform='translateY(-10px)'"
+                        onmouseout="this.style.transform='translateY(0)'">
+                        <div
+                            style="width: 80px; height: 80px; margin: 0 auto 24px; background: linear-gradient(135deg, #2563EB, #60a5fa); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 2.2rem; font-weight: 800; color: #ffffff; box-shadow: 0 12px 24px rgba(37,99,235,0.3); border: 4px solid var(--card-bg);">
+                            4
+                        </div>
+                        <h5 style="font-weight: 700; color: var(--text-main); font-size: 1.25rem; margin-bottom: 12px;">
+                            Get Your Results</h5>
+                        <p style="color: var(--text-muted); font-size: 0.95rem; line-height: 1.6; padding: 0 10px;">
+                            Receive a detailed report with a full confidence score and credibility breakdown.
+                        </p>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+    </section>
+
+    <!-- About Section -->
+    <section id="about"
+        style="padding: 100px 0; background-color: var(--bg-color); border-top: 1px solid var(--glass-border); border-bottom: 1px solid var(--glass-border);">
+        <div class="container">
+            <div class="row align-items-center">
+
+                <!-- Left Column (Image) -->
+                <div class="col-lg-6" data-aos="fade-right">
+                    <div style="position: relative;">
+                        <!-- Decorative shadow blur behind image -->
+                        <div
+                            style="position: absolute; top: 20px; left: -20px; right: 20px; bottom: -20px; background: linear-gradient(135deg, rgba(37,99,235,0.1), rgba(96,165,250,0.1)); border-radius: 24px; z-index: 0;">
+                        </div>
+                        <img src="https://images.unsplash.com/photo-1504711434969-e33886168f5c?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80"
+                            alt="News Verification" class="img-fluid w-100"
+                            style="object-fit: cover; height: 450px; border-radius: 24px; position: relative; z-index: 1; box-shadow: 0 20px 40px -10px rgba(15,23,42,0.1); border: 8px solid var(--card-bg);">
+                    </div>
+                </div>
+
+                <!-- Right Column (Text) -->
+                <div class="col-lg-6 mt-5 mt-lg-0 ps-lg-5" data-aos="fade-left">
+                    <span
+                        style="display:inline-block; background:rgba(37,99,235,0.1); color:#2563EB; font-size:0.8rem; font-weight:700; letter-spacing:1.5px; text-transform:uppercase; padding:6px 20px; border-radius:50px; margin-bottom:16px;">
+                        ✦ About Us
+                    </span>
+                    <h2
+                        style="font-size:2.6rem; font-weight:800; color: var(--text-main); margin-bottom:24px; line-height:1.2;">
+                        About <span style="color:#2563EB;">Tafaftire</span>
+                    </h2>
+                    <p style="color: var(--text-muted); font-size:1.1rem; line-height:1.8; margin-bottom:40px;">
+                        Tafaftire is an AI-powered platform that collects news articles from trusted public news
+                        websites through web scraping, analyzes the content using Natural Language Processing (NLP) and
+                        Machine Learning, and predicts whether the news is likely to be fake or real.
+                    </p>
+
+                    <!-- Mission Feature -->
+                    <div class="d-flex mb-4">
+                        <div
+                            style="flex-shrink: 0; width: 64px; height: 64px; background: linear-gradient(135deg, #2563EB, #60a5fa); border-radius: 16px; display: flex; align-items: center; justify-content: center; font-size: 1.5rem; color: #ffffff; box-shadow: 0 8px 16px rgba(37,99,235,0.25); margin-right: 24px;">
+                            <i class="fa-solid fa-bullseye"></i>
+                        </div>
+                        <div>
+                            <h5
+                                style="font-weight: 700; color: var(--text-main); font-size: 1.25rem; margin-bottom: 8px;">
+                                Our Mission</h5>
+                            <p style="color: var(--text-muted); font-size: 0.95rem; line-height: 1.7; margin: 0;">
+                                To provide a simple, accurate, and real-time verification tool so individuals and media
+                                organizations can critically assess news.
+                            </p>
+                        </div>
+                    </div>
+
+                    <!-- Vision Feature -->
+                    <div class="d-flex">
+                        <div
+                            style="flex-shrink: 0; width: 64px; height: 64px; background: linear-gradient(135deg, #2563EB, #60a5fa); border-radius: 16px; display: flex; align-items: center; justify-content: center; font-size: 1.5rem; color: #ffffff; box-shadow: 0 8px 16px rgba(37,99,235,0.25); margin-right: 24px;">
+                            <i class="fa-solid fa-eye"></i>
+                        </div>
+                        <div>
+                            <h5
+                                style="font-weight: 700; color: var(--text-main); font-size: 1.25rem; margin-bottom: 8px;">
+                                Our Vision</h5>
+                            <p style="color: var(--text-muted); font-size: 0.95rem; line-height: 1.7; margin: 0;">
+                                A world with an open information environment where truth prevails over manipulated and
+                                distorted news.
+                            </p>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+    </section>
+
+    <!-- Testimonials Section -->
+    <section id="testimonials" style="padding: 100px 0; background-color: var(--card-bg);">
+        <div class="container">
+            <div style="text-align:center; margin-bottom:64px;" data-aos="fade-up">
+                <span
+                    style="display:inline-block; background:rgba(37,99,235,0.1); color:#2563EB; font-size:0.8rem; font-weight:700; letter-spacing:1.5px; text-transform:uppercase; padding:6px 20px; border-radius:50px; margin-bottom:16px;">
+                    ✦ Testimonials
+                </span>
+                <h2
+                    style="font-size:2.6rem; font-weight:800; color: var(--text-main); margin-bottom:16px; line-height:1.2;">
+                    Trusted by <span style="color:#2563EB;">Professionals</span>
+                </h2>
+                <p style="color: var(--text-muted); font-size:1.1rem; max-width:600px; margin:0 auto; line-height:1.7;">
+                    See what journalists, editors, and researchers say about us.
+                </p>
+            </div>
+            <div class="row g-4">
+                <!-- Testimonial 1 -->
+                <div class="col-md-4" data-aos="fade-up" data-aos-delay="100">
+                    <div style="background: var(--card-bg); border: 1px solid var(--glass-border); border-radius:16px; padding:40px 32px; height:100%; transition:all 0.3s ease; box-shadow:0 10px 25px -5px rgba(15,23,42,0.03);"
+                        onmouseover="this.style.transform='translateY(-6px)'; this.style.boxShadow='0 20px 40px -5px rgba(15,23,42,0.08)';"
+                        onmouseout="this.style.transform='translateY(0)'; this.style.boxShadow='0 10px 25px -5px rgba(15,23,42,0.03)';">
+                        <div style="color:#f59e0b; margin-bottom:20px; font-size:1.1rem;">
+                            <i class="fa-solid fa-star"></i><i class="fa-solid fa-star"></i><i
+                                class="fa-solid fa-star"></i><i class="fa-solid fa-star"></i><i
+                                class="fa-solid fa-star"></i>
+                        </div>
+                        <p style="color: var(--text-muted); font-style:italic; line-height:1.8; margin-bottom:30px;">
+                            "Tafaftire has become an indispensable tool at our newsroom. It flags questionable articles
+                            before they go live, saving our reputation."</p>
+                        <div class="d-flex align-items-center mt-auto">
+                            <div
+                                style="width:50px; height:50px; border-radius:50%; background:linear-gradient(135deg, #334155, #0f172a); color:#fff; display:flex; align-items:center; justify-content:center; font-weight:700; margin-right:16px; font-size:1.1rem;">
+                                AJ</div>
+                            <div>
+                                <h6 style="margin:0; font-weight:700; color: var(--text-main); font-size:1.05rem;">Ahmed
+                                    Jama</h6>
+                                <small style="color: var(--text-muted);">Senior Editor</small>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <!-- Testimonial 2 -->
+                <div class="col-md-4" data-aos="fade-up" data-aos-delay="200">
+                    <div style="background: var(--card-bg); border: 1px solid var(--glass-border); border-radius:16px; padding:40px 32px; height:100%; transition:all 0.3s ease; box-shadow:0 10px 25px -5px rgba(15,23,42,0.03);"
+                        onmouseover="this.style.transform='translateY(-6px)'; this.style.boxShadow='0 20px 40px -5px rgba(15,23,42,0.08)';"
+                        onmouseout="this.style.transform='translateY(0)'; this.style.boxShadow='0 10px 25px -5px rgba(15,23,42,0.03)';">
+                        <div style="color:#f59e0b; margin-bottom:20px; font-size:1.1rem;">
+                            <i class="fa-solid fa-star"></i><i class="fa-solid fa-star"></i><i
+                                class="fa-solid fa-star"></i><i class="fa-solid fa-star"></i><i
+                                class="fa-solid fa-star-half-stroke"></i>
+                        </div>
+                        <p style="color: var(--text-muted); font-style:italic; line-height:1.8; margin-bottom:30px;">
+                            "The Somali language support is what truly sets this tool apart. Finally, an AI tool that
+                            understands local language and culture."</p>
+                        <div class="d-flex align-items-center mt-auto">
+                            <div
+                                style="width:50px; height:50px; border-radius:50%; background:linear-gradient(135deg, #2563EB, #1d4ed8); color:#fff; display:flex; align-items:center; justify-content:center; font-weight:700; margin-right:16px; font-size:1.1rem;">
+                                FS</div>
+                            <div>
+                                <h6 style="margin:0; font-weight:700; color: var(--text-main); font-size:1.05rem;">
+                                    Fadumo Salad</h6>
+                                <small style="color: var(--text-muted);">Independent Journalist</small>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <!-- Testimonial 3 -->
+                <div class="col-md-4" data-aos="fade-up" data-aos-delay="300">
+                    <div style="background: var(--card-bg); border: 1px solid var(--glass-border); border-radius:16px; padding:40px 32px; height:100%; transition:all 0.3s ease; box-shadow:0 10px 25px -5px rgba(15,23,42,0.03);"
+                        onmouseover="this.style.transform='translateY(-6px)'; this.style.boxShadow='0 20px 40px -5px rgba(15,23,42,0.08)';"
+                        onmouseout="this.style.transform='translateY(0)'; this.style.boxShadow='0 10px 25px -5px rgba(15,23,42,0.03)';">
+                        <div style="color:#f59e0b; margin-bottom:20px; font-size:1.1rem;">
+                            <i class="fa-solid fa-star"></i><i class="fa-solid fa-star"></i><i
+                                class="fa-solid fa-star"></i><i class="fa-solid fa-star"></i><i
+                                class="fa-solid fa-star"></i>
+                        </div>
+                        <p style="color: var(--text-muted); font-style:italic; line-height:1.8; margin-bottom:30px;">"As
+                            a researcher, the detailed analysis and accuracy assessment this system provides is
+                            extremely high and unrivaled."</p>
+                        <div class="d-flex align-items-center mt-auto">
+                            <div
+                                style="width:50px; height:50px; border-radius:50%; background:linear-gradient(135deg, #059669, #047857); color:#fff; display:flex; align-items:center; justify-content:center; font-weight:700; margin-right:16px; font-size:1.1rem;">
+                                MO</div>
+                            <div>
+                                <h6 style="margin:0; font-weight:700; color: var(--text-main); font-size:1.05rem;">Dr.
+                                    Mohamed Omar</h6>
+                                <small style="color: var(--text-muted);">Media Researcher</small>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- FAQ Section -->
+    <section id="faq"
+        style="padding: 100px 0; background-color: var(--bg-color); border-top: 1px solid var(--glass-border); border-bottom: 1px solid var(--glass-border);">
+        <div class="container">
+            <div class="row justify-content-center">
+                <div class="col-lg-8">
+                    <div style="text-align:center; margin-bottom:64px;" data-aos="fade-up">
+                        <span
+                            style="display:inline-block; background:rgba(37,99,235,0.1); color:#2563EB; font-size:0.8rem; font-weight:700; letter-spacing:1.5px; text-transform:uppercase; padding:6px 20px; border-radius:50px; margin-bottom:16px;">
+                            ✦ FAQ
+                        </span>
+                        <h2
+                            style="font-size:2.6rem; font-weight:800; color: var(--text-main); margin-bottom:16px; line-height:1.2;">
+                            Frequently Asked <span style="color:#2563EB;">Questions</span>
+                        </h2>
+                    </div>
+                    <div class="accordion" id="faqAccordion" data-aos="fade-up" style="background:transparent;">
+                        <div class="accordion-item"
+                            style="background: var(--card-bg); border: 1px solid var(--glass-border); border-radius:12px; margin-bottom:16px; overflow:hidden; box-shadow:0 4px 6px -1px rgba(0,0,0,0.05);">
+                            <h2 class="accordion-header">
+                                <button class="accordion-button" type="button" data-bs-toggle="collapse"
+                                    data-bs-target="#faq1"
+                                    style="background: var(--card-bg); color: var(--text-main); font-weight:700; padding:20px 24px; box-shadow:none;">
+                                    How accurate is the AI system?
+                                </button>
+                            </h2>
+                            <div id="faq1" class="accordion-collapse collapse show" data-bs-parent="#faqAccordion">
+                                <div class="accordion-body"
+                                    style="color: var(--text-muted); padding:0 24px 24px; line-height:1.7; border-top:1px solid #f1f5f9; background: var(--card-bg);">
+                                    Our system has a 99.0% accuracy rate, trained on over 6,000 real and fake Somali
+                                    news articles.
+                                </div>
+                            </div>
+                        </div>
+                        <div class="accordion-item"
+                            style="background: var(--card-bg); border: 1px solid var(--glass-border); border-radius:12px; margin-bottom:16px; overflow:hidden; box-shadow:0 4px 6px -1px rgba(0,0,0,0.05);">
+                            <h2 class="accordion-header">
+                                <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse"
+                                    data-bs-target="#faq2"
+                                    style="background: var(--card-bg); color: var(--text-main); font-weight:700; padding:20px 24px; box-shadow:none;">
+                                    What language does the system support?
+                                </button>
+                            </h2>
+                            <div id="faq2" class="accordion-collapse collapse" data-bs-parent="#faqAccordion">
+                                <div class="accordion-body"
+                                    style="color: var(--text-muted); padding:0 24px 24px; line-height:1.7; border-top:1px solid #f1f5f9; background: var(--card-bg);">
+                                    Tafaftire is specifically built for the <strong>Somali language</strong>. The AI
+                                    model is trained on Somali text and news sources. English is not currently
+                                    supported.
+                                </div>
+                            </div>
+                        </div>
+                        <div class="accordion-item"
+                            style="background: var(--card-bg); border: 1px solid var(--glass-border); border-radius:12px; margin-bottom:16px; overflow:hidden; box-shadow:0 4px 6px -1px rgba(0,0,0,0.05);">
+                            <h2 class="accordion-header">
+                                <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse"
+                                    data-bs-target="#faq3"
+                                    style="background: var(--card-bg); color: var(--text-main); font-weight:700; padding:20px 24px; box-shadow:none;">
+                                    What types of content can be analyzed?
+                                </button>
+                            </h2>
+                            <div id="faq3" class="accordion-collapse collapse" data-bs-parent="#faqAccordion">
+                                <div class="accordion-body"
+                                    style="color: var(--text-muted); padding:0 24px 24px; line-height:1.7; border-top:1px solid #f1f5f9; background: var(--card-bg);">
+                                    Currently, the system supports <strong>text articles</strong> and
+                                    <strong>URLs</strong>. Simply paste the news text or a link and the AI will analyze
+                                    it instantly. Image verification is not yet supported.
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Contact Section -->
+    <section id="contact" style="padding: 100px 0; background-color: var(--card-bg);">
+        <div class="container">
+            <div style="text-align:center; margin-bottom:64px;" data-aos="fade-up">
+                <span
+                    style="display:inline-block; background:rgba(37,99,235,0.1); color:#2563EB; font-size:0.8rem; font-weight:700; letter-spacing:1.5px; text-transform:uppercase; padding:6px 20px; border-radius:50px; margin-bottom:16px;">
+                    ✦ Get in Touch
+                </span>
+                <h2
+                    style="font-size:2.6rem; font-weight:800; color: var(--text-main); margin-bottom:16px; line-height:1.2;">
+                    Contact <span style="color:#2563EB;">Us</span>
+                </h2>
+                <p style="color: var(--text-muted); font-size:1.1rem; max-width:600px; margin:0 auto; line-height:1.7;">
+                    Have questions or suggestions? We'd love to hear from you.
+                </p>
+            </div>
+            <div class="row g-5 align-items-center">
+                <div class="col-lg-6" data-aos="fade-right">
+                    <div
+                        style="background: var(--card-bg); padding:40px; border-radius:24px; border: 1px solid var(--glass-border); box-shadow:0 20px 40px -10px rgba(15,23,42,0.05);">
+                        <form id="contactForm">
+                            <div class="mb-4">
+                                <label
+                                    style="font-weight:600; color: var(--text-main); margin-bottom:8px; display:block; font-size:0.95rem;">Full
+                                    Name</label>
+                                <input type="text" id="contactName" class="form-control" placeholder="e.g. John Smith"
+                                    required
+                                    style="background: var(--bg-color); border: 1px solid var(--glass-border); padding:14px 20px; border-radius:12px; font-size:1rem; color: var(--text-main);">
+                            </div>
+                            <div class="mb-4">
+                                <label
+                                    style="font-weight:600; color: var(--text-main); margin-bottom:8px; display:block; font-size:0.95rem;">Email
+                                    Address</label>
+                                <input type="email" id="contactEmail" class="form-control" placeholder="your@email.com"
+                                    required
+                                    style="background: var(--bg-color); border: 1px solid var(--glass-border); padding:14px 20px; border-radius:12px; font-size:1rem; color: var(--text-main);">
+                            </div>
+                            <div class="mb-4">
+                                <label
+                                    style="font-weight:600; color: var(--text-main); margin-bottom:8px; display:block; font-size:0.95rem;">Your
+                                    Message</label>
+                                <textarea id="contactMessage" class="form-control" rows="5"
+                                    placeholder="How can we help you?" required
+                                    style="background: var(--bg-color); border: 1px solid var(--glass-border); padding:14px 20px; border-radius:12px; font-size:1rem; color: var(--text-main); resize:none;"></textarea>
+                            </div>
+                            <button type="submit" id="contactSubmitBtn" class="btn w-100"
+                                style="background:linear-gradient(135deg, #2563EB, #1d4ed8); color:white; font-weight:700; padding:14px; border-radius:12px; border:none; box-shadow:0 10px 20px rgba(37,99,235,0.2); transition:transform 0.2s;">
+                                <span>Send Message</span>
+                            </button>
+                        </form>
+                    </div>
+                </div>
+                <div class="col-lg-6" data-aos="fade-left">
+                    <div
+                        style="border-radius:24px; overflow:hidden; border: 1px solid var(--glass-border); box-shadow:0 20px 40px -10px rgba(15,23,42,0.05); height:100%; min-height:480px;">
+                        <iframe
+                            src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d127641.19694205423!2d45.24729052062725!3d2.046934400000003!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x3d58425955ce6b53%3A0xbb22e039eece3d17!2sMogadishu%2C%20Somalia!5e0!3m2!1sen!2sus!4v1714000000000!5m2!1sen!2sus"
+                            width="100%" height="100%" style="border:0; min-height: 480px;" allowfullscreen=""
+                            loading="lazy" referrerpolicy="no-referrer-when-downgrade"></iframe>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Footer -->
+    <footer style="background-color: #0f172a; padding: 80px 0 30px; position: relative; overflow: hidden;">
+        <div class="container" style="position: relative; z-index: 1;">
+            <div class="row g-5 mb-5">
+                <!-- Brand Column -->
+                <div class="col-lg-4">
+                    <div style="display:flex; align-items:center; gap:12px; margin-bottom:24px;">
+                        <div class="brand-icon" style="width: 45px; height: 45px;">
+                            <img src="images/fake news.png" alt="Tafaftire Logo">
+                        </div>
+                        <div>
+                            <h3 style="font-size:1.5rem; font-weight:800; color:#ffffff; margin:0;">Tafaftire</h3>
+                        </div>
+                    </div>
+                    <p style="color:#94a3b8; line-height:1.8; margin-bottom:24px;">An AI-powered News Verification
+                        System. Protecting society from misinformation and fake news.</p>
+                    <div style="display:flex; gap:12px;">
+                        <a href="#"
+                            style="width:36px; height:36px; background:rgba(255,255,255,0.05); border-radius:8px; display:flex; align-items:center; justify-content:center; color:#94a3b8; transition:all 0.3s;"
+                            onmouseover="this.style.background='#2563EB'; this.style.color='#fff';"
+                            onmouseout="this.style.background='rgba(255,255,255,0.05)'; this.style.color='#94a3b8';"><i
+                                class="fa-brands fa-x-twitter"></i></a>
+                        <a href="#"
+                            style="width:36px; height:36px; background:rgba(255,255,255,0.05); border-radius:8px; display:flex; align-items:center; justify-content:center; color:#94a3b8; transition:all 0.3s;"
+                            onmouseover="this.style.background='#2563EB'; this.style.color='#fff';"
+                            onmouseout="this.style.background='rgba(255,255,255,0.05)'; this.style.color='#94a3b8';"><i
+                                class="fa-brands fa-facebook-f"></i></a>
+                        <a href="#"
+                            style="width:36px; height:36px; background:rgba(255,255,255,0.05); border-radius:8px; display:flex; align-items:center; justify-content:center; color:#94a3b8; transition:all 0.3s;"
+                            onmouseover="this.style.background='#2563EB'; this.style.color='#fff';"
+                            onmouseout="this.style.background='rgba(255,255,255,0.05)'; this.style.color='#94a3b8';"><i
+                                class="fa-brands fa-linkedin-in"></i></a>
+                    </div>
+                </div>
+
+                <!-- Links -->
+                <div class="col-lg-2 col-md-4 offset-lg-1">
+                    <h6
+                        style="color:#ffffff; font-weight:700; margin-bottom:24px; text-transform:uppercase; letter-spacing:1px; font-size:0.9rem;">
+                        Navigation</h6>
+                    <nav style="display:flex; flex-direction:column; gap:12px;">
+                        <a href="#home" style="color:#94a3b8; text-decoration:none; transition:color 0.2s;"
+                            onmouseover="this.style.color='#60a5fa'" onmouseout="this.style.color='#94a3b8'">Home</a>
+                        <a href="analyze.html" style="color:#94a3b8; text-decoration:none; transition:color 0.2s;"
+                            onmouseover="this.style.color='#60a5fa'" onmouseout="this.style.color='#94a3b8'">Analyze
+                            News</a>
+                        <a href="#features" style="color:#94a3b8; text-decoration:none; transition:color 0.2s;"
+                            onmouseover="this.style.color='#60a5fa'"
+                            onmouseout="this.style.color='#94a3b8'">Features</a>
+                        <a href="#about" style="color:#94a3b8; text-decoration:none; transition:color 0.2s;"
+                            onmouseover="this.style.color='#60a5fa'" onmouseout="this.style.color='#94a3b8'">About
+                            Us</a>
+                    </nav>
+                </div>
+                <div class="col-lg-2 col-md-4">
+                    <h6
+                        style="color:#ffffff; font-weight:700; margin-bottom:24px; text-transform:uppercase; letter-spacing:1px; font-size:0.9rem;">
+                        Platform</h6>
+                    <nav style="display:flex; flex-direction:column; gap:12px;">
+                        <a href="#" style="color:#94a3b8; text-decoration:none; transition:color 0.2s;"
+                            onmouseover="this.style.color='#60a5fa'" onmouseout="this.style.color='#94a3b8'">API
+                            Documentation</a>
+                        <a href="#" style="color:#94a3b8; text-decoration:none; transition:color 0.2s;"
+                            onmouseover="this.style.color='#60a5fa'" onmouseout="this.style.color='#94a3b8'">Media
+                            Kit</a>
+                        <a href="#contact" style="color:#94a3b8; text-decoration:none; transition:color 0.2s;"
+                            onmouseover="this.style.color='#60a5fa'" onmouseout="this.style.color='#94a3b8'">Contact
+                            Us</a>
+                    </nav>
+                </div>
+                <div class="col-lg-3 col-md-4">
+                    <h6
+                        style="color:#ffffff; font-weight:700; margin-bottom:24px; text-transform:uppercase; letter-spacing:1px; font-size:0.9rem;">
+                        Stay Updated</h6>
+                    <p style="color:#94a3b8; font-size:0.9rem; margin-bottom:16px;">Get the latest updates on AI
+                        technology.</p>
+                    <div style="display:flex; gap:8px;">
+                        <input type="email" placeholder="Your email address"
+                            style="background:rgba(255,255,255,0.05); border:1px solid rgba(255,255,255,0.1); color:#fff; padding:10px 16px; border-radius:8px; width:100%; font-size:0.9rem;">
+                        <button
+                            style="background:#2563EB; color:#fff; border:none; padding:0 16px; border-radius:8px; cursor:pointer;"><i
+                                class="fa-solid fa-paper-plane"></i></button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Bottom Bar -->
+            <div
+                style="border-top: 1px solid rgba(255,255,255,0.05); padding-top: 24px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 16px;">
+                <div style="display:flex; align-items:center; gap:8px; color:#10b981; font-size:0.9rem;">
+                    <div
+                        style="width:8px; height:8px; background:#10b981; border-radius:50%; box-shadow:0 0 10px #10b981;">
+                    </div>
+                    <span>All systems operational</span>
+                </div>
+                <p style="color: var(--text-muted); font-size:0.9rem; margin:0;">&copy; 2026 Tafaftire. All rights
+                    reserved.</p>
+            </div>
+        </div>
+    </footer>
+
+    <!-- Scripts -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://unpkg.com/aos@2.3.1/dist/aos.js"></script>
+    <script src="script.js"></script>
+</body>
+
+</html>
