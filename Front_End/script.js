@@ -1,3 +1,8 @@
+// Hash routing for #admin
+if (window.location.hash === '#admin') {
+    window.location.replace('Admin.html');
+}
+
 // Theme Toggle Logic
 const themeToggle = document.getElementById('theme-toggle');
 const themeIcon = document.getElementById('theme-icon');
