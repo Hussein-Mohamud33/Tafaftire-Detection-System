@@ -52,7 +52,7 @@ html,
 body {
     min-height: 100vh;
     overflow-x: hidden;
-    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
     background-color: var(--bg-color);
     color: var(--text-main);
     font-family: 'Inter', sans-serif;
@@ -304,6 +304,7 @@ body {
     position: relative;
     padding: 2rem;
     overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
     /* Allow inner scroll only if absolutely necessary on tiny screens */
 }
 
