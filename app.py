@@ -44,10 +44,8 @@ app = Flask(__name__, static_folder='Front_End', static_url_path='')
 app.config['SEND_FILE_MAX_AGE_DEFAULT'] = 0  # Disable caching
 CORS(app, resources={r"/*": {"origins": "*"}})
 
-# Define DATA_DIR outside the workspace to prevent Live Server reloads
-# We store it in the user's home directory
-HOME_DIR = os.path.expanduser("~")
-DATA_DIR = os.path.join(HOME_DIR, ".tafaftire_system_data")
+# Define DATA_DIR locally as requested
+DATA_DIR = os.path.join(os.getcwd(), "Admin_Data")
 if not os.path.exists(DATA_DIR):
     os.makedirs(DATA_DIR)
 
@@ -1214,8 +1212,15 @@ def admin_login():
     return jsonify({"success": False, "message": "Invalid Username or Password"}), 401
 
 
+_admin_stats_cache = {"time": 0, "data": None}
+
 @app.route("/api/admin/stats", methods=["GET"])
 def admin_stats():
+    global _admin_stats_cache
+    # Return cached data if less than 60 seconds old for extreme speed
+    if time.time() - _admin_stats_cache["time"] < 60 and _admin_stats_cache["data"]:
+        return jsonify(_admin_stats_cache["data"])
+
     # In a real app, these would come from a DB
     # For now, we'll calculate from files
     try:
@@ -1279,7 +1284,7 @@ def admin_stats():
                     except: continue
             except: pass
 
-        return jsonify({
+        response_data = {
             "total_datasets": len(dataset_files),
             "fake_news_count": fake_news_count,
             "real_news_count": real_news_count,
@@ -1293,7 +1298,12 @@ def admin_stats():
             "history_fake_count": history_fake_count,
             "history_real_count": history_real_count,
             "weekly_activity": weekly_activity
-        })
+        }
+        
+        _admin_stats_cache["time"] = time.time()
+        _admin_stats_cache["data"] = response_data
+        
+        return jsonify(response_data)
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
@@ -1482,8 +1492,14 @@ def upload_dataset():
     except Exception as e:
         return jsonify({"success": False, "message": str(e)}), 500
 
+_datasets_cache = {"time": 0, "data": None}
+
 @app.route("/api/admin/datasets", methods=["GET"])
 def list_datasets():
+    global _datasets_cache
+    if time.time() - _datasets_cache["time"] < 60 and _datasets_cache["data"]:
+        return jsonify(_datasets_cache["data"])
+        
     try:
         dataset_dir = os.path.join(BASE_DIR, "Dataset")
         files = []
@@ -1510,6 +1526,10 @@ def list_datasets():
                 "modified": time.ctime(os.path.getmtime(path)),
                 "rows": max(0, rows)
             })
+            
+        _datasets_cache["time"] = time.time()
+        _datasets_cache["data"] = files
+        
         return jsonify(files)
     except Exception as e:
         return jsonify({"error": str(e)}), 500
