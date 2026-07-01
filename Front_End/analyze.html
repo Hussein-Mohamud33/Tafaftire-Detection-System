@@ -1560,6 +1560,21 @@
             const mVal = parseFloat(modelRes.confidence) || 75;
             const fVal = parseFloat(factRes.confidence) || 70;
 
+            /* ─ Update Global Local Stats ─ */
+            try {
+                let statsStr = localStorage.getItem('heroStatsCache');
+                if (statsStr) {
+                    let stats = JSON.parse(statsStr);
+                    stats.total = (parseInt(stats.total) || 1250) + 1;
+                    if (isFake) {
+                        stats.fakes = (parseInt(stats.fakes) || 340) + 1;
+                    } else {
+                        stats.reals = (parseInt(stats.reals) || 910) + 1;
+                    }
+                    localStorage.setItem('heroStatsCache', JSON.stringify(stats));
+                }
+            } catch(e) {}
+
             /* ─ Left column: AI Analysis ─ */
             const aiV = document.getElementById('aiVerdictEl');
             aiV.textContent = isFake ? 'Fake News' : 'Real News';
