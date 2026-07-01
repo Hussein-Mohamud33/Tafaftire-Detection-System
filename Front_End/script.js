@@ -1,6 +1,9 @@
 // Hash routing for #admin
 if (window.location.hash === '#admin') {
     window.location.replace('Admin.html');
+} else {
+    // Auto-logout: Remove admin token when returning to public pages
+    localStorage.removeItem('adminToken');
 }
 
 // Theme Toggle Logic
