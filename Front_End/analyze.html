@@ -1552,7 +1552,9 @@
 
         /* ── Display Results ── */
         function displayResults(modelRes, factRes) {
-            const isFake = !modelRes.prediction.toLowerCase().includes('real');
+            const predStr = (modelRes.prediction || '').toLowerCase();
+            const isReal = predStr.includes('real') || predStr.includes('trusted') || predStr.includes('rasmi') || predStr.includes('dhab');
+            const isFake = !isReal;
             const isUnver = factRes.rating.toLowerCase() !== 'trusted';
             const mVal = parseFloat(modelRes.confidence) || 75;
             const fVal = parseFloat(factRes.confidence) || 70;
