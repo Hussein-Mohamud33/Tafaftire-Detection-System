@@ -121,7 +121,8 @@ document.addEventListener('DOMContentLoaded', async () => {
                     const data = await response.json();
                     resolve({ base, data });
                 } else {
-                    reject(new Error('Response not OK'));
+                    // Resolve with null data so the fallback can run for old backends
+                    resolve({ base, data: null });
                 }
             } catch (e) {
                 reject(e);
@@ -150,7 +151,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                     finalTotal = fetchedData.length;
                     finalFakes = fetchedData.filter(item => {
                         const lbl = item.label ? item.label.toLowerCase() : '';
-                        return lbl.includes('fake') || lbl.includes('suspicious') || lbl.includes('unverified');
+                        return lbl.includes('fake') || lbl.includes('suspicious') || lbl.includes('unverified') || lbl.includes('been');
                     }).length;
                     finalReals = finalTotal - finalFakes;
                 }
