@@ -111,7 +111,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     // 2. Background Fetch (Silently updates the cache)
     const currentHost = window.location.origin;
-    const baseUrls = ['http://127.0.0.1:5000', currentHost, 'https://tafaftire-detection-system-scui.onrender.com'];
+    const baseUrls = ['https://tafaftire-detection-system-scui.onrender.com'];
     
     const fetchStatsPromises = baseUrls.map(base => {
         return new Promise(async (resolve, reject) => {
