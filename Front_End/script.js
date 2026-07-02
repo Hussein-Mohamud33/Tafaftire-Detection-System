@@ -45,50 +45,53 @@ if (form) {
         form.style.display = 'none';
         spinner.style.display = 'block';
         resultCard.style.display = 'none';
-        
+
         const targetUrl = 'https://tafaftire-detection-system-scui.onrender.com/api/predict';
 
         // Make actual API request
         fetch(targetUrl, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ 
+            body: JSON.stringify({
                 text: document.getElementById('newsInput')?.value || "test",
-                type: "text" 
+                type: "text"
             })
         })
-        .then(res => res.json())
-        .then(data => {
-            spinner.style.display = 'none';
-            if(data.error) {
-                alert(data.error);
-                form.style.display = 'block';
-                return;
-            }
-            const isError = data.prediction && data.prediction.toLowerCase().includes("invalid");
-            const isReal = data.prediction && data.prediction.toLowerCase().includes("real");
-            const confidence = data.confidence ? data.confidence : "0%";
+            .then(res => res.json())
+            .then(data => {
+                spinner.style.display = 'none';
+                if (data.error) {
+                    alert(data.error);
+                    form.style.display = 'block';
+                    return;
+                }
+                const isError = data.prediction && data.prediction.toLowerCase().includes("invalid");
+                const isReal = data.prediction && data.prediction.toLowerCase().includes("real");
+                const confidence = data.confidence ? data.confidence : "0%";
 
-            if (isError) {
+                if (isError) {
+                    resultCard.className = 'glass-card result-card mt-4 unverified';
+                    scoreEl.textContent = "N/A";
+                    scoreEl.style.color = 'var(--warning-color)';
+                    textEl.textContent = 'Invalid / Gibberish Input';
+                } else {
+                    resultCard.className = 'glass-card result-card mt-4 ' + (isReal ? 'real' : 'fake');
+                    scoreEl.textContent = confidence;
+                    scoreEl.style.color = isReal ? 'var(--success-color)' : 'var(--danger-color)';
+                    textEl.textContent = isReal ? 'Likely REAL News' : 'Likely FAKE News';
+                }
+
+                resultCard.style.display = 'block';
+            })
+            .catch(err => {
+                console.error(err);
+                spinner.style.display = 'none';
                 resultCard.className = 'glass-card result-card mt-4 unverified';
-                scoreEl.textContent = "N/A";
-                scoreEl.style.color = 'var(--warning-color)';
-                textEl.textContent = 'Invalid / Gibberish Input';
-            } else {
-                resultCard.className = 'glass-card result-card mt-4 ' + (isReal ? 'real' : 'fake');
-                scoreEl.textContent = confidence;
-                scoreEl.style.color = isReal ? 'var(--success-color)' : 'var(--danger-color)';
-                textEl.textContent = isReal ? 'Likely REAL News' : 'Likely FAKE News';
-            }
-
-            resultCard.style.display = 'block';
-        })
-        .catch(err => {
-            console.error(err);
-            spinner.style.display = 'none';
-            alert("Error connecting to server");
-            form.style.display = 'block';
-        });
+                scoreEl.textContent = "0%";
+                scoreEl.style.color = 'var(--danger-color)';
+                textEl.textContent = 'API Offline (Connection Error)';
+                resultCard.style.display = 'block';
+            });
     });
 }
 
