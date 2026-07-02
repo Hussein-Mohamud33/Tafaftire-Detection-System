@@ -45,21 +45,50 @@ if (form) {
         form.style.display = 'none';
         spinner.style.display = 'block';
         resultCard.style.display = 'none';
+        
+        const targetUrl = 'https://tafaftire-detection-system-scui.onrender.com/api/predict';
 
-        // Simulate AI Request
-        setTimeout(() => {
+        // Make actual API request
+        fetch(targetUrl, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ 
+                text: document.getElementById('newsInput')?.value || "test",
+                type: "text" 
+            })
+        })
+        .then(res => res.json())
+        .then(data => {
             spinner.style.display = 'none';
+            if(data.error) {
+                alert(data.error);
+                form.style.display = 'block';
+                return;
+            }
+            const isError = data.prediction && data.prediction.toLowerCase().includes("invalid");
+            const isReal = data.prediction && data.prediction.toLowerCase().includes("real");
+            const confidence = data.confidence ? data.confidence : "0%";
 
-            const isReal = Math.random() > 0.5;
-            const confidence = (Math.random() * (99.9 - 75) + 75).toFixed(1);
-
-            resultCard.className = 'glass-card result-card mt-4 ' + (isReal ? 'real' : 'fake');
-            scoreEl.textContent = confidence + '%';
-            scoreEl.style.color = isReal ? 'var(--success-color)' : 'var(--danger-color)';
-            textEl.textContent = isReal ? 'Likely REAL News' : 'Likely FAKE News';
+            if (isError) {
+                resultCard.className = 'glass-card result-card mt-4 unverified';
+                scoreEl.textContent = "N/A";
+                scoreEl.style.color = 'var(--warning-color)';
+                textEl.textContent = 'Invalid / Gibberish Input';
+            } else {
+                resultCard.className = 'glass-card result-card mt-4 ' + (isReal ? 'real' : 'fake');
+                scoreEl.textContent = confidence;
+                scoreEl.style.color = isReal ? 'var(--success-color)' : 'var(--danger-color)';
+                textEl.textContent = isReal ? 'Likely REAL News' : 'Likely FAKE News';
+            }
 
             resultCard.style.display = 'block';
-        }, 2500);
+        })
+        .catch(err => {
+            console.error(err);
+            spinner.style.display = 'none';
+            alert("Error connecting to server");
+            form.style.display = 'block';
+        });
     });
 }
 
