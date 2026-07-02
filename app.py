@@ -322,7 +322,7 @@ def is_url(text):
 
 def contains_url(text):
     """Loose URL detection to skip validation - supports subdomains and paths."""
-    # Matches http/www OR any string that looks like domain.tld (e.g. news.somali.so)
+        # Matches http/www OR any string that looks like domain.tld (e.g. news.somali.so)
     pattern = re.compile(
         r'(https?://\S+|www\.\S+|([a-z0-9-]+\.)+[a-z]{2,10}(\/\S*)?)', 
         re.IGNORECASE
@@ -335,22 +335,41 @@ def is_gibberish(text):
     if not text:
         return True
     
-    # If it's a URL, it's not gibberish (it's a link to be extracted)
+    # If the ENTIRE text is a URL, it's valid
     if is_url(text):
         return False
         
-    # Check for very low vowel density in the letters of the text
-    # Somali and English have high vowel counts (a, e, i, o, u, y)
-    letters_only = re.sub(r'[^a-zA-Z]', '', text)
-    if len(letters_only) > 10:
-        vowels = set("aeiouyAEIOUY")
-        v_count = sum(1 for c in letters_only if c in vowels)
-        if v_count / len(letters_only) < 0.15:
+    # Remove URLs from text before checking gibberish properties
+    # so that links don't trigger length or consonant constraints
+    text_no_urls = re.sub(r'https?://\S+|www\.\S+', '', text).strip()
+    if not text_no_urls:
+        return False # It was only URLs
+        
+    words = text_no_urls.split()
+    if not words: return True
+    
+    # Allow slightly longer words, skipping extremely long ones as they might be missing spaces
+    if max(len(w) for w in words) > 35: return True 
+    
+    if re.search(r'[^aeiouyAEIOUY0-9\W ]{7,}', text_no_urls): return True
+    if re.search(r'(.)\1{8,}', text_no_urls): return True
+    
+    for w in words:
+        if len(w) > 10 and any(c.isdigit() for c in w) and any(c.isalpha() for c in w):
+            return True
+        if len(w) > 15 and sum(1 for c in w if c.isupper()) > len(w)/3 and sum(1 for c in w if c.islower()) > 0:
             return True
             
-    # Check if it's just one super long word that is not a URL
-    words = text.split()
-    if len(words) == 1 and len(words[0]) > 20:
+    letters = re.findall(r"[a-zA-Z]", text_no_urls)
+    if len(letters) == 0: return True
+    
+    vowels = sum(1 for c in letters if c.lower() in "aeiouy")
+    ratio = vowels / len(letters)
+    
+    if ratio < 0.15 or ratio > 0.85: return True
+    
+    # Check if it's just one super long word
+    if len(words) == 1 and len(words[0]) > 25:
         return True
     
     return False
@@ -685,17 +704,33 @@ def predict():
         content = str(content).strip()
         
         input_type = data.get("type", "text")
-        # Automatic detection: If it looks like a URL, treat it as one for extraction
-        is_input_url = input_type == "url" or is_url(content)
         
-        # Validation for gibberish/invalid letters (e.g. fghhgfkjgkjh)
-        if not is_input_url and is_gibberish(content):
-            return jsonify({"error": "Qoraalka aad soo gelisay lama fahmi karo. Fadlan hubi qoraalka saxda ah (The text you entered is unintelligible)."}), 400
-        
-        # Validation for short texts - Skip if it's a URL or contains one
-        if not is_input_url and not contains_url(content):
-            if len(content.split()) < 10 or len(content) < 60:
-                return jsonify({"error": "Fadlan faafaahin badan soo geli si aan kuugu analyse gareeyo (Please provide more details for a proper analysis)"}), 400
+        # 1. URL VALIDATION
+        if input_type == "url":
+            if not is_url(content) and not (content.startswith(("http", "www.")) and "." in content):
+                return jsonify({
+                    "error": "Fadlan soo geli Link (URL) sax ah. Tusaale: https://example.com"
+                }), 400
+            is_input_url = True
+            
+        # 2. TEXT VALIDATION
+        else:
+            if is_url(content):
+                return jsonify({
+                    "error": "Waxaad soo gelisay Link (URL). Fadlan u wareeg qaybta 'Analyze URL' si aad Link u baarto."
+                }), 400
+                
+            is_input_url = False
+            
+            if is_gibberish(content):
+                return jsonify({
+                    "error": "please soo geli content la analyze gareyn karo oo sax ah"
+                }), 400
+            
+            if len(content.split()) < 3 or len(content) < 15:
+                return jsonify({
+                    "error": "Fadlan faafaahin badan soo geli si aan kuugu analyse gareeyo (Please provide more details for a proper analysis)."
+                }), 400
 
         input_url = None
         
@@ -839,17 +874,33 @@ def fact_check():
         content = str(content).strip()
         
         input_type = data.get("type", "text")
-        # Automatic detection
-        is_input_url = input_type == "url" or is_url(content)
         
-        # Validation for gibberish/invalid letters (e.g. fghhgfkjgkjh)
-        if not is_input_url and is_gibberish(content):
-            return jsonify({"error": "Qoraalka aad soo gelisay lama fahmi karo. Fadlan hubi qoraalka saxda ah (The text you entered is unintelligible)."}), 400
-        
-        # Validation for short texts - Skip if it's a URL or contains one
-        if not is_input_url and not contains_url(content):
-            if len(content.split()) < 10 or len(content) < 60:
-                return jsonify({"error": "Fadlan faafaahin badan soo geli si aan kuugu analyse gareeyo (Please provide more details for accurate fact-checking)"}), 400
+        # 1. URL VALIDATION
+        if input_type == "url":
+            if not is_url(content) and not (content.startswith(("http", "www.")) and "." in content):
+                return jsonify({
+                    "error": "Fadlan soo geli Link (URL) sax ah. Tusaale: https://example.com"
+                }), 400
+            is_input_url = True
+            
+        # 2. TEXT VALIDATION
+        else:
+            if is_url(content):
+                return jsonify({
+                    "error": "Waxaad soo gelisay Link (URL). Fadlan u wareeg qaybta 'Analyze URL' si aad Link u baarto."
+                }), 400
+                
+            is_input_url = False
+            
+            if is_gibberish(content):
+                return jsonify({
+                    "error": "Fadlan qoraal la akhrin karo soo geli (Please enter readable text)."
+                }), 400
+            
+            if len(content.split()) < 3 or len(content) < 15:
+                return jsonify({
+                    "error": "Fadlan faafaahin badan soo geli si aan kuugu analyse gareeyo (Please provide more details for a proper analysis)."
+                }), 400
 
         input_url = None
         page_title = "News Article"
@@ -1208,7 +1259,7 @@ def admin_login():
     password = data.get("password")
     
     if username == ADMIN_CREDENTIALS["username"] and password == ADMIN_CREDENTIALS["password"]:
-        return jsonify({"success": True, "token": "admin-session-token-123"}) # Simple token for demo
+        return jsonify({"success": True, "token": "admin-logged-in-token-123"}) # Simple token for demo
     return jsonify({"success": False, "message": "Invalid Username or Password"}), 401
 
 
@@ -1881,5 +1932,5 @@ def delete_log():
 if __name__ == "__main__":
     print("[*] Flask server starting...")
     # Dynamic port for Render deployment
-    port = int(os.environ.get("PORT", 3402))
+    port = int(os.environ.get("PORT", 5000))
     app.run(host="0.0.0.0", port=port, debug=False)
