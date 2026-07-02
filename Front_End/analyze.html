@@ -1196,8 +1196,9 @@
                     <i class="fa-solid fa-rotate-right"></i> Reset
                 </button>
             </div>
-            
-            <div id="inlineValidationError" style="display: none; color: var(--danger-color); text-align: center; margin-top: 15px; font-weight: 600; font-size: 0.95rem; background: rgba(239, 68, 68, 0.1); padding: 10px; border-radius: 8px;">
+
+            <div id="inlineValidationError"
+                style="display: none; color: var(--danger-color); text-align: center; margin-top: 15px; font-weight: 600; font-size: 0.95rem; background: rgba(239, 68, 68, 0.1); padding: 10px; border-radius: 8px;">
                 <i class="fa-solid fa-triangle-exclamation"></i> <span id="inlineValidationText"></span>
             </div>
 
@@ -1439,6 +1440,7 @@
                 const el = document.getElementById('newsTextInput');
                 el.style.borderColor = '#ef4444';
                 el.focus();
+                alert("Fadlan geli qoraal ka badan 20 xaraf si loo baaro.");
                 setTimeout(() => { el.style.borderColor = ''; }, 2000);
                 return;
             }
@@ -1446,6 +1448,7 @@
                 const wrap = document.getElementById('newsUrlInput').parentElement;
                 wrap.style.borderColor = '#ef4444';
                 document.getElementById('newsUrlInput').focus();
+                alert("Fadlan geli link-ga (URL) aad rabto in la baaro.");
                 setTimeout(() => { wrap.style.borderColor = ''; }, 2000);
                 return;
             }
@@ -1476,7 +1479,7 @@
                 const payload = { text: inputValue, type: currentTab };
                 const headers = { 'Content-Type': 'application/json' };
                 const bodyStr = JSON.stringify(payload);
-                
+
                 let baseUrls = ['https://tafaftire-detection-system-scui.onrender.com'];
 
                 let modelRes = null;
@@ -1586,7 +1589,7 @@
             const isReal = predStr.includes('real') || predStr.includes('trusted') || predStr.includes('rasmi') || predStr.includes('dhab');
             const isFake = !isReal && !isError;
             const isUnver = factRes.rating.toLowerCase() !== 'trusted';
-            
+
             const parsedM = parseFloat(modelRes.confidence);
             const mVal = isNaN(parsedM) ? 0 : parsedM;
             const parsedF = parseFloat(factRes.confidence);
