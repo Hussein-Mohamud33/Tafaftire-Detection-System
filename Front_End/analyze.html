@@ -1196,6 +1196,10 @@
                     <i class="fa-solid fa-rotate-right"></i> Reset
                 </button>
             </div>
+            
+            <div id="inlineValidationError" style="display: none; color: var(--danger-color); text-align: center; margin-top: 15px; font-weight: 600; font-size: 0.95rem; background: rgba(239, 68, 68, 0.1); padding: 10px; border-radius: 8px;">
+                <i class="fa-solid fa-triangle-exclamation"></i> <span id="inlineValidationText"></span>
+            </div>
 
             <!-- ══ RESULTS — Navy Two-Column Panel ══ -->
             <div class="result-section" id="resultSection">
@@ -1472,15 +1476,20 @@
                 const payload = { text: inputValue, type: currentTab };
                 const headers = { 'Content-Type': 'application/json' };
                 const bodyStr = JSON.stringify(payload);
-                const baseUrls = ['https://tafaftire-detection-system-scui.onrender.com'];
+                
+                let baseUrls = ['https://tafaftire-detection-system-scui.onrender.com'];
 
                 let modelRes = null;
                 let factRes = null;
 
+                const inlineErr = document.getElementById('inlineValidationError');
+                const inlineText = document.getElementById('inlineValidationText');
+                if (inlineErr) inlineErr.style.display = 'none';
+
                 for (const base of baseUrls) {
                     try {
                         const ctrl = new AbortController();
-                        // Render free tier can take up to 50s to wake up
+                        // Render free tier can take up to 60s to wake up
                         const tid = setTimeout(() => ctrl.abort(), 60000);
                         const [mR, fR] = await Promise.all([
                             fetch(base + '/api/predict', { method: 'POST', headers, body: bodyStr, signal: ctrl.signal }),
@@ -1492,11 +1501,22 @@
                             try {
                                 const errorData = await mR.json();
                                 if (errorData.error) {
-                                    alert(errorData.error);
+                                    if (inlineErr) {
+                                        inlineText.textContent = errorData.error;
+                                        inlineErr.style.display = 'block';
+                                        document.getElementById('newsTextInput').value = '';
+                                        document.getElementById('newsUrlInput').value = '';
+                                        setTimeout(() => inlineErr.style.display = 'none', 5000);
+                                    } else {
+                                        alert(errorData.error);
+                                    }
                                     document.getElementById('scanOverlay').style.display = 'none';
+                                    document.getElementById('resultSection').style.display = 'none';
                                     return;
                                 }
-                            } catch (e) { }
+                            } catch (e) {
+                                console.error(e);
+                            }
                         }
 
                         if (mR.ok && fR.ok) {
@@ -1504,8 +1524,17 @@
                             factRes = await fR.json();
 
                             if (modelRes.error) {
-                                alert(modelRes.error);
+                                if (inlineErr) {
+                                    inlineText.textContent = modelRes.error;
+                                    inlineErr.style.display = 'block';
+                                    document.getElementById('newsTextInput').value = '';
+                                    document.getElementById('newsUrlInput').value = '';
+                                    setTimeout(() => inlineErr.style.display = 'none', 5000);
+                                } else {
+                                    alert(modelRes.error);
+                                }
                                 document.getElementById('scanOverlay').style.display = 'none';
+                                document.getElementById('resultSection').style.display = 'none';
                                 return;
                             }
                             break;
@@ -1553,18 +1582,28 @@
         /* ── Display Results ── */
         function displayResults(modelRes, factRes) {
             const predStr = (modelRes.prediction || '').toLowerCase();
+            const isError = predStr.includes('offline') || predStr.includes('invalid');
             const isReal = predStr.includes('real') || predStr.includes('trusted') || predStr.includes('rasmi') || predStr.includes('dhab');
-            const isFake = !isReal;
+            const isFake = !isReal && !isError;
             const isUnver = factRes.rating.toLowerCase() !== 'trusted';
-            const mVal = parseFloat(modelRes.confidence) || 75;
-            const fVal = parseFloat(factRes.confidence) || 70;
+            
+            const parsedM = parseFloat(modelRes.confidence);
+            const mVal = isNaN(parsedM) ? 0 : parsedM;
+            const parsedF = parseFloat(factRes.confidence);
+            const fVal = isNaN(parsedF) ? 0 : parsedF;
 
             /* ─ Left column: AI Analysis ─ */
             const aiV = document.getElementById('aiVerdictEl');
-            aiV.textContent = isFake ? 'Fake News' : 'Real News';
-            aiV.className = 'vc-verdict ' + (isFake ? 'fake' : 'real');
-            document.getElementById('aiIconEl').className = isFake
-                ? 'fa-solid fa-triangle-exclamation' : 'fa-solid fa-microchip';
+            if (isError) {
+                aiV.textContent = modelRes.prediction; // E.g., 'API Offline' or 'Invalid Input'
+                aiV.className = 'vc-verdict unverified';
+                document.getElementById('aiIconEl').className = 'fa-solid fa-triangle-exclamation';
+            } else {
+                aiV.textContent = isFake ? 'Fake News' : 'Real News';
+                aiV.className = 'vc-verdict ' + (isFake ? 'fake' : 'real');
+                document.getElementById('aiIconEl').className = isFake
+                    ? 'fa-solid fa-triangle-exclamation' : 'fa-solid fa-microchip';
+            }
             document.getElementById('aiConfEl').textContent = mVal.toFixed(1) + '%';
 
             /* ─ Right column: Fact-Check ─ */
