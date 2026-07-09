@@ -355,9 +355,11 @@ def is_gibberish(text):
     if re.search(r'(.)\1{8,}', text_no_urls): return True
     
     for w in words:
-        if len(w) > 10 and any(c.isdigit() for c in w) and any(c.isalpha() for c in w):
+        # Ignore hyphens which are commonly used to join numbers and Somali words (e.g. 11-saacadood)
+        clean_w = w.replace("-", "").replace("‑", "") # including non-breaking hyphen
+        if len(clean_w) > 12 and any(c.isdigit() for c in clean_w) and any(c.isalpha() for c in clean_w):
             return True
-        if len(w) > 15 and sum(1 for c in w if c.isupper()) > len(w)/3 and sum(1 for c in w if c.islower()) > 0:
+        if len(clean_w) > 15 and sum(1 for c in clean_w if c.isupper()) > len(clean_w)/3 and sum(1 for c in clean_w if c.islower()) > 0:
             return True
             
     letters = re.findall(r"[a-zA-Z]", text_no_urls)
